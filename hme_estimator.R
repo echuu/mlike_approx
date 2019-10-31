@@ -69,3 +69,5 @@ hme_df = data.frame(mcmc = 1:B, hme = log(lil_hat), lil = LIL)
 # generate figure 1 in lenk 2009
 ggplot(hme_df, aes(x = mcmc, y = hme)) + geom_point() +
     geom_hline(aes(yintercept = LIL), linetype = 'dashed', size = 0.9)
+
+
