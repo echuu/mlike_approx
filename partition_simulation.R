@@ -54,6 +54,8 @@ reg.tree$splits
 
 # -----------------------------------------------------------------------------
 
+library('MCMCpack') # for rinvgamma() function
+
 # lenk paper simulation 
 
 mu = 30
@@ -82,9 +84,17 @@ p_y = pi^(-N / 2) * (w_0 / w_n)^(1/2) * gamma(r_n / 2) / gamma(r_0 / 2) *
 LIL = log(p_y) # -118.332 (paper says -117, but difference arises from RNG)
 
 
-
 # generate samples from the posterior probability to form the HME estimator
 
+D = 1000 # number of random draws used per estimate
+
+# sample from posterior --------------------------------------------------------
+
+# (0) sample from mu | sigma_sq, y
+mu_post = rnorm(D, m_n, sqrt(sigma_sq / w_n)) # (D x 1)
+
+# (1) sample from sigma_sq | y
+sigma_sq_post = rinvgamma
 
 
 
