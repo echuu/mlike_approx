@@ -61,17 +61,18 @@ LIL = log(p_y) # -118.332 (paper says -117, but difference arises from RNG)
 # s_0      : (1 x 1) prior scale
 psi_p = function(y, mu, sigma_sq, m_0, w_0, r_0, s_0) {
     
-    # for the vector y, evaluate the likelihood for j-th set of parameter values
-    lik = numeric(length(mu))
+    # for  y_1:N, evaluate the likelihood for j-th set of parameter values
+    loglik = numeric(length(mu))
     
     for (j in 1:length(mu)) {
-        lik[j] = sum(dnorm(y, mu[j], sqrt(sigma_sq[j]), log = TRUE))
+        loglik[j] = sum(dnorm(y, mu[j], sqrt(sigma_sq[j]), log = TRUE))
     }
     
-    p_mu = dnorm(mu, m_0, sqrt(sigma_sq / w_0), log = TRUE)
-    p_sigma_sq = dinvgamma(sigma_sq, r_0 / 2, s_0 / 2)
+    # following two computations are unused for now
+    log_p_mu = dnorm(mu, m_0, sqrt(sigma_sq / w_0), log = TRUE)
+    log_p_sigma_sq = dinvgamma(sigma_sq, r_0 / 2, s_0 / 2)
     
-    return(lik) 
+    return(loglik) 
 }
 
 J = 1000 # number of random draws used per estimate
@@ -83,7 +84,6 @@ mu_post = rnorm(J, m_n, sqrt(sigma_sq / w_n)) # (D x 1)
 sigma_sq_post = rinvgamma(J, shape = r_n / 2, scale = s_n / 2)
 
 # (2) for each u drawn from the posterior, evaluate psi(u) = psi(mu, sigma_sq)
-# ---- this is for sure not doing what i'm expecting it to do
 psi_u = psi_p(y, mu_post, sigma_sq_post, m_0, w_0, r_0, s_0) # (J x 1)
 u_df = data.frame(mu = mu_post, sigsq = sigma_sq_post, psi_u = psi_u) # (J x 3)
 
@@ -95,24 +95,10 @@ partition.tree(u_tree, cex = 1)
 
 # ------------------------------------------------------------------------------
 
-J = 1000 # number of random draws used per estimate
-
-# (0) sample from mu | sigma_sq, y
-mu_post = rnorm(J, m_n, sqrt(sigma_sq / w_n)) # (D x 1)
-
-# (1) sample from sigma_sq | y
-sigma_sq_post = rinvgamma(J, shape = r_n / 2, scale = s_n / 2)
-
-# (2) for each u drawn from the posterior, evaluate psi(u) = psi(mu, sigma_sq)
-# ---- this is for sure not doing what i'm expecting it to do
-psi_u = psi(y, mu_post, sigma_sq_post, m_0, w_0, r_0, s_0)$psi_u # (J x 1)
-u_df = data.frame(mu = mu_post, sigsq = sigma_sq_post, psi_u = psi_u) # (J x 3)
-
 hist(mu_post)
 hist(sigma_sq_post)
 
-
-par(mfrow = c(3, 1))
+par(mfrow = c(1, 3))
 
 
 
