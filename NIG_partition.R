@@ -51,7 +51,6 @@ p_y = pi^(-N / 2) * (w_0 / w_n)^(1/2) * gamma(r_n / 2) / gamma(r_0 / 2) *
 
 LIL = log(p_y) # -118.332 (paper says -117, but difference arises from RNG)
 
-# generate samples from the posterior probability to form the HME estimator
 # y        : (N x 1)
 # mu       : (J x 1) J samples of mu from the posterior
 # sigma_sq : (J x 1) J samples of sigma^2 from the posterior
@@ -73,8 +72,10 @@ psi_p = function(y, mu, sigma_sq, m_0, w_0, r_0, s_0) {
     log_p_sigma_sq = dinvgamma(sigma_sq, r_0 / 2, s_0 / 2)
     
     return(loglik) 
-}
+} # end psi() function
+# ------------------------------------------------------------------------------
 
+# generate samples from the posterior probability to form the HME estimator
 J = 1000 # number of random draws used per estimate
 
 # (0) sample from mu | sigma_sq, y
