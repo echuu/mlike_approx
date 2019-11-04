@@ -6,6 +6,7 @@
 
 library("LaplacesDemon")  # sample form inverse chi square distribution
 library("metRology")      # sample from scaled, shifted t distribution
+library("tree")
 
 # normal-inverse-chisquare example
 
@@ -15,7 +16,7 @@ library("metRology")      # sample from scaled, shifted t distribution
 
 set.seed(123)
 
-N = 1000
+N = 100
 mu = 30
 sigma_sq = 4
 mu_0 = 0
@@ -45,6 +46,8 @@ psi = function(y, mu, sigma_sq) {
 } # end psi() function
 # ------------------------------------------------------------------------------
 
+J = 5000
+
 # define the posterior parameter estimates
 nu_N = nu_0 + N
 sigma_sq_N = 1 / nu_N * (nu_0 * sigma_sq_0 + s_y + 
@@ -56,7 +59,7 @@ mu_N = (k_0 * mu_0 + N * ybar) / k_N
 
 # sample from mu | y ~ t_{nu_N} (mu_N, sigma_sq_N / k_N)
 mu_post = rt.scaled(J, df = nu_N, mu_N, sqrt(sigma_sq_N / k_N)) 
-hist(mu_post)
+# hist(mu_post)
 
 # posterior of sigma_sq | y ~ invchisq(nu_n, sigma_sq_n)
 sigma_sq_post = rinvchisq(J, df = nu_N, scale = sigma_sq_N)
@@ -70,15 +73,14 @@ u_df = data.frame(mu = mu_post, sigma_sq = sigma_sq_post, psi_u = psi_u)
 u_tree = tree(psi_u ~ mu + sigma_sq, u_df)
 
 # (3) plot the partition over the parameter space
-partition.tree(u_tree, cex = 1)
+# partition.tree(u_tree, cex = 1)
 
 
 
 # compare the partitioned parameter space to the posterior distributions
-par(mfrow = c(1,2))
-hist(mu_post)
-hist(sigma_sq_post)
-
+# par(mfrow = c(1,2))
+# hist(mu_post)
+# hist(sigma_sq_post)
 
 
 # overlay partition on scatterplot of the posterior distribution
@@ -86,6 +88,17 @@ par(mfrow = c(1,1))
 plot(u_df[,2], u_df[,1], pch = 20, cex = 0.9, col = "pink",
      xlab = 'sigma_sq', ylab = 'mu', main = 'N = 1000, J = 5000')
 partition.tree(u_tree, add = TRUE, cex = 0.01)
+
+
+# overlay partitions corresponding to different # of MC samples ----------------
+
+
+
+
+
+
+
+
 
 
 
