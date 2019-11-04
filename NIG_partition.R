@@ -92,12 +92,20 @@ u_df = data.frame(mu = mu_post, sigsq = sigma_sq_post, psi_u = psi_u) # (J x 3)
 u_tree = tree(psi_u ~ mu + sigsq, u_df)
 
 # (4) plot the partition over the parameter space
-partition.tree(u_tree, cex = 1)
+par(mfrow = c(1,1))
+plot(u_df[,1], u_df[,2], pch = 20, cex = 0.9, col = "pink",
+     xlab = 'mu', ylab = 'sigma_sq', main = 'N = 1000, J = 5000')
+partition.tree(u_tree, add = TRUE, cex = 0.01, ordvars = c("mu", "sigsq"))
 
 # ------------------------------------------------------------------------------
 
+par(mfrow = c(1,2))
 hist(mu_post)
 hist(sigma_sq_post)
+par(mfrow = c(1,1))
+
+
+partition.tree(u_tree, add = F, cex = 0.01, ordvars = c("mu", "sigsq"))
 
 par(mfrow = c(1, 3))
 

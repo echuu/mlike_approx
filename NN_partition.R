@@ -8,7 +8,8 @@ library('mvtnorm')   # multivariate normal density
 
 set.seed(123)
 
-N = 1000
+# N = 50, 100, 1000
+N = 100
 
 # y | mu ~ N (mu, Sigma)
 mu = c(3, 1)
@@ -47,7 +48,8 @@ psi = function(y, mu, Sigma, mu_0, Sigma_0) {
 }
 
 # generate samples from the posterior probability to form the HME estimator
-J = 1000 # number of random draws used per estimate
+# J = 500, 1000, 5000
+J = 5000 # number of random draws used per estimate
 
 # (0) sample from mu | y
 mu_post = mvrnorm(J, mu_N, Sigma_N) # (D x 1)
@@ -64,13 +66,19 @@ u_df = data.frame(mu1 = mu_post[,1], mu2 = mu_post[,2], psi_u = psi_u) # (J x 3)
 u_tree = tree(psi_u ~ mu1 + mu2, u_df)
 
 # (3) plot the partition over the parameter space
-partition.tree(u_tree, cex = 1)
+partition.tree(u_tree, cex = 1, ordvars = c("mu1", "mu2"))
+
+
+par(mfrow = c(1,2))
+hist(mu_post[,1])
+hist(mu_post[,2])
 
 
 # overlay partition on scatterplot of the posterior distribution
-plot(mu_df[,2], mu_df[,1], pch = 20, cex = 0.5, col = "blue",
-     xlab = 'mu2', ylab = 'mu1', main = 'n = 100')
-partition.tree(u_tree, add = TRUE, cex = 0.01)
+par(mfrow = c(1,1))
+plot(mu_df[,1], mu_df[,2], pch = 20, cex = 0.8, col = "cyan",
+     xlab = 'mu1', ylab = 'mu2', main = 'N = 100, J = 5000')
+partition.tree(u_tree, add = TRUE, cex = 0.01, ordvars = c("mu1", "mu2"))
 
 
 

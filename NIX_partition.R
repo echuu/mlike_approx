@@ -1,7 +1,11 @@
 
 # NIX_partition.R --------------------------------------------------------------
 
-library("LaplacesDemon")  # sample form inverse chi square
+# install.packages("LaplacesDemon)
+# install.packages("metRology)
+
+library("LaplacesDemon")  # sample form inverse chi square distribution
+library("metRology")      # sample from scaled, shifted t distribution
 
 # normal-inverse-chisquare example
 
@@ -9,7 +13,9 @@ library("LaplacesDemon")  # sample form inverse chi square
 # mu  | sigma_sq     ~ N (mu_0, sigma_sq / k_0)
 #       sigma_sq     ~ invchisq (nu_0, sigma_sq_0)
 
-N = 200
+set.seed(123)
+
+N = 1000
 mu = 30
 sigma_sq = 4
 mu_0 = 0
@@ -35,7 +41,7 @@ psi = function(y, mu, sigma_sq) {
         loglik[j] = sum(dnorm(y, mu[j], sqrt(sigma_sq[j]), log = TRUE))
     }
     
-    retun(loglik)
+    return(loglik)
 } # end psi() function
 # ------------------------------------------------------------------------------
 
@@ -47,14 +53,14 @@ k_N = k_0 + N
 mu_N = (k_0 * mu_0 + N * ybar) / k_N
 
 ## draw from posterior distributions
-J = 1000
 
 # sample from mu | y ~ t_{nu_N} (mu_N, sigma_sq_N / k_N)
-mu_post = 0 # noncentral t, or scaled and shifted t
+mu_post = rt.scaled(J, df = nu_N, mu_N, sqrt(sigma_sq_N / k_N)) 
+hist(mu_post)
 
 # posterior of sigma_sq | y ~ invchisq(nu_n, sigma_sq_n)
 sigma_sq_post = rinvchisq(J, df = nu_N, scale = sigma_sq_N)
-hist(sigma_sq_post) # looks about right
+# hist(sigma_sq_post) # looks about right
 
 # (1) evaluate psi(u) = psi(mu)
 psi_u = psi(y, mu_post, sigma_sq_post)
@@ -69,15 +75,16 @@ partition.tree(u_tree, cex = 1)
 
 
 # compare the partitioned parameter space to the posterior distributions
+par(mfrow = c(1,2))
 hist(mu_post)
 hist(sigma_sq_post)
 
 
 
-
 # overlay partition on scatterplot of the posterior distribution
-plot(mu_df[,2], mu_df[,1], pch = 20, cex = 0.5, col = "blue",
-     xlab = 'mu2', ylab = 'mu1', main = 'n = 100')
+par(mfrow = c(1,1))
+plot(u_df[,2], u_df[,1], pch = 20, cex = 0.9, col = "pink",
+     xlab = 'sigma_sq', ylab = 'mu', main = 'N = 1000, J = 5000')
 partition.tree(u_tree, add = TRUE, cex = 0.01)
 
 
