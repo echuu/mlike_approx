@@ -16,7 +16,7 @@ library("tree")
 
 set.seed(123)
 
-N = 100
+N = 1000
 mu = 30
 sigma_sq = 4
 mu_0 = 0
@@ -85,8 +85,9 @@ u_tree = tree(psi_u ~ mu + sigma_sq, u_df)
 
 # overlay partition on scatterplot of the posterior distribution
 par(mfrow = c(1,1))
-plot(u_df[,2], u_df[,1], pch = 20, cex = 0.9, col = "pink",
+plot(u_df[,2], u_df[,1], pch = 20, cex = 0.9, col = "cyan",
      xlab = 'sigma_sq', ylab = 'mu', main = 'N = 1000, J = 5000')
+
 partition.tree(u_tree, add = TRUE, cex = 0.01)
 
 

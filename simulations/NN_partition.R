@@ -45,7 +45,7 @@ psi = function(y, mu, Sigma, mu_0, Sigma_0) {
     log_p_mu = dmvnorm(mu, mu_0, Sigma_0, log = TRUE)
     
     return(loglik)
-}
+} # end psi() function
 
 # generate samples from the posterior probability to form the HME estimator
 # J = 500, 1000, 5000
