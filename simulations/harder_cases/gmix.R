@@ -12,7 +12,7 @@ library('tree')
 set.seed(123)
 
 d = 2
-
+N = 100
 mu1 = c(1, 2)
 mu2 = c(4, 6)
 Sigma1 = d / N * diag(c(1, 1))
