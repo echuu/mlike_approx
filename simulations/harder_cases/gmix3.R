@@ -62,7 +62,7 @@ u_tree = tree(psi_u ~ u1 + u2, u_df)
 # overlay partition on scatterplot of points drawn from true density
 plot(u_df[,1], u_df[,2], pch = 20, cex = 0.8, col = "green",
      xlab = 'u1', ylab = 'u2', 
-     main = 'pi1 = 0.2, pi2 = 0.5, pi3 = 0.3, J = 1000')
+     main = 'pi1 = 0.2, pi2 = 0.5, pi3 = 0.3, J = 5000')
 partition.tree(u_tree, add = TRUE, cex = 0.0001, ordvars = c("u1", "u2"))
 
 

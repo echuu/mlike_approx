@@ -18,6 +18,7 @@ mu2 = c(4, 6)
 Sigma1 = d / N * diag(c(1, 1))
 Sigma2 = d / N * diag(c(1, 1))
 
+# mixture weights
 pi1 = 0.2
 pi2 = 0.8
 
@@ -48,11 +49,11 @@ u_df = data.frame(u1 = u[,1], u2 = u[,2])
 # evaluate psi(u)
 psi_u = psi(u, mu1, mu2, Sigma1, Sigma2, pi1, pi2)           # (J x 1)
 u_df = data.frame(u1 = u_df$u1, u2 = u_df$u2, psi_u = psi_u) # (J x 3)
-# fit decision tree
 
-# overlay partition on scatterplot of points drawn from true density
+# fit decision tree
 u_tree = tree(psi_u ~ u1 + u2, u_df)
 
+# overlay partition on scatterplot of points drawn from true density
 plot(u_df[,1], u_df[,2], pch = 20, cex = 0.8, col = "pink",
      xlab = 'u1', ylab = 'u2', main = 'pi1 = 0.2, pi2 = 0.8 J = 5000')
 partition.tree(u_tree, add = TRUE, cex = 0.0001, ordvars = c("u1", "u2"))
