@@ -63,7 +63,7 @@ partition.tree(u_tree, add = TRUE, cex = 0.0001, ordvars = c("u1", "u2"))
 
 # overlay the partition on scatterplot of nontruncated density
 plot(X[,1], X[,2], pch = 20, cex = 0.8, col = "pink",
-     xlab = 'u1', ylab = 'u2', main = 'J = 1e4')
+     xlab = 'u1', ylab = 'u2', main = 'truncated biv. normal, J = 1e4')
 points(u_df[,1], u_df[,2], pch = 20, cex = 0.8, col = "cyan")
 partition.tree(u_tree, add = TRUE, cex = 0.0001, ordvars = c("u1", "u2"))
 
