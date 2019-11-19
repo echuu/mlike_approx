@@ -1,13 +1,33 @@
 
 
-## preliminary steps to check if the partitioning is doing the right thing
 
-# -----------------------------------------------------------------------------
+# install.packages("BayesTree")
 
+library("BayesTree")
 library('mvtnorm')   # multivariate normal density
 library('MASS')      # mvnorm()
 library('ggplot2')
 library('tree')
+
+f = function(x){
+    10*sin(pi*x[,1]*x[,2]) + 20*(x[,3]-.5)^2+10*x[,4]+5*x[,5]
+}
+sigma = 1.0  #y = f(x) + sigma*z , z~N(0,1)
+n = 100      #number of observations
+set.seed(99)
+x=matrix(runif(n*10),n,10) #10 variables, only first 5 matter
+Ey = f(x)
+y=Ey+sigma*rnorm(n)
+lmFit = lm(y~.,data.frame(x,y)) #compare lm fit to BART later
+##run BART
+set.seed(99)
+bartFit = bart(x,y,ndpost=200) #default is ndpost=1000, this is to run example fast.
+plot(bartFit) # plot bart fit
+##compare BART fit to linear matter and truth = Ey
+fitmat = cbind(y,Ey,lmFit$fitted,bartFit$yhat.train.mean)
+colnames(fitmat) = c('y','Ey','lm','bart')
+print(cor(fitmat))
+
 
 set.seed(123)
 
@@ -50,13 +70,7 @@ u_df = data.frame(u1 = u[,1], u2 = u[,2])
 psi_u = psi(u, mu1, mu2, Sigma1, Sigma2, pi1, pi2)           # (J x 1)
 u_df = data.frame(u1 = u_df$u1, u2 = u_df$u2, psi_u = psi_u) # (J x 3)
 
-# fit decision tree
-u_tree = tree(psi_u ~ u1 + u2, u_df)
 
-# overlay partition on scatterplot of points drawn from true density
-plot(u_df[,1], u_df[,2], pch = 20, cex = 0.8, col = "pink",
-     xlab = 'u1', ylab = 'u2', main = 'pi1 = 0.2, pi2 = 0.8 J = 5000')
-partition.tree(u_tree, add = TRUE, cex = 0.0001, ordvars = c("u1", "u2"))
 
 
 
