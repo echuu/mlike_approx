@@ -80,6 +80,8 @@ text(u_tree, cex = 0.5)
 head(rpart.rules(u_tree))
 
 
+# ------------------------------------------------------------------------------
+
 library('stringr')
 
 rules = rpart.rules(u_tree)
@@ -94,14 +96,14 @@ for(r in 1:nrow(rules)) {
 LOWER = ">="
 UPPER = "<"
 
-test = strsplit(rules_str[1,], "\\&")[[1]]
-varname = grep("u1", decision)
+test = strsplit(rules_str[2,], "\\&")[[1]]
+
+# varname = grep("u1", decision)
 
 
 n_partitions = nrow(rules_str)
 n_params = ncol(u_df) - 1
 partition = data.frame(matrix(0, n_partitions, n_params * 2))
-
 names(partition) = c("u1_lb", "u1_ub", "u2_lb", "u2_ub")
 
 
@@ -117,18 +119,22 @@ names(partition) = c("u1_lb", "u1_ub", "u2_lb", "u2_ub")
 for (r in 1:n_partitions) {
     
     # (0)   split the string by & (each decision stored in matrix/vector)
-    part_vec = str_split(test, "\\&")
+    part_vec = str_split(rules_str[r,], "\\&", simplify = TRUE)
     
     # (1)   iterate over the partition/decisions
     for (p in 1:ncol(part_vec)) {
+        
+        processNode = node_partition(part_vec[p])
+        
         # (1.1) identify the parameter corresponding to each partition/decision
-        param_id = ""
+        param_id = processNode$id
+        col_id = 2 * param_id - 1
         
         # (1.2) extract values defining the partition/decision (node_partition)
-        bdry = node_partition(part_vec)
+        bdry = processNode$interval
         
         # (1.3) store the values from (1.2) into correct column of the final df
-        partition = updatePartition(partition, param_id, bdry)
+        partition = updatePartition(partition, r, col_id, bdry)
         
     } # end of update step for each of the parameters
     
@@ -144,9 +150,9 @@ for (r in 1:n_partitions) {
 # bdry     : the 2-d vector that has the numerical decision boundaries
 updatePartition = function(partition, row_id, col_id, bdry) {
     
-    partition_next = partition[row_id, col_id:(col_id + 1)] = bdry 
+    partition[row_id, col_id:(col_id + 1)] = bdry 
     
-    return(partition_next)
+    return(partition)
 }
 
 
@@ -199,7 +205,7 @@ node_partition = function(str_in) {
         interval = c(u_lb, u_ub)
     }
     
-    return(list(param_id, interval))
+    return(list(id = param_id, interval = interval))
 }
 
 
