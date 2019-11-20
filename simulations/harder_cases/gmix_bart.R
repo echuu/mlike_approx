@@ -21,7 +21,7 @@ y=Ey+sigma*rnorm(n)
 lmFit = lm(y~.,data.frame(x,y)) #compare lm fit to BART later
 ##run BART
 set.seed(99)
-bartFit = bart(x,y,ndpost=200) #default is ndpost=1000, this is to run example fast.
+bartFit = bart(x,y,ndpost=200) # default is ndpost=1000, this is to run example fast.
 plot(bartFit) # plot bart fit
 ##compare BART fit to linear matter and truth = Ey
 fitmat = cbind(y,Ey,lmFit$fitted,bartFit$yhat.train.mean)
@@ -69,6 +69,9 @@ u_df = data.frame(u1 = u[,1], u2 = u[,2])
 # evaluate psi(u)
 psi_u = psi(u, mu1, mu2, Sigma1, Sigma2, pi1, pi2)           # (J x 1)
 u_df = data.frame(u1 = u_df$u1, u2 = u_df$u2, psi_u = psi_u) # (J x 3)
+
+bartFit = bart(u_df[,1:2], u_df[,3], ndpost = 200)
+plot(bartFit) # plot bart fit
 
 
 
