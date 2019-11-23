@@ -83,6 +83,9 @@ head(rpart.rules(u_tree))
 # ------------------------------------------------------------------------------
 
 library('stringr')
+library('tidyr')
+library('readr')
+
 
 rules = rpart.rules(u_tree)
 rules_df = apply(rules, 2, as.character)[,-c(1:2)]
@@ -155,10 +158,6 @@ updatePartition = function(partition, row_id, col_id, bdry) {
     return(partition)
 }
 
-
-
-library('tidyr')
-library('readr')
 
 # str_in needs only have ONE of the interval identifiers, i.e., str_split()
 # already needs to have been called, splitting on "\\&"

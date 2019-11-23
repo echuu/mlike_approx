@@ -1,12 +1,12 @@
 
-library('mvtnorm')    # multivariate normal density
-library('MASS')       # mvnorm()
-library('ggplot2')
-library('rpart')
-library('rpart.plot')
-library('tidyr')
-library('readr')
-library('stringr')
+library('mvtnorm')      # multivariate normal density
+library('MASS')         # mvnorm()
+library('ggplot2')      # don't think we use this in these functions
+library('rpart')        # rpart() for fitting the tree
+library('rpart.plot')   # do we need this?
+library('tidyr')        # data mangement
+library('readr')        # data management
+library('stringr')      # regex functions
 
 # partition object initialization
 
@@ -16,9 +16,13 @@ library('stringr')
 #    (3) the number of partitions (extracted rpart.rules() function)
 
 # param_support : (p x 2) with the range that each parameter stored row-wise
-paramPartition = function(u_tree, n_params, param_support) {
+paramPartition = function(u_tree, n_params, param_support = NULL) {
     
-    
+    # use (-Inf, Inf) as the support for all the parameters if not specified
+    # by user
+    if (is.null(param_support)) {
+        param_support = cbind(rep(-Inf, n_params), rep(Inf, n_params))
+    }
     
     # pre-process the partition output
     rules = rpart.rules(u_tree) 
@@ -31,15 +35,26 @@ paramPartition = function(u_tree, n_params, param_support) {
     
     
     n_partitions = nrow(rules_str)
-    # n_params = ncol(u_df) - 1
-    partition = data.frame(matrix(0, n_partitions, n_params * 2))
     
-    # TODO: append '1:n_partition' to 'u' to label the parameter names
+    # initialize storage for the partition intervals -- (n_params x 2)
+    partition = data.frame(matrix(NA, n_partitions, n_params * 2))
     
-    # TODO: append 'lb' and 'ub' to each of the parameter names 
-    names(partition) = c("u1_lb", "u1_ub", "u2_lb", "u2_ub")
+    for (p in 1:n_params) {
+        
+        p_col = 2 * p - 1
+        
+        # form column names for {(u1_lb, u1_ub),...,(up_lb, up_ub)}
+        lb = paste("u", p, "_lb", sep = "")
+        ub = paste("u", p, "_ub", sep = "")
+        names(partition)[p_col:(p_col + 1)] = c(lb, ub)
+        
+        # fill in the support for the p-th parameter
+        partition[, p_col] = param_support[p, 1]       # param p lower bound
+        partition[, p_col + 1] = param_support[p, 2]   # param p upper bound
+    } 
     
-    # create the partition
+    
+    # populate the partition with decision rules
     for (r in 1:n_partitions) {
         
         # (0)   split the string by & (each decision stored in matrix/vector)
@@ -62,7 +77,7 @@ paramPartition = function(u_tree, n_params, param_support) {
             
         } # end of update step for each of the parameters
         
-    } # end of loop storing
+    } # end of loop storing the parititon boundaries
     
     return(partition)
     
@@ -114,6 +129,7 @@ node_partition = function(str_in) {
         #                                                 perl = TRUE))))
         
         param_id = decision[1]
+        # TODO: upper bound should be the upper bound of the support
         interval = c(decision[2], Inf)   # lower-bounded interval
         
     } else if (grepl(UPPER, str_in)) {   # decision: [ ,y]
@@ -124,6 +140,8 @@ node_partition = function(str_in) {
         #                                                 perl = TRUE))))
         
         param_id = decision[1]
+        
+        # TODO: lower bound should be the lower bound of the support
         interval = c(-Inf, decision[2])  # upper-bounded interval
         
     } else {                             # decision: [x,y]
