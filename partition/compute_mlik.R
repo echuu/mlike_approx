@@ -8,6 +8,7 @@ library('ggplot2')    # plotting
 library('MCMCpack')   # for rinvgamma() function
 library('rpart')      # for rpart() function
 library('rpart.plot') # for rpart.rules() function
+library('tidyr')
 
 
 ## example: use example for which we know the value of the marginal likelihood
@@ -150,7 +151,7 @@ text(nig_rpart, cex = 0.7)
 
 ## (2.4) obtain the representative points of each partition
 nig_support = rbind(c(-Inf, Inf), c(0, Inf))
-paramPartition(nig_rpart, nig_support)
+nig_test = paramPartition(nig_rpart, nig_support)
 
 
 ## running code out of test_partition.R -- TODO: turn into function later
