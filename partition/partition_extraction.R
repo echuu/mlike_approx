@@ -17,9 +17,6 @@
 
 # ------------------------------------------------------------------------------
 
-# fit ctree() on gaussian mixture to see if we're getting similar partitioning 
-# scheme
-
 library('mvtnorm')   # multivariate normal density
 library('MASS')      # mvnorm()
 library('ggplot2')
@@ -76,6 +73,8 @@ library('rpart.plot')
 u_tree = rpart(psi_u ~ u1 + u2, u_df)
 plot(u_tree)
 text(u_tree, cex = 0.5)
+
+
 
 head(rpart.rules(u_tree))
 

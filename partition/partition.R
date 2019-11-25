@@ -1,4 +1,8 @@
 
+# partition.R ------------------------------------------------------------------
+# 
+
+
 library('mvtnorm')      # multivariate normal density
 library('MASS')         # mvnorm()
 library('ggplot2')      # don't think we use this in these functions
@@ -16,25 +20,25 @@ library('stringr')      # regex functions
 #    (3) the number of partitions (extracted rpart.rules() function)
 
 # param_support : (p x 2) with the range that each parameter stored row-wise
-paramPartition = function(u_tree, n_params, param_support = NULL) {
-    
-    # use (-Inf, Inf) as the support for all the parameters if not specified
-    # by user
-    if (is.null(param_support)) {
-        param_support = cbind(rep(-Inf, n_params), rep(Inf, n_params))
-    }
+paramPartition = function(u_tree, param_support = NULL) {
     
     # pre-process the partition output
     rules = rpart.rules(u_tree) 
     rules_df = apply(rules, 2, as.character)[,-c(1:2)]
     rules_str = data.frame(x = matrix(0, nrow(rules_df))) # n_partitions x 1
     
+    n_params = length(u_tree$variable.importance)
+    n_partitions = nrow(rules_str)
+    
     for(r in 1:nrow(rules)) {
         rules_str[r,] = str_c(rules_df[r,][rules_df[r,] != ""], collapse = ' ')
     }
     
-    
-    n_partitions = nrow(rules_str)
+    # use (-Inf, Inf) as the support for all the parameters if not specified
+    # by user
+    if (is.null(param_support)) {
+        param_support = cbind(rep(-Inf, n_params), rep(Inf, n_params))
+    }
     
     # initialize storage for the partition intervals -- (n_params x 2)
     partition = data.frame(matrix(NA, n_partitions, n_params * 2))
@@ -63,7 +67,7 @@ paramPartition = function(u_tree, n_params, param_support = NULL) {
         # (1)   iterate over the partition/decisions
         for (p in 1:ncol(part_vec)) {
             
-            processNode = node_partition(part_vec[p])
+            processNode = node_partition(part_vec[p], param_support)
             
             # (1.1) identify the parameter corresponding to each partition
             param_id = processNode$id
@@ -107,8 +111,7 @@ updatePartition = function(partition, row_id, col_id, bdry) {
 
 # str_in needs only have ONE of the interval identifiers, i.e., str_split()
 # already needs to have been called, splitting on "\\&"
-node_partition = function(str_in) {
-    
+node_partition = function(str_in, param_support) {
     
     LOWER = ">="
     UPPER = "<"
@@ -129,8 +132,9 @@ node_partition = function(str_in) {
         #                                                 perl = TRUE))))
         
         param_id = decision[1]
+        
         # TODO: upper bound should be the upper bound of the support
-        interval = c(decision[2], Inf)   # lower-bounded interval
+        interval = c(decision[2], param_support[param_id, 2])   # lb interval
         
     } else if (grepl(UPPER, str_in)) {   # decision: [ ,y]
         
@@ -142,7 +146,7 @@ node_partition = function(str_in) {
         param_id = decision[1]
         
         # TODO: lower bound should be the lower bound of the support
-        interval = c(-Inf, decision[2])  # upper-bounded interval
+        interval = c(param_support[param_id, 1], decision[2])  # ub interval
         
     } else {                             # decision: [x,y]
         

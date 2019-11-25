@@ -12,6 +12,8 @@ library("tmvtnorm")   # truncated normal
 library("data.table") # data handling
 library("dplyr")      # data handling
 library("ggplot2")    # visualizations
+library("tree")
+
 
 set.seed(123)
 
