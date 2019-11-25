@@ -1,15 +1,4 @@
 
-
-sup_u1 = c(-3, 10)
-sup_u2 = c(-4, 5)
-
-
-sup_u1 = c(-Inf, Inf)
-sup_u2 = c(-Inf, Inf)
-
-param_support = rbind(sup_u1, sup_u2)
-
-
 ## test the functions written in partition.R
 
 # load the truncated bivariate normal data
@@ -65,9 +54,9 @@ u_df = data.frame(u1 = X_g[,1], u2 = X_g[,2], psi_u = psi_u) # (J x 3)
 
 
 # fit decision tree using tree()
-u_tree = tree(psi_u ~ u1 + u2, u_df)
-plot(u_tree)
-text(u_tree, cex = 0.5)
+# u_tree = tree(psi_u ~ u1 + u2, u_df)
+# plot(u_tree)
+# text(u_tree, cex = 0.5)
 
 # fit decision tree using rpart()
 u_rpart = rpart(psi_u ~ u1 + u2, u_df)
@@ -80,17 +69,13 @@ text(u_rpart, cex = 0.8)
 # output of the partitions for the rpart tree
 tbiv_rules = rpart.rules(u_rpart)
 
-# obtain partition so that we can use it more conveniently
+# specify the support of the parameters (row-wise)
 tbiv_supp = cbind(a, b) # u1 truncated to (-1, 0.5), u2 truncated to (-Inf, 4)
-paramPartition(u_rpart, tbiv_supp)
+
+# obtain partition in matrix form: (n_partitions x (2 * n_parmas))
+fit_partition = paramPartition(u_rpart, tbiv_supp) 
 
 # -----------------------------------------------------------------------------
-
-# TODO: find the decision rules for each of the observations (params)
-
-# TODO: for subsets of the observations (params), obtain another tree (and 
-# thus a finer partition for these observations)
-
 
 
 # in progress ------------------------------------------------------------------
@@ -126,14 +111,15 @@ u_df = u_df %>% mutate(leaf_id = u_rpart$where)
 
 # (1.2) obtain the rows in rpart.object$frame associated with the leaf nodes
 # these rows contain the fitted value for nodes that fall w/in a given partition
-leaf_id = sort(unique(u_rpart$where)) # row id of leaf node information
+partition_id = sort(unique(u_rpart$where)) # row id of leaf node information
 
 # number of observations in each leaf node
 part_obs_tbl = table(u_rpart$where) %>% data.frame
 names(part_obs_tbl) = c("leaf_id", "n_obs")
 
 #### (2) obtain predicted value for each of the observations
-psi_hat = cbind(leaf_id, psi_hat = u_rpart$frame[leaf_id,]$yval)
+psi_hat = cbind(leaf_id = partition_id,
+                psi_hat = u_rpart$frame[partition_id,]$yval)
 u_df = merge(u_df, psi_hat, "leaf_id")
 
 #### (3) compute squared residuals for each of the observations
@@ -147,20 +133,23 @@ u_df %>% group_by(leaf_id) %>% summarise(sum(dev_sq)) # matches!!!
 # rownames(u_df) = NULL
 
 ## at this point u_df looks like: ----------------------------------------------
+#
 # | leaf_id |    u1   |    u2   | ... |   up  |  psi_u  |  psi_hat  |  dev_sq
 # |---------------------------------------------------------------------------
 # |       4 |  0.423  | -4.584  | ... |   up  | -10.436  |  -6.522  |  15.315
 # |       4 | -0.425  | -4.455  | ... |   up  | -8.1148  |  -6.522  |  2.5353
 # |     ... |    ...  |    ...  | ... |   up  |    ...   |     ...  |    ... 
+#
 ## ----------------------------------------------------------------------------- 
 
 # (4.1) for each partition: sort the rows by squared residual values
-n_partitions = length(leaf_id)
+n_partitions = length(partition_id)
 n_params = 2 # TODO: this should be passed in at the beginning of the function
 
 # initialize data.frame to store the representative points of each partition
 # (n_partitions x n_params) 
-u_star = matrix(NA, n_partitions, n_params) %>% data.frame() 
+# TODO: column names should match the convention of 'u1, u2, ... '
+u_star = matrix(NA, n_partitions, n_params + 1) %>% data.frame() 
 
 for (k in 1:n_partitions) {
     
@@ -168,7 +157,7 @@ for (k in 1:n_partitions) {
     n_obs = part_obs_tbl$n_obs[k]
     
     # subset out observations in partition k, sort on dev_sq column
-    sorted_partition = u_df %>% filter(leaf_id == leaf_id[k]) %>% 
+    sorted_partition = u_df %>% filter(leaf_id == partition_id[k]) %>% 
         arrange(dev_sq)
     
     # (4.2) for each partition: save the row whose squared residual value is 
@@ -180,10 +169,10 @@ for (k in 1:n_partitions) {
     
     # extract the 'representative point' of partition k -- this will be a 
     # p-dim vector
-    u_vec_k = (part_k_med %>% select(u1:psi_u))[, -(n_params + 1)] %>% 
+    u_vec_k = (part_k_med %>% dplyr::select(u1:psi_u))[, -(n_params + 1)] %>% 
         as.matrix() %>% c()
     
-    u_star[k,] = u_vec_k
+    u_star[k,] = c(u_vec_k, part_k_med$leaf_id)
 } # end of loop extracting representative points
 
 
@@ -197,6 +186,9 @@ for (k in 1:n_partitions) {
 # too worried about partitions, since we just need many partitions so that we 
 # have enough points used in the approximation of the marginal likelihood
 
+# TODO: for subsets of the observations (params), obtain another tree (and 
+# thus a finer partition for these observations)
+
 # see link below to adjust the rpart() fit to allow for deeper tree growth
 # https://www.rdocumentation.org/packages/rpart/versions/4.1-15/topics/rpart.control
 
@@ -208,6 +200,19 @@ for (k in 1:n_partitions) {
 
 # TODO: compute the (approximate) marginal likelihood using the points
 # that the partitions give us in the previous steps
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
