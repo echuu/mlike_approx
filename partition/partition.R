@@ -3,6 +3,12 @@
 # 
 
 
+# conventions: 
+# u = (u1, u2, ... , up) is a p-dimensional vector representing the parameters
+# partitions are indexed with k
+
+
+
 library('mvtnorm')      # multivariate normal density
 library('MASS')         # mvnorm()
 library('ggplot2')      # don't think we use this in these functions

@@ -128,6 +128,9 @@ u_df = u_df %>% mutate(leaf_id = u_rpart$where)
 # these rows contain the fitted value for nodes that fall w/in a given partition
 leaf_id = sort(unique(u_rpart$where)) # row id of leaf node information
 
+# number of observations in each leaf node
+part_obs_tbl = table(u_rpart$where) %>% data.frame
+names(part_obs_tbl) = c("leaf_id", "n_obs")
 
 #### (2) obtain predicted value for each of the observations
 psi_hat = cbind(leaf_id, psi_hat = u_rpart$frame[leaf_id,]$yval)
@@ -141,11 +144,47 @@ u_df = u_df %>% mutate(dev_sq = (psi_u - psi_hat)^2)
 # check: residual for each of the nodes should match the deviance in 'frame'
 u_df %>% group_by(leaf_id) %>% summarise(sum(dev_sq)) # matches!!!
 
+# rownames(u_df) = NULL
+
+## at this point u_df looks like: ----------------------------------------------
+# | leaf_id |    u1   |    u2   | ... |   up  |  psi_u  |  psi_hat  |  dev_sq
+# |---------------------------------------------------------------------------
+# |       4 |  0.423  | -4.584  | ... |   up  | -10.436  |  -6.522  |  15.315
+# |       4 | -0.425  | -4.455  | ... |   up  | -8.1148  |  -6.522  |  2.5353
+# |     ... |    ...  |    ...  | ... |   up  |    ...   |     ...  |    ... 
+## ----------------------------------------------------------------------------- 
+
 # (4.1) for each partition: sort the rows by squared residual values
+n_partitions = length(leaf_id)
+n_params = 2 # TODO: this should be passed in at the beginning of the function
 
-# (4.2) for each partition: save the row whose squared residual value is 
-# (closest to) the med; this point is that partitions's "representative point"
+# initialize data.frame to store the representative points of each partition
+# (n_partitions x n_params) 
+u_star = matrix(NA, n_partitions, n_params) %>% data.frame() 
 
+for (k in 1:n_partitions) {
+    
+    # number of observations in partition k
+    n_obs = part_obs_tbl$n_obs[k]
+    
+    # subset out observations in partition k, sort on dev_sq column
+    sorted_partition = u_df %>% filter(leaf_id == leaf_id[k]) %>% 
+        arrange(dev_sq)
+    
+    # (4.2) for each partition: save the row whose squared residual value is 
+    # the median; this point is that partitions's "representative point"
+    
+    # extract row corresponding to the median
+    med_row = floor(n_obs / 2)
+    part_k_med = sorted_partition[med_row,]
+    
+    # extract the 'representative point' of partition k -- this will be a 
+    # p-dim vector
+    u_vec_k = (part_k_med %>% select(u1:psi_u))[, -(n_params + 1)] %>% 
+        as.matrix() %>% c()
+    
+    u_star[k,] = u_vec_k
+} # end of loop extracting representative points
 
 
 
