@@ -10,6 +10,7 @@ library('rpart')      # for rpart() function
 library('rpart.plot') # for rpart.rules() function
 library('tidyr')
 
+setwd("/home/eric/mlike_approx/partition")
 
 ## example: use example for which we know the value of the marginal likelihood
 ## 
@@ -49,11 +50,6 @@ p_y = pi^(-N / 2) * (w_0 / w_n)^(1/2) * gamma(r_n / 2) / gamma(r_0 / 2) *
 LIL = log(p_y) # -113.143 (paper says -117, but difference arises from RNG)
 
 # ------------------------------------------------------------------------------
-
-
-
-
-
 
 ## (1) compute the LIL using hme (DONE) ----------------------------------------
 
@@ -105,6 +101,9 @@ mu_post = rnorm(J, m_n, sqrt(sigma_sq / w_n)) # (D x 1)
 # (2.1.2) sample from q(u_2 | - ) := sigma_sq | y
 sigma_sq_post = rinvgamma(J, shape = r_n / 2, scale = s_n / 2)
 
+# library("invgamma")
+
+
 ## (2.2) define psi(u), and evaluate psi(u) for each of the MCMC samples
 # y        : (N x 1)
 # mu       : (J x 1) J samples of mu from the posterior
@@ -150,8 +149,9 @@ text(nig_rpart, cex = 0.7)
 
 
 ## (2.4) obtain the representative points of each partition
+source("partition.R")
 nig_support = rbind(c(-Inf, Inf), c(0, Inf))
-nig_test = paramPartition(nig_rpart, nig_support)
+nig_test = paramPartition(nig_rpart, nig_support)  # partition.R
 
 
 ## running code out of test_partition.R -- TODO: turn into function later
@@ -163,23 +163,111 @@ u_rpart = nig_rpart
 ## TODO: this still needs to be implemeneted 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 # ------------------------------------------------------------------------------
+
+# (1) re-plot using exact negative log posterior for psi function
+
+# returns negative log posterior : -log(p(u|y))
+# usually only -log(p(y|u)) - log(p(u))
+psi_true = function(mu, sigma_sq, m_n, w_n, r_n, s_n) {
+    
+    # p (mu, sigma_sq | y ) 
+    #    = N (mu | m_n, sigma_sq / w_n) * IG (sigma_sq | r_n / 2, s_n / 2)
+    #    = NIG (mu, sigma_sq | )
+    
+    log_mu_pdf   = dnorm(mu, m_n, sqrt(sigma_sq / w_n), log = T)
+    log_sigma_sq = log(MCMCpack::dinvgamma(sigma_sq, r_n / 2, s_n / 2))
+    
+    log_p_mu_sigmasq = log_mu_pdf + log_sigma_sq
+    
+    return(-log_p_mu_sigmasq)
+}
+
+# generate samples from the posterior probability to form the HME estimator
+J = 1000 # number of random draws used per estimate
+
+# (0) sample from mu | sigma_sq, y
+mu_post = rnorm(J, m_n, sqrt(sigma_sq / w_n)) # (D x 1)
+
+# (1) sample from sigma_sq | y
+sigma_sq_post = MCMCpack::rinvgamma(J, shape = r_n / 2, scale = s_n / 2)
+
+# (2) for each u drawn from the posterior, evaluate psi(u) = psi(mu, sigma_sq)
+psi_u = psi_p(y, mu_post, sigma_sq_post, m_0, w_0, r_0, s_0) # (J x 1)
+
+# the actual value of psi that we will be using for this example - previous
+# definition of psi was not exactly as described in the notes
+psi_0 = psi_true(mu_post, sigma_sq_post, m_n, w_n, r_n, s_n) # (J x 1)
+
+u_df = data.frame(mu = mu_post, sigsq = sigma_sq_post, psi_u = psi_0) # (J x 3)
+
+# input for paramPartition() MUST have parameter names u1, u2, ... up
+u_df = data.frame(u1 = mu_post, u2 = sigma_sq_post, psi_u = psi_0)    # (J x 3)
+
+# (3) fit decision tree
+u_tree = tree(psi_u ~ ., u_df)
+
+# (4) plot the partition over the parameter space
+par(mfrow = c(1,1))
+plot(u_df[,1], u_df[,2], pch = 20, cex = 0.9, col = "green",
+     xlab = 'mu', ylab = 'sigma_sq', main = 'N = 50, J = 1000')
+partition.tree(u_tree, add = TRUE, cex = 0.01, ordvars = c("u1", "u2"))
+
+
+## TODO ------------------------------------------------------------------------
+
+source("partition.R")
+
+# (2) function to evaluate lambda_dk
+
+# gradient of psi -- return 2 dim vector
+lambda_k = function(u, param) {
+    
+    lambda1 = 1 / u$sigma_sq * (u$mu - param$m_n)
+    lambda2 = (param$r_n / 2 + 3 / 2) * 1 / u$sigma_sq - 
+        1 / u$sigma_sq^2 * (param$s_n + (u$mu - param$m_n)^2)
+    
+    return(c(lambda1, lambda2))
+}
+
+### use rpart to fit partition
+nig_rpart = rpart(psi_u ~ ., u_df)
+
+# plot the tree (matches general structure of the tree returned from tree())
+plot(nig_rpart)
+text(nig_rpart, cex = 0.7)
+
+### obtain partition
+nig_support = rbind(c(-Inf, Inf), c(0, Inf))
+nig_partition = paramPartition(nig_rpart, nig_support)  # partition.R
+
+# organize all data into single data frame --> ready for approximation
+param_out = u_star(nig_rpart, u_df, nig_partition)
+
+### form approximation
+
+
+
+
+# (3) function to evaluate c_k (psi_k) -- already implemented via psi_true()
+
+
+# (4) test function that extracts median from each partition
+
+
+
+
+# (5) form the approximation
+
+
+
+
+
+
+
+
+
+
 
 
 

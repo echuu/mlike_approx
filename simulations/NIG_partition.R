@@ -24,6 +24,15 @@ library('ggplot2')
 library('MCMCpack')  # for rinvgamma() function
 library('tree')      # plotting partitions of a fitted decision tree
 
+library('invgamma')  # dinvgamma(x, shape, scale)
+
+
+f = function(x, shape = 1/2, scale = 1/2) {
+    scale^shape / gamma(shape) * x^(- shape - 1) * exp(-scale / x)
+}
+
+
+
 set.seed(123)
 
 mu = 30
@@ -49,7 +58,7 @@ s_n = s_0 + sum((y - ybar)^2) + (N * w_0 / (N + w_0)) * (ybar - m_0)^2
 p_y = pi^(-N / 2) * (w_0 / w_n)^(1/2) * gamma(r_n / 2) / gamma(r_0 / 2) * 
     s_0^(r_0 / 2) / s_n^(r_n / 2)
 
-LIL = log(p_y) # -118.332 (paper says -117, but difference arises from RNG)
+LIL = log(p_y) # -113.143 (paper says -117, but difference arises from RNG)
 
 # y        : (N x 1)
 # mu       : (J x 1) J samples of mu from the posterior
@@ -69,7 +78,8 @@ psi_p = function(y, mu, sigma_sq, m_0, w_0, r_0, s_0) {
     
     # following two computations are unused for now
     log_p_mu = dnorm(mu, m_0, sqrt(sigma_sq / w_0), log = TRUE)
-    log_p_sigma_sq = dinvgamma(sigma_sq, r_0 / 2, s_0 / 2)
+    log_p_sigma_sq = invgamma::dinvgamma(sigma_sq, shape = r_0 / 2, 
+                                         scale = s_0 / 2, log = TRUE)
     
     return(loglik) 
 } # end psi() function
@@ -82,7 +92,7 @@ J = 1000 # number of random draws used per estimate
 mu_post = rnorm(J, m_n, sqrt(sigma_sq / w_n)) # (D x 1)
 
 # (1) sample from sigma_sq | y
-sigma_sq_post = rinvgamma(J, shape = r_n / 2, scale = s_n / 2)
+sigma_sq_post = MCMCpack::rinvgamma(J, shape = r_n / 2, scale = s_n / 2)
 
 # (2) for each u drawn from the posterior, evaluate psi(u) = psi(mu, sigma_sq)
 psi_u = psi_p(y, mu_post, sigma_sq_post, m_0, w_0, r_0, s_0) # (J x 1)
@@ -97,17 +107,20 @@ plot(u_df[,1], u_df[,2], pch = 20, cex = 0.9, col = "pink",
      xlab = 'mu', ylab = 'sigma_sq', main = 'N = 1000, J = 5000')
 partition.tree(u_tree, add = TRUE, cex = 0.01, ordvars = c("mu", "sigsq"))
 
-# ------------------------------------------------------------------------------
-
-par(mfrow = c(1,2))
-hist(mu_post)
-hist(sigma_sq_post)
-par(mfrow = c(1,1))
-
-
 partition.tree(u_tree, add = F, cex = 0.01, ordvars = c("mu", "sigsq"))
 
-par(mfrow = c(1, 3))
+
+# ------------------------------------------------------------------------------
+
+# par(mfrow = c(1,2))
+# hist(mu_post)
+# hist(sigma_sq_post)
+# par(mfrow = c(1,1))
+
+
+# partition.tree(u_tree, add = F, cex = 0.01, ordvars = c("mu", "sigsq"))
+
+# par(mfrow = c(1, 3))
 
 
 

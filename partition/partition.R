@@ -18,8 +18,99 @@ library('tidyr')        # data mangement
 library('readr')        # data management
 library('stringr')      # regex functions
 
-# partition object initialization
 
+# steps to extract the representative points of each partition
+
+#### (1) obtain partition location of each observation
+
+u_star = function(rpart_obj, u_df, partition) {
+    
+    # (1.1) determine which partition each observation is grouped in
+    u_df = u_df %>% mutate(leaf_id = rpart_obj$where)
+    
+    # (1.2) obtain the rows in rpart.object$frame associated with the leaf nodes
+    # these rows contain the fitted value for nodes that fall w/in a given partition
+    partition_id = sort(unique(rpart_obj$where)) # row id of leaf node information
+    
+    # number of observations in each leaf node
+    part_obs_tbl = table(rpart_obj$where) %>% data.frame
+    names(part_obs_tbl) = c("leaf_id", "n_obs")
+    
+    #### (2) obtain predicted value for each of the observations
+    psi_hat_leaf = cbind(leaf_id = partition_id,
+                         psi_hat = rpart_obj$frame[partition_id,]$yval) %>% 
+        data.frame()
+    
+    u_df = merge(u_df, psi_hat_leaf, "leaf_id")
+    
+    #### (3) compute squared residuals for each of the observations
+    u_df = u_df %>% mutate(dev_sq = (psi_u - psi_hat)^2)
+    
+    #### (4) for each partition: compute the median of the squared residuals 
+    
+    # check: residual for each of the nodes should match the deviance in 'frame'
+    # u_df %>% group_by(leaf_id) %>% summarise(sum(dev_sq)) # matches!!!
+    
+    # rownames(u_df) = NULL
+    
+    ## at this point u_df looks like: ----------------------------------------------
+    #
+    # | leaf_id |    u1   |    u2   | ... |   up  |  psi_u  |  psi_hat  |  dev_sq
+    # |---------------------------------------------------------------------------
+    # |       4 |  0.423  | -4.584  | ... |   up  | -10.436  |  -6.522  |  15.315
+    # |       4 | -0.425  | -4.455  | ... |   up  | -8.1148  |  -6.522  |  2.5353
+    # |     ... |    ...  |    ...  | ... |   up  |    ...   |     ...  |    ... 
+    #
+    ## ----------------------------------------------------------------------------- 
+    
+    # (4.1) for each partition: sort the rows by squared residual values
+    n_partitions = length(partition_id)
+    n_params = 2 # TODO: this should be passed in at the beginning of the function
+    
+    # initialize data.frame to store the representative points of each partition
+    # (n_partitions x n_params) 
+    # TODO: column names should match the convention of 'u1, u2, ... '
+    # extra column for the lead id
+    u_star_df = matrix(NA, n_partitions, n_params + 1) %>% data.frame() 
+    
+    for (k in 1:n_partitions) {
+        
+        # number of observations in partition k
+        n_obs = part_obs_tbl$n_obs[k]
+        
+        # subset out observations in partition k, sort on dev_sq column
+        sorted_partition = u_df %>% filter(leaf_id == partition_id[k]) %>% 
+            arrange(dev_sq)
+        
+        # (4.2) for each partition: save the row whose squared residual value is 
+        # the median; this point is that partitions's "representative point"
+        
+        # extract row corresponding to the median
+        med_row = floor(n_obs / 2)
+        part_k_med = sorted_partition[med_row,]
+        
+        # extract the 'representative point' of partition k -- this will be a 
+        # p-dim vector
+        u_vec_k = (part_k_med %>% dplyr::select(u1:psi_u))[, -(n_params + 1)] %>% 
+            as.matrix() %>% c()
+        
+        u_star_df[k,] = c(u_vec_k, part_k_med$leaf_id)
+    } # end of loop extracting representative points
+    
+    # needs to be generalized
+    names(u_star_df) = c("u1_star", "u2_star", "leaf_id")
+    
+    ## merge with the boundary of each of the partitions
+    u_df_full = merge(u_star_df, partition, by = 'leaf_id')
+    
+    return(u_df_full)
+}
+
+
+
+
+
+# partition object initialization
 # when creating the partition dataframe, we need:
 #    (1) number of parameters
 #    (2) the support of each of the parameters
@@ -29,9 +120,12 @@ library('stringr')      # regex functions
 paramPartition = function(u_tree, param_support = NULL) {
     
     # pre-process the partition output
-    rules = rpart.rules(u_tree) 
+    rules = rpart.rules(u_tree, digits = 6)
     rules_df = apply(rules, 2, as.character)[,-c(1:2)]
     rules_str = data.frame(x = matrix(0, nrow(rules_df))) # n_partitions x 1
+    
+    # predicted values for each partition
+    psi_hat = round(as.numeric(rules[,1]), 4) # generalize the 4 to user input later
     
     n_params = length(u_tree$variable.importance)
     n_partitions = nrow(rules_str)
@@ -73,6 +167,8 @@ paramPartition = function(u_tree, param_support = NULL) {
         # (1)   iterate over the partition/decisions
         for (p in 1:ncol(part_vec)) {
             
+            
+            ### fixed : node_partition() function is buggy
             processNode = node_partition(part_vec[p], param_support)
             
             # (1.1) identify the parameter corresponding to each partition
@@ -89,7 +185,23 @@ paramPartition = function(u_tree, param_support = NULL) {
         
     } # end of loop storing the parititon boundaries
     
-    return(partition)
+    
+    partition = cbind(psi_hat, partition)
+    
+    # number of observations in each leaf node
+    part_obs_tbl = table(u_tree$where) %>% data.frame
+    names(part_obs_tbl) = c("leaf_id", "n_obs")
+    
+    #### (2) obtain predicted value for each of the observations
+    psi_hat_leaf = cbind(leaf_id = partition_id,
+                         psi_hat = u_tree$frame[partition_id,]$yval) %>% 
+        data.frame()
+    
+    partition_out = merge(psi_hat_leaf %>% 
+                              mutate(psi_hat = round(psi_hat, 4)), 
+                          partition, by = 'psi_hat')
+    
+    return(partition_out)
     
 } # end paramPartition() function
 
