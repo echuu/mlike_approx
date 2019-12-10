@@ -31,7 +31,7 @@ w_0 = 0.05
 r_0 = 3
 s_0 = 3
 
-N = 50
+N = 200
 
 # generate 50 samples from N(mu, sigma_sq)
 y = rnorm(N, mu, sqrt(sigma_sq))
@@ -184,7 +184,7 @@ psi_true = function(mu, sigma_sq, m_n, w_n, r_n, s_n) {
 }
 
 # generate samples from the posterior probability to form the HME estimator
-J = 1000 # number of random draws used per estimate
+J = 5000 # number of random draws used per estimate
 
 # (0) sample from mu | sigma_sq, y
 mu_post = rnorm(J, m_n, sqrt(sigma_sq / w_n)) # (D x 1)
@@ -238,7 +238,8 @@ plot(nig_rpart)
 text(nig_rpart, cex = 0.7)
 
 ### obtain partition
-nig_support = rbind(c(-Inf, Inf), c(0, Inf))
+nig_support = rbind(c(min(mu_post), max(mu_post)),
+                    c(min(sigma_sq_post), max(sigma_sq_post)))
 nig_partition = paramPartition(nig_rpart, nig_support)  # partition.R
 
 # organize all data into single data frame --> ready for approximation
@@ -246,8 +247,33 @@ param_out = u_star(nig_rpart, u_df, nig_partition)
 
 ### form approximation
 
-
-
+# function uses lambda_k() and psi_true() to compute closed form integrals over
+# each of the partitions
+n_partitions = nrow(nig_partition)
+c_k = numeric(n_partitions)
+l_k = numeric(n_partitions)
+zhat = numeric(n_partitions)
+for (k in 1:n_partitions) {
+    
+    # u_star_k = (mu_k, sigma_sq_k)
+    c_k[k] = exp(-psi_true(param_out[k,]$u1_star, 
+                           param_out[k,]$u2_star,
+                           m_n, w_n, r_n, s_n)) # (1 x 1)
+    
+    lambda = lambda_k(u = list(mu = param_out[k,]$u1_star,
+                               sigma_sq = param_out[k,]$u2_star),
+                      param = list(m_n = m_n, w_n = w_n,
+                                   r_n = r_n, s_n = s_n))
+    
+    
+    # 1st param calculation
+    p1 = -1/lambda[1] * exp(-lambda[1] * (param_out[k,]$u1_ub - param_out[k,]$u1_lb))
+    
+    # 2nd param calculation
+    p2 = -1/lambda[2] * exp(-lambda[2] * (param_out[k,]$u2_ub - param_out[k,]$u2_lb))
+    
+    zhat[k] = c_k[k] * p1 * p2
+}
 
 # (3) function to evaluate c_k (psi_k) -- already implemented via psi_true()
 

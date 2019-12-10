@@ -108,8 +108,6 @@ u_star = function(rpart_obj, u_df, partition) {
 
 
 
-
-
 # partition object initialization
 # when creating the partition dataframe, we need:
 #    (1) number of parameters
@@ -192,6 +190,7 @@ paramPartition = function(u_tree, param_support = NULL) {
     part_obs_tbl = table(u_tree$where) %>% data.frame
     names(part_obs_tbl) = c("leaf_id", "n_obs")
     
+    partition_id = sort(unique(u_tree$where)) # row id of leaf node information
     #### (2) obtain predicted value for each of the observations
     psi_hat_leaf = cbind(leaf_id = partition_id,
                          psi_hat = u_tree$frame[partition_id,]$yval) %>% 
