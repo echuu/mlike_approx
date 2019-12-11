@@ -31,7 +31,7 @@ w_0 = 0.05
 r_0 = 3
 s_0 = 3
 
-N = 200
+N = 50
 
 # generate 50 samples from N(mu, sigma_sq)
 y = rnorm(N, mu, sqrt(sigma_sq))
