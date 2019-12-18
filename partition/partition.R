@@ -21,8 +21,50 @@ library('stringr')      # regex functions
 
 # steps to extract the representative points of each partition
 
-#### (1) obtain partition location of each observation
+# Idea: 
+# (1) append column to u_df to identify which leaf node each observation is
+#     assigned to -- this lets us easily subset out observations for a 
+#     particular leaf node so that we can recursively partition these points
+# (2) 
 
+processFit = function(u_df, rpart_obj) {
+    
+    # (1) assign leaf node id to each of the observations
+    u_df_leaf = u_df %>% mutate(leaf_id = rpart_obj$where)   
+    
+    # (2) for each of the leaf nodes, compute the KS distance
+    partition_id = sort(unique(rpart_obj$where))
+    
+    # store ks distance for observations corresponding to each of partition ids
+    ks = numeric(length(partition_id)) 
+    for (leaf in partition_id) {
+        
+        # compute the KS distance for observations in the 'leaf' partition
+        
+    }
+    
+    
+    
+    # (3) determine which leaf nodes require another rpart() fit
+    # issue: the recursive fits may result in leaf_node ids that coincide
+    # with the parent rpart fits which will lead to issues when computing the 
+    # representative point of each partition
+    
+    # potential solution: don't merge the recursive fits back with the original
+    # dataframe. instead, compute the representative point of the partition
+    # 'on the fly' right after the threshold/restriction on KS is met -> then,
+    # we need only return the reprenstative value, and the bounds of the
+    # partition (no need for the partition id)
+    #     - this needs to be fleshed out more
+    
+    
+    
+}
+
+
+
+
+#### (1) obtain partition location of each observation
 u_star = function(rpart_obj, u_df, partition) {
     
     # (1.1) determine which partition each observation is grouped in
@@ -102,7 +144,7 @@ u_star = function(rpart_obj, u_df, partition) {
     
     ## merge with the boundary of each of the partitions
     u_df_full = merge(u_star_df, partition, by = 'leaf_id')
-    
+
     return(u_df_full)
 }
 
@@ -191,6 +233,7 @@ paramPartition = function(u_tree, param_support = NULL) {
     names(part_obs_tbl) = c("leaf_id", "n_obs")
     
     partition_id = sort(unique(u_tree$where)) # row id of leaf node information
+    
     #### (2) obtain predicted value for each of the observations
     psi_hat_leaf = cbind(leaf_id = partition_id,
                          psi_hat = u_tree$frame[partition_id,]$yval) %>% 

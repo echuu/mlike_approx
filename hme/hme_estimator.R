@@ -50,7 +50,7 @@ for (b in 1:B) {
     mu_post = rnorm(J, m_n, sqrt(sigma_sq / w_n)) # (D x 1)
     
     # (1) sample from sigma_sq | y
-    sigma_sq_post = rinvgamma(J, shape = r_n / 2, scale = s_n / 2)
+    sigma_sq_post = MCMCpack::rinvgamma(J, shape = r_n / 2, scale = s_n / 2)
     
     # (2) compute the harmonic mean estimator
     lik_j = numeric(J)

@@ -9,6 +9,40 @@ library('tidyr')
 
 setwd("/home/eric/mlike_approx/partition")
 
+set.seed(123)
+
+mu = 30
+sigma_sq = 4
+m_0 = 0
+w_0 = 0.05
+r_0 = 3
+s_0 = 3
+
+N = 50
+
+# generate 50 samples from N(mu, sigma_sq)
+y = rnorm(N, mu, sqrt(sigma_sq))
+
+ybar = mean(y)
+
+# compute posterior parameters
+m_n = (N * ybar + w_0 * m_0) / (N + w_0)
+w_n = w_0 + N
+r_n = r_0 + N
+s_n = s_0 + sum((y - ybar)^2) + (N * w_0 / (N + w_0)) * (ybar - m_0)^2
+
+p_y = (pi)^(-N / 2) * (w_0 / w_n)^(1/2) * gamma(r_n / 2) / gamma(r_0 / 2) * 
+    s_0^(r_0 / 2) / s_n^(r_n / 2)
+
+
+(LIL = log(p_y)) # -113.143 (paper says -117, but difference arises from RNG)
+
+# ------------------------------------------------------------------------------
+
+
+
+# ------------------------------------------------------------------------------
+
 psi_true = function(mu, sigma_sq, m_n, w_n, r_n, s_n) {
     
     # p (mu, sigma_sq | y ) 
@@ -37,6 +71,7 @@ sigma_sq_post = MCMCpack::rinvgamma(J, shape = r_n / 2, scale = s_n / 2)
 # definition of psi was not exactly as described in the notes
 psi_0 = psi_true(mu_post, sigma_sq_post, m_n, w_n, r_n, s_n) # (J x 1)
 
+# psi_0 = psi_hat(mu_post, sigma_sq_post, y, m_0, w_0, r_0, s_0) # (J x 1)
 # u_df = data.frame(mu = mu_post, sigsq = sigma_sq_post, psi_u = psi_0) # (J x 3)
 
 # input for paramPartition() MUST have parameter names u1, u2, ... up
@@ -64,10 +99,13 @@ param_out = u_star(nig_rpart, u_df, nig_partition)
 psi_hat = function(mu_star, sigmasq_star, y, m_0, w_0, r_0, s_0) {
     
     loglik = sum(dnorm(y, mu_star, sqrt(sigmasq_star), log = TRUE))
-    logprior = dnorm(mu_star, m_0, sqrt(sigmasq_star / w_0), log = TRUE) *
-        + log(MCMCpack::dinvgamma(sigmasq_star, r_0 / 2, s_0 / 2))
+    logprior = dnorm(mu_star, m_0, sqrt(sigmasq_star / w_0), log = TRUE) + 
+        log(MCMCpack::dinvgamma(sigmasq_star, r_0 / 2, s_0 / 2))
     
-    return(-loglik - logprior)
+    out = -loglik - logprior
+    # out = -logprior
+    
+    return(out)
 }
 
 # define lambda function
@@ -103,16 +141,93 @@ for (k in 1:n_partitions) {
                  y, m_0, w_0, r_0, s_0)
     
     # 1st param calculation
-    p1 = -1/l_k[1] * exp(-l_k[1] * (param_out[k,]$u1_ub - param_out[k,]$u1_lb))
+    p1 = -1/l_k[1] * # exp(l_k[1] * param_out[k,]$u1_star) *
+        exp(-l_k[1] * (param_out[k,]$u1_ub - param_out[k,]$u1_lb))
     
     # 2nd param calculation
-    p2 = -1/l_k[2] * exp(-l_k[2] * (param_out[k,]$u2_ub - param_out[k,]$u2_lb))
+    p2 = -1/l_k[2] * # exp(l_k[2] * param_out[k,]$u2_star) *
+        exp(-l_k[2] * (param_out[k,]$u2_ub - param_out[k,]$u2_lb))
     
     zhat[k] = c_k[k] * p1 * p2
 }
 
 log(sum(zhat))
 
+u_df_leaf = u_df %>% mutate(leaf_id = nig_rpart$where)   
+nig_rpart$where %>% table %>% sort(decreasing = T) # 8, 11, 9 have the most
+
+# for 8, 11, 9 fit a tree for these points
+u_df_8  = u_df_leaf %>% filter(leaf_id == 8)
+u_df_11 = u_df_leaf %>% filter(leaf_id == 11)
+u_df_9  = u_df_leaf %>% filter(leaf_id == 9)
+
+nig_8  = rpart(psi_u ~ u1 + u2, u_df_8)
+nig_11 = rpart(psi_u ~ u1 + u2, u_df_11)
+nig_9  = rpart(psi_u ~ u1 + u2, u_df_9)
+
+
+# extract partition from each of these
+nig_support_8 = with(u_df_8, rbind(c(min(u1), max(u1)),
+                                   c(min(u2), max(u2))))
+
+nig_partition_8 = paramPartition(nig_8, nig_support_8)  # partition.R
+
+# organize all data into single data frame --> ready for approximation
+param_out_8 = u_star(nig_8, u_df_8, nig_partition_8)
+
+param_mod = do.call(rbind, list(param_out %>% filter(leaf_id != 8),
+                                param_out_8))
+
+# extract partition from each of these
+nig_support_11 = with(u_df_11, rbind(c(min(u1), max(u1)),
+                                    c(min(u2), max(u2))))
+
+nig_partition_11 = paramPartition(nig_11, nig_support_11)  # partition.R
+
+# organize all data into single data frame --> ready for approximation
+param_out_11 = u_star(nig_11, u_df_11, nig_partition_11)
+
+
+# extract partition from each of these
+nig_support_9 = with(u_df_9, rbind(c(min(u1), max(u1)),
+                                     c(min(u2), max(u2))))
+
+nig_partition_9 = paramPartition(nig_9, nig_support_9)  # partition.R
+
+# organize all data into single data frame --> ready for approximation
+param_out_9 = u_star(nig_9, u_df_9, nig_partition_9)
+
+
+param_mod = do.call(rbind, list(param_out %>% filter(leaf_id != 8, 
+                                                     leaf_id != 11,
+                                                     leaf_id != 9),
+                                param_out_8, param_out_11, param_out_9))
+
+
+n_partitions = nrow(param_mod)
+c_k = numeric(n_partitions)
+zhat_mod = numeric(n_partitions)
+for (k in 1:n_partitions) {
+    
+    print(paste("iter", k))
+    # u_star_k = (mu_k, sigma_sq_k)
+    c_k[k] = exp(-psi_hat(param_mod[k,]$u1_star, 
+                          param_mod[k,]$u2_star,
+                          y, m_0, w_0, r_0, s_0)) # (1 x 1)
+    
+    l_k = lambda(param_mod[k,]$u1_star, param_mod[k,]$u2_star,
+                 y, m_0, w_0, r_0, s_0)
+    
+    # 1st param calculation
+    p1 = -1/l_k[1] * exp(-l_k[1] * (param_mod[k,]$u1_ub - param_mod[k,]$u1_lb))
+    
+    # 2nd param calculation
+    p2 = -1/l_k[2] * exp(-l_k[2] * (param_mod[k,]$u2_ub - param_mod[k,]$u2_lb))
+    
+    zhat_mod[k] = c_k[k] * p1 * p2
+}
+
+log(sum(zhat_mod))
 
 
 
@@ -132,6 +247,40 @@ log_prior = function(u) {
     dnorm(u[1], mean = m_0, sd = sqrt(u[2] / w_0), log = T) + 
         log(dinvgamma(u[2], shape = r_0 / 2, scale = s_0 / 2))
 }
+
+n_partitions = nrow(nig_partition)
+c_k_numer = numeric(n_partitions)
+zhat_numer = numeric(n_partitions)
+
+for (k in 1:n_partitions) {
+    
+    # u_star_k = (mu_k, sigma_sq_k)
+    c_k_numer[k] = exp(-psi_hat(param_out[k,]$u1_star, 
+                                param_out[k,]$u2_star,
+                                y, m_0, w_0, r_0, s_0)) # (1 x 1)
+    
+    # l_k = lambda(param_out[k,]$u1_star, param_out[k,]$u2_star,
+    #              y, m_0, w_0, r_0, s_0)
+    
+    u_k = c(param_out[k,]$u1_star, param_out[k,]$u2_star)
+    
+    lambda_k = grad(phi, u_k, y = y) - grad(log_prior, u_k)
+    
+    # 1st param calculation
+    p1 = -1 / lambda_k[1] * 
+        exp(-lambda_k[1] * (param_out[k,]$u1_ub - param_out[k,]$u1_lb))
+    
+    # 2nd param calculation
+    p2 = -1 / lambda_k[2] * 
+        exp(-lambda_k[2] * (param_out[k,]$u2_ub - param_out[k,]$u2_lb))
+    
+    zhat_numer[k] = c_k[k] * p1 * p2
+}
+
+
+log(sum(zhat_numer))
+
+
 
 grad_log_prior = function(u) { 
     
