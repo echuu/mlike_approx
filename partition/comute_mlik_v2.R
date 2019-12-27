@@ -4,6 +4,7 @@
 
 source("partition.R")
 
+library(dplyr)
 
 set.seed(123)
 
@@ -72,7 +73,7 @@ psi = function(mu, sigmasq, y, m_0, w_0, r_0, s_0) {
 }
 
 RECURSIVE = TRUE
-N_iters = 1000
+N_iters = 100
 def_approx = numeric(N_iters)
 rec_approx = numeric(N_iters)
 for (t in 1:N_iters) {
@@ -203,6 +204,12 @@ ggplot(approx_df, aes(iter, def)) + geom_point() +
     geom_point(aes(hme_df$mcmc, hme_df$hme), col = 'green', shape = 5) + 
     geom_point(aes(approx_rec_df$iter, approx_rec_df$rec), col = 'purple', shape = 8) + 
     geom_hline(aes(yintercept = LIL), linetype = 'dashed', size = 1.5, color = "red")
+
+
+ggplot(approx_df, aes(iter, def)) + geom_point() + 
+    geom_point(aes(approx_rec_df$iter, approx_rec_df$rec), col = 'purple', shape = 8) + 
+    geom_hline(aes(yintercept = LIL), linetype = 'dashed', size = 1.5, color = "red")
+
 
 mean(approx_default, na.rm = T)
 var(approx_default, na.rm = T)
