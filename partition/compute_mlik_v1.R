@@ -301,12 +301,45 @@ grad_phi = function(mu, sigmasq, y) {
 }
 
 
-u_k = c(param_out[1,]$u1_star, param_out[1,]$u2_star)
+phi = function(u, y) {
+    n = length(y)
+    n / 2 * log(2 * pi) + n / 2 * log(u[2]) + 
+        1 / (2 * u[2]) * sum((y - u[1])^2)
+}
+
+log_prior = function(u) {
+    dnorm(u[1], mean = m_0, sd = sqrt(u[2] / w_0), log = T) + 
+        log(dinvgamma(u[2], shape = r_0 / 2, scale = s_0 / 2))
+}
+
+
+psi = function(u, y, n = length(y)) {
+    
+    # n = length(y)
+    
+    # - (n / 2 * log(2 * pi) + n / 2 * log(u[2]) + 
+    #    1 / (2 * u[2]) * sum((y - u[1])^2)) - 
+    #    dnorm(u[1], mean = m_0, sd = sqrt(u[2] / w_0), log = T) -
+    #    log(dinvgamma(u[2], shape = r_0 / 2, scale = s_0 / 2))
+    
+    loglik = (n / 2 * log(2 * pi) + n / 2 * log(u[2]) + 
+                  1 / (2 * u[2]) * sum((y - u[1])^2))
+    logprior = dnorm(u[1], mean = m_0, sd = sqrt(u[2] / w_0), log = T) +
+        log(dinvgamma(u[2], shape = r_0 / 2, scale = s_0 / 2))
+    
+    -loglik - logprior
+}
+
+
+
+
+u_k = c(29, 4)
 
 grad_phi(u_k[1], u_k[2], y = y) - grad_log_prior(u_k)
 
-grad(phi, u_k, y = y) - grad(log_prior, u_k)
+- grad(phi, u_k, y = y) - grad(log_prior, u_k)
 
+grad(psi, u_k, y = y)
 
 
 

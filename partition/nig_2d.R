@@ -1,5 +1,7 @@
 
 
+
+setwd("C:/Users/ericc/mlike_approx/partition")
 source("partition.R")
 
 library(dplyr)
@@ -15,7 +17,7 @@ w_0 = 0.05
 r_0 = 3
 s_0 = 3
 
-N = 50
+N = 100
 
 
 #### generate data
@@ -50,6 +52,13 @@ nig = function(x, sigmasq, mu, lambda, alpha, beta) {
   
 }
 
+log_nig = function(x, sigmasq, mu, lambda, alpha, beta) {
+    
+    0.5 * (log(lambda) - log(2 * pi * sigmasq)) + alpha * log(beta) - 
+        lgamma(alpha) - (alpha + 1) * log(sigmasq) - 
+        1 / (2 * sigmasq) * (2 * beta + lambda * (x - mu)^2)
+    
+}
 
 # ------------------------------------------------------------------------------
 
@@ -71,25 +80,15 @@ nig = function(x, sigmasq, mu, lambda, alpha, beta) {
 
 psi_true = function(mu, sigma_sq, m_n, w_n, r_n, s_n) {
     
-    # p (mu, sigma_sq | y ) 
-    #    = N (mu | m_n, sigma_sq / w_n) * IG (sigma_sq | r_n / 2, s_n / 2)
-    #    = NIG (mu, sigma_sq | )
-    
-    log_mu_pdf   = dnorm(mu, m_n, sqrt(sigma_sq / w_n), log = T)
-    log_sigma_sq = log(MCMCpack::dinvgamma(sigma_sq, r_n / 2, s_n / 2))
-    log_p_mu_sigmasq = log_mu_pdf + log_sigma_sq
-    
-    out = -log_p_mu_sigmasq
-    
-    return(-log(nig(mu, sigma_sq, m_n, w_n, r_n / 2, s_n / 2)))
+    return(-log_nig(mu, sigma_sq, m_n, w_n, r_n / 2, s_n / 2))
 }
 
 
 #### (**) specify psi = -loglik - logprior
 psi = function(mu, sigmasq, y, m_0, w_0, r_0, s_0) {
-    loglik = sum(dnorm(y, mu, sqrt(sigmasq), log = TRUE))
-    logprior = log(nig(mu, sigmasq, m_0, w_0, r_0 / 2, s_0 / 2))
     
+    loglik = sum(dnorm(y, mu, sqrt(sigmasq), log = TRUE))
+    logprior = log_nig(mu, sigmasq, m_0, w_0, r_0 / 2, s_0 / 2)
     out = -loglik - logprior
 
     return(out)
@@ -117,16 +116,26 @@ lambda = function(mu_star, sigmasq_star, y, m_0, w_0, r_0, s_0) {
 #### this is calculated within the main loop -- move it out later
 
 
-#### specify algorithm settings
-N_iters = 100                     # number of approximations
-# rec_approx = numeric(N_iters)   # storage for r.p. approximations
-
-approx_lil = function(N_iters, y, y_bar,
+## approx_lil() ----------------------------------------------------------------
+#### input: 
+####         N_approx   : # of marginal likelihood approximations
+####         y          : (N x 1) response vector 
+####         y_bar      : (1 x 1) mean response
+####         m_0        : (D x 1) prior mean
+####         w_0        : (1 x 1) scale of covariance
+####         r_0        : (1 x 1) shape
+####         s_0        : (1 x 1) scale
+#### output: def_approx : (N_approx x 1) vector of marginal likelihood approx
+####
+approx_lil = function(N_approx, y, y_bar,
                       m_0, w_0, r_0, s_0,
                       m_n, w_n, r_n, s_n) {
     
     #### algorithm: main loop
     
+    N_iters = N_approx
+    
+    # test_out = numeric()
     def_approx = numeric(N_iters)   # storage for default approximations (no r.p.)
     
     for (t in 1:N_iters) {
@@ -144,6 +153,7 @@ approx_lil = function(N_iters, y, y_bar,
         # (1) sample from sigma_sq | y
         sigma_sq_post = MCMCpack::rinvgamma(J, shape = r_n / 2, scale = s_n / 2)
         
+        # ***** overflow issues
         psi_u = psi_true(mu_post, sigma_sq_post, m_n, w_n, r_n, s_n)
         
         # input for paramPartition() MUST have parameter names u1, u2, ... up
@@ -152,10 +162,6 @@ approx_lil = function(N_iters, y, y_bar,
         # fit decision tree
         ### use rpart to fit partition
         u_rpart = rpart(psi_u ~ ., u_df)
-        
-        # plot the tree (matches general structure of the tree returned from tree())
-        # plot(nig_rpart)
-        # text(nig_rpart, cex = 0.7)
         
         ### obtain partition
         u_support = rbind(c(min(mu_post), max(mu_post)),
@@ -172,9 +178,11 @@ approx_lil = function(N_iters, y, y_bar,
         for (k in 1:n_partitions) {
             
             # u_star_k = (mu_k, sigma_sq_k)
+            #### c_k calculation resulting in very small (1e-48) quantities
+            #### that (I think) are causing underflow -> NaN when log(sum(-))
             c_k[k] = exp(-psi(param_out[k,]$u1_star, 
-                                  param_out[k,]$u2_star,
-                                  y, m_0, w_0, r_0, s_0)) # (1 x 1)
+                              param_out[k,]$u2_star,
+                              y, m_0, w_0, r_0, s_0)) # (1 x 1)
             
             l_k = lambda(param_out[k,]$u1_star, param_out[k,]$u2_star,
                          y, m_0, w_0, r_0, s_0)
@@ -188,23 +196,31 @@ approx_lil = function(N_iters, y, y_bar,
                 exp(-l_k[2] * (param_out[k,]$u2_ub - param_out[k,]$u2_lb))
             
             zhat[k] = c_k[k] * p1 * p2
+            
+            # print(paste("zhat =", zhat[k]))
         }
+        
         
         def_approx[t] = log(sum(zhat))
     }
     
     return(def_approx)
-}
+    
+} # end of approx_lil()
+# ------------------------------------------------------------------------------
 
 
 set.seed(1)
-def_approx = approx_lil(N_iters, y, y_bar,
+def_approx = approx_lil(100, y, y_bar,
                         m_0, w_0, r_0, s_0,
-                        m_n, w_n, r_n, s_n)
+                        m_n, w_n, r_n, s_n) # (100 x 1)
+
 
 # evaluate the mean, variance of the approximations
 mean(def_approx, na.rm = TRUE) # -106.1804
 var(def_approx, na.rm = TRUE)  # 4.491305
+print(LIL)
+
 
 # compare approximation with the true value of the log marginal likelihood
 approx_default = def_approx
@@ -215,50 +231,52 @@ ggplot(approx_df, aes(iter, def)) + geom_point() +
     geom_hline(aes(yintercept = LIL), 
                linetype = 'dashed', size = 1.5, color = "red")
 
+# vectorizing u_df initialzation, d'-dim integral calculation
 
 
-#### ---------------------------------------------------------------------------
+
+
+
+
+
+
+
+
+
+
 
 #### log marginal likelihood analysis ------------------------------------------
 
-N_vec = c(50, 100, 200, 500)
-N_vec = c(50, 100, 200, 500, 1000, 2000, 10000)
 
-#### generate data
-N = 50
-y = rnorm(N, mu, sqrt(sigma_sq))
+# (1) for different sample size, compute N_approx LIL approximations
+# (2) plot the mean of the approximations over log(sample size)
+# (3) fit regression line through these points, verify slope is -d/2
 
-#### compute posterior parameters
-ybar = mean(y)
-m_n = (N * ybar + w_0 * m_0) / (N + w_0)
-w_n = w_0 + N
-r_n = r_0 + N
-s_n = s_0 + sum((y - ybar)^2) + (N * w_0 / (N + w_0)) * (ybar - m_0)^2
+# number of data points for each simulation
+N_sample = c(50, 100, 200, 500, 1000, 2000, 10000)
 
+N_sample = c(50, 100, 200, 300, 350)
 
-#### compute true (log) marginal likelihood
-# p_y underflows for relatively small N -- use log_p_y definition instead
-# p_y = (pi)^(-N / 2) * (w_0 / w_n)^(1/2) * gamma(r_n / 2) / gamma(r_0 / 2) * 
-#     s_0^(r_0 / 2) / s_n^(r_n / 2)
-# (LIL = log(p_y)) # -108.877
+# number of simulations (number of main loop iterations)
+N_sims = length(N_sample)
 
-(log_p_y = -(N/2) * log(pi) + 0.5 * (log(w_0) - log(w_n)) + 
-    lgamma(r_n / 2) - lgamma(r_0 / 2) + r_0 / 2 * log(s_0) - 
-    r_n / 2 * log(s_n))
+# number of approximations to compute per iteration of main loop
+N_approx = 100
 
 
-## plot log-marginal-likelihood vs log n
-## overlay approximate log-marginal likelihood vs log n
-set.seed(1)
+# initialize data storage
+LIL_true   = numeric(N_sims)              # true LIL for each sample size
+LIL_approx = numeric(N_sims)              # approx LIL for each sample size
+LIL_mat    = matrix(0, N_approx, N_sims)  # all approximations stored row-wise
 
-N_approx = length(N_vec)
-LIL_n = numeric(N_approx)      # store the true log marginal likelihood
-LIL_hat_n = numeric(N_approx)  # store the approximate log marginal likelihood
-
-for (n in 1:N_approx) {
+for (t in 1:N_sims) { # main loop
     
-    #### generate data
-    N = N_vec[n]
+    N = N_sample[t]
+    
+    
+    print(paste("sample size =", N, "----------------"))
+    
+    # generate data
     y = rnorm(N, mu, sqrt(sigma_sq))
     
     #### compute posterior parameters
@@ -268,30 +286,96 @@ for (n in 1:N_approx) {
     r_n = r_0 + N
     s_n = s_0 + sum((y - ybar)^2) + (N * w_0 / (N + w_0)) * (ybar - m_0)^2
     
-    #### compute true log marginal likelihood for these n data points
-    LIL_n[n] = -(N/2) * log(pi) + 0.5 * (log(w_0) - log(w_n)) + 
+    
+    LIL_true[t] = -(N/2) * log(pi) + 0.5 * (log(w_0) - log(w_n)) + 
         lgamma(r_n / 2) - lgamma(r_0 / 2) + r_0 / 2 * log(s_0) - 
         r_n / 2 * log(s_n)
     
-    
-    #### begin algorithm
-    
-    N_iters = 100                 # number of approximations
-    def_approx = numeric(N_iters) # storage for default approximations (no r.p.)
+    LIL_mat[,t] = approx_lil(N_approx, y, y_bar,
+                             m_0, w_0, r_0, s_0,
+                             m_n, w_n, r_n, s_n) # (100 x 1)
     
     
+} # end of main loop
+
+
+# compute approximate LIL for each sample size by taking column mean of LIL_mat
+LIL_approx = colMeans(LIL_mat, na.rm = T)
+
+
+# plot mean of approximations (for each n) against log(n)
+lil_df = data.frame(log_n = N_sample, lil = LIL_approx)
+
+ggplot(lil_df, aes(log_n, lil)) + geom_point()
+
+lm(lil~log_n, lil_df[1:4,])
+
+
+# plot lil vs log n ------------------------------------------------------------
+
+
+set.seed(1)
+
+mu = 30
+sigma_sq = 4
+m_0 = 0
+w_0 = 0.05
+r_0 = 3
+s_0 = 3
+
+N_points = seq(50, 1e3, 100)
+
+
+#### generate data
+LIL_n = numeric(100)
+LIL = numeric(length(N_points))
+
+for (n in 1:length(N_points)) {
+    
+    N = N_points[n]
+    
+    for (t in 1:100) {
+      
+      y = rnorm(N, mu, sqrt(sigma_sq))
+      
+      #### compute posterior parameters
+      ybar = mean(y)
+      m_n = (N * ybar + w_0 * m_0) / (N + w_0)
+      w_n = w_0 + N
+      r_n = r_0 + N
+      s_n = s_0 + sum((y - ybar)^2) + (N * w_0 / (N + w_0)) * (ybar - m_0)^2
+      
+      
+      #### compute true (log) marginal likelihood
+      
+      # (LIL = log(p_y)) # -108.877
+      
+      LIL_n[t] = -(N/2) * log(pi) + 0.5 * (log(w_0) - log(w_n)) + 
+        lgamma(r_n / 2) - lgamma(r_0 / 2) + r_0 / 2 * log(s_0) - 
+        r_n / 2 * log(s_n)
+      
+    }
+    
+    
+    LIL[n] = mean(LIL_n)
     
     
 }
 
 
+lil_df = data.frame(log_n = N_points, lil = LIL)
 
-# for n in 1:N { 
-#     
-#     # (0) generate data, compute: LIL_n
-#     # (1) form approximation:     LIL_hat_n
-# }
+ggplot(lil_df, aes(log_n, lil)) + geom_point()
 
+lm(lil~log_n,lil_df)
+
+
+
+# ------------------------------------------------------------------------------
+
+
+
+#### ---------------------------------------------------------------------------
 
 
 
