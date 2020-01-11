@@ -163,10 +163,12 @@ approx_lil = function(N_approx, y, y_bar,
         ### use rpart to fit partition
         u_rpart = rpart(psi_u ~ ., u_df)
         
-        ### obtain partition
+        
+        # obtain the (data-defined) support for each of the parameters
         u_support = rbind(c(min(mu_post), max(mu_post)),
                           c(min(sigma_sq_post), max(sigma_sq_post)))
         
+        ### obtain partition
         u_partition = paramPartition(u_rpart, u_support)  # partition.R
         
         # organize all data into single data frame --> ready for approximation
@@ -196,6 +198,8 @@ approx_lil = function(N_approx, y, y_bar,
                 exp(-l_k[2] * (param_out[k,]$u2_ub - param_out[k,]$u2_lb))
             
             zhat[k] = c_k[k] * p1 * p2
+            
+            # generalize this part for d-th param calulcation
             
             # print(paste("zhat =", zhat[k]))
         }
