@@ -1,167 +1,73 @@
 
 
-library(mvtnorm)
+library(mvtnorm)           # for draws from multivariate normal
+library("numDeriv")        # for grad() function - numerical differentiation
+library('MCMCpack')        # for rinvgamma() function
+
+
+setwd("C:/Users/ericc/mlike_approx/partition")
+source("partition.R")      # load partition extraction functions
+source("mvn_ig_helper.R")  # load functions specific to this model
 
 set.seed(1)
 
-D = 3
-N = 50
+D = 3           # dimension of paramter
+p = D - 1       # dimension of beta
+N = 50          # sample size
 
-b_0 = rep(0, D)        # mu_beta
-V_0 = diag(1, D)       # V_beta
-r_0 = 2 / 2            # a
-s_0 = 1 / 2            # b 
+mu_beta = rep(0, p)      # mu_beta
+V_beta = diag(1, p)      # V_beta
+a_0 = 2 / 2              # a
+b_0 = 1 / 2              # b 
 
-beta = c(5, 1, -2)
+beta    = c(5, -1)     # (p x 1) true coefficient vector
 
-I_N = diag(1, N)
-I_D = diag(1, D)
+if (length(beta) != p) {
+    print("dimension of beta must equal p")
+}
 
-X = matrix(rnorm(N * D), N, D)
+sigmasq = 4            # (1 x 1) true variance
 
-eps = rmvnorm(N, mean = 0)
+I_N = diag(1, N)       # (N x N) identity matrix
+I_p = diag(1, p)       # (p x p) identity matrix
+
+X = matrix(rnorm(N * p), N, p) # (N x p) design matrix
+
+eps = t(rmvnorm(1, mean = rep(0, N), sigma = sigmasq * I_N)) # (N x 1)
 
 y = X %*% beta + eps # (N x 1) response vector
 
 
-# TODO: compute true LIL
+# compute posterior parameters
+V_beta_inv = solve(V_beta)
+V_star_inv = t(X) %*% X + V_beta_inv
 
-# TODO: compute posterior parameters
+V_star  =  solve(V_star_inv)                                  # (p x p)
+mu_star =  V_star %*% (t(X) %*% y + V_beta_inv %*% mu_beta)   # (p x 1)
+a_n     =  a_0 + N / 2                                        # (1 x 1)
+b_n     =  b_0 + 0.5 * (t(y) %*% y +                          # (1 x 1)
+                            t(mu_beta) %*% V_beta_inv %*% mu_beta - 
+                            t(mu_star) %*% V_star_inv %*% mu_star) %>%  c()
 
+# sanity check: posterior mean of beta, sigmasq (values make sense!)
+mu_star
+b_n / (a_n - 1)
 
-## log(determinant) function
-log_det = function(xmat) {
-    return(c(determinant(xmat, logarithm = T)$modulus))
-}
+# create prior, posterior objects
+prior     = list(mu_beta = mu_beta, V_beta = V_beta, a_0 = a_0, b_0 = b_0)
+posterior = list(mu_star = mu_star, V_star = V_star, a_n = a_n, b_n = b_n)
 
+# compute true log marginal likelihood
+LIL_mvn_ig = lil(y, X, prior, posterior)
 
-# lil() : compute the log marginal likelihood ----------------------------------
-# y     : response vector (N x 1)
-# X     : design matrix (N x d)
-# d     : dimension of beta
-# prior : list containing the prior parameter values
-# post  : list containing the posterior paramter values
-lil = function(y, X, prior, post, N = length(y), d = ncol(X)) {
-    
-    # u = (beta1,...,betad, sigmasq) \in R^(d+1)
-    
-    V_star = post$V_star
-    mu_star = post$mu_star
-    a_n = post$a_n
-    b_n = post$b_n 
-    
-    V_beta = prior$V_beta
-    mu_beta = prior$mu_beta
-    a_0 = prior$a_0
-    b_0 = prior$a_0
-    
-    log_py = a_0 * log(b_0) + lgamma(a_n) + 0.5 * log_det(V_star) - 
-        0.5 * log_det(V_star) - N / 2 * log(2 * pi) - lgamma(a_0) - 
-        a_n * log(b_n)
-    
-    
-    
-    return(log_py)
-    
-} # end of lil() function
-
-
-#### specify prior distribution density
-
-## log of the multivariate normal - inverse gamma density -- 
-## log NIG(beta, sigmasq | mu_beta, V_beta, a, b)
-log_mvnig = function(u, mu_beta, V_beta, a, b, d = length(u) - 1) {
-    
-    ## TODO: verify equality of values below
-    ## TODO: put posterior params into post object
-    
-    # p = b^a / ((2 * pi)^(d/2) * sqrt(det(V_beta)) * gamma(a)) * 
-    #     sigmasq^(-a-d/2-1) * exp(-1/sigmasq * (b + 0.5 * t(beta - mu_beta) %*% 
-    #                                                solve(V_beta) %*% 
-    #                                                (beta - mu_beta)))
-    
-    beta = u[1:d]
-    sigmasq = u[d+1]
-    
-    a * log(b) - d / 2 * log(2 * pi) - 0.5 * log_det(V_beta) - lgamma(a) -
-        (a + d / 2 + 1) * log(sigmasq) - 
-        1 / sigmasq * (b + 0.5 * t(beta - mu_beta) %*% solve(V_beta) %*% 
-                           (beta - mu_beta))
-}
-
-
-## psi_true_mvn:     the true negative log posterior, not available in practice, but 
-##                   we can evaluate it
-## psi_mvn:          the negative log posterior as described in the notes, 
-##                   = -loglik - logprior 
-
-## psi_tilde:    approximation of psi as described in the notes
-##               = c_k + lambda_k'u  (this is calculated in main loop)
-
-
-psi_true_mvn = function(u, mu_star, V_star, a_n, b_n) {
-    
-    # -log (true) posterior
-    # -log(MVN-inverse gamma density)
-    
-    ## TODO: verify this is calculating what's intended
-    
-    beta = u[1:d]
-    sigmasq = u[d+1]
-    
-    logpost = log_mvnig(u, mu_star, V_star, a_n, b_n, d = length(u) - 1)
-    
-    return(-logpost) # negative log posterior
-    
-} # end of psi_true_mvn() function
-
-
-
-psi_mvn = function(u, y, X, mu_beta, V_beta, a, b, 
-                   n = length(y), d = length(u) - 1) {
-    
-    ## TODO: put *prior* params into prior object
-    ## TODO: verify this is calculating what's intended
-
-    beta = u[1:d]
-    sigmasq = u[d+1]
-    
-    
-    loglik = dmvnorm(c(y), mean = X %*% beta, sigma = sigmasq * I_N, log = T)
-    
-    logprior = a * log(b) - d / 2 * log(2 * pi) - 
-        0.5 * log_det(V_beta) - lgamma(a) -
-        (a + d / 2 + 1) * log(sigmasq) - 
-        1 / sigmasq * (b + 0.5 * t(beta - mu_beta) %*% solve(V_beta) %*% 
-                           (beta - mu_beta))
-    
-    - loglik - logprior
-} # end of psi_mvn() function
-
-
-# lambda = grad(psi)
-# u is the "representative point" of each partition from the tree output
-# mu_beta, V_beta, a, b are the PRIOR PARAMTERS since psi_mvn evaluates the
-# log-likelihood and the log-prior
-lambda_mvn = function(u, y, mu_beta, V_beta, a, b) {
-    
-    
-    # don't want to compute this by hand, so we use numerical differentiation
-    # see compute_mlik_v1.R for example of grad() function
-    
-    ## TODO: closed form of the gradient is easy, check it by hand first
-
-    grad(psi_mvn, u, y = y, mu_beta = mu_beta, V_beta = V_beta, a = a, b = b)
-    
-} # end of lambda_mvn() function
-
-
+print(LIL_mvn_ig) # -106.3046
 
 # ------------------------------------------------------------------------------
 
+## TODO: perform algorithm for a single approximation
 
-library("numDeriv")
-library('MCMCpack')   # for rinvgamma() function
+
+
 
 
 
@@ -171,13 +77,16 @@ library('MCMCpack')   # for rinvgamma() function
 
 
 
+# ------------------------------------------------------------------------------
+
+## TODO:perform algorithm for a batch approximation (averaged)
+
+
+
+
 
 # testing ----------------------------------------------------------------------
 
-
-
-beta = c(5, 1, -2)
-sigmasq = 4
 
 u = c(beta, sigmasq)
 
