@@ -76,8 +76,11 @@ psi_true_rf = function(u, u_post) {
     
     D = length(u)
     
-    mu = u[1:(D-1)]
+    mu = u[1:(D-1)]   # 'accidentally does the right thing' -- fix later
     sigmasq = u[D]
+    
+    # print(mu)
+    # print(sigmasq)
     
     m_n = u_post$m_n
     w_n = u_post$w_n
@@ -144,17 +147,37 @@ lambda_rf = function(u, y, prior) {
 J = 3000  # number of draws from the posterior
 D = 2     # dimension of parameter -- in this case u = (mu, sigmasq) \in R^2
 
-# simulate data 
-
+# sample from posterior (assumed that we're able to do this) -------------------
 set.seed(1)
 
 # (0) sample from mu | sigma_sq, y
-mu_post = rnorm(J, m_n, sqrt(sigma_sq / w_n)) # (D x 1)
+# mu_post = rnorm(J, m_n, sqrt(sigma_sq / w_n)) # (D x 1)
 
 # (1) sample from sigma_sq | y
-sigma_sq_post = MCMCpack::rinvgamma(J, shape = r_n / 2, scale = s_n / 2)
+# sigma_sq_post = MCMCpack::rinvgamma(J, shape = r_n / 2, scale = s_n / 2)
+
+
+## 1/12 fix the posterior samples ----------------------------------------------
+
+# ** previous way of drawing from posterior is WRONG... need to draw sigmasq
+# first, then use this to draw mu
+
+# (0) sample from sigmasq | y
+sigma_sq_post = MCMCpack::rinvgamma(J, shape = r_n / 2, scale = s_n / 2) # J x 1
+
+# (1) sample from mu | sigmasq, y
+mu_post = numeric(J)
+for (j in 1:J) {
+    mu_post[j] = rnorm(1, m_n, sqrt(sigma_sq_post[1] / w_n)) # D x 1
+}
+
+## -----------------------------------------------------------------------------
+
 
 u_post = data.frame(mu_post = mu_post, sigma_sq_post = sigma_sq_post)
+
+ggplot(u_post, aes(mu_post, sigma_sq_post)) + geom_point()
+
 post = list(m_n = m_n, w_n = w_n, r_n = r_n, s_n = s_n)
 
 psi_u_rf = psi_true_rf(u_post, post)[,1] # get it out of col-vector form

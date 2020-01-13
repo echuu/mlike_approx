@@ -116,6 +116,9 @@ lambda = function(mu_star, sigmasq_star, y, m_0, w_0, r_0, s_0) {
 # 1/11: testing 1 approximation ------------------------------------------------
 
 
+# WRONG FILE -------
+
+
 J = 3000  # number of draws from the posterior
 D = 2     # dimension of parameter -- in this case u = (mu, sigmasq) \in R^2
 

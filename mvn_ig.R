@@ -64,7 +64,74 @@ print(LIL_mvn_ig) # -106.3046
 
 # ------------------------------------------------------------------------------
 
-## TODO: perform algorithm for a single approximation
+## TODO: perform algorithm for a single approximation (see code starting at 
+##       line 144 in nig_2d_vec.R for skeleton)
+
+J = 3000
+
+## (0) sample from posterior (assumed that we're able to do this) --------------
+set.seed(1)
+
+# (0.1) sample from sigmasq | y
+sigmasq_post = MCMCpack::rinvgamma(J, shape = a_n, scale = b_n) # (J x 1)
+
+# (0.2) sample from mu | sigmasq, y
+beta_post = data.frame(matrix(0, J, p))                         # (J x p)
+
+for (j in 1:J) {
+    # each posterior sample is stored row-wise
+    beta_post[j,] = rmvnorm(1, mean = mu_star, sigma = sigmasq_post[j] * V_star)
+}
+
+# store the posterior samples (row-wise) in a (J x D) matrix
+# colnames: ( sigmasq_post, beta_post.X1, beta_post.X2, ... , beta_post.Xp )
+# ** order of paramters matters, since helper functions assume a 
+#    certain order when defined
+u_post = data.frame(beta_post = beta_post, sigmasq_post = sigmasq_post)
+
+
+# store posterior parameters
+post = list(V_star  =  V_star,
+            mu_star =  mu_star,
+            a_n     =  a_n,
+            b_n     =  b_n)
+
+
+# ------------------------------------------------------------------------------
+
+## (1) create u_df (required by the functions in partition.R)
+
+# (1.1) compute psi_true() to be passed into the tree
+
+psi_u = apply(u_post, 1, psi_true_mvn, post = post) %>% unname() # (J x 1)
+
+# (1.2) construct u_df -- this will require some automation for colnames
+u_df_names = character(D + 1)
+for (d in 1:D) {
+    u_df_names[d] = paste("u", d, sep = '')
+}
+u_df_names[D + 1] = "psi_u"
+
+# populate u_df
+u_df = cbind(u_post, psi_u) # J x (D + 1)
+
+# rename columns (needed since these are referenced explicitly in partition.R)
+names(u_df) = u_df_names
+
+# use for testing
+# u_post_test = head(u_post)
+
+# apply(u_post_test, 1, psi_true_mvn, post = post) %>% unname()
+
+# log_mvnig(u_post_test[6,], post) 
+
+# psi_true_mvn(u_post_test[6,], post) 
+
+# ------------------------------------------------------------------------------
+
+## (2) fit the regression tree via rpart()
+
+u_rpart = rpart(psi_u ~ ., u_df)
 
 
 
