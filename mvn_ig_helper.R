@@ -30,8 +30,6 @@ lil = function(y, X, prior, post, N = length(y), d = ncol(X)) {
         0.5 * log_det(V_star) - N / 2 * log(2 * pi) - lgamma(a_0) - 
         a_n * log(b_n)
     
-    
-    
     return(log_py)
     
 } # end of lil() function
@@ -57,8 +55,11 @@ log_mvnig = function(u, post, d = length(u) - 1) {
     a       = post$a_n
     b       = post$b_n
     
-    beta = unlist(u[1:d])  # extract beta from the posterior sample
-    sigmasq = u[d + 1]     # extract sigmasq from the posterior sample
+    # unname + unlist will remove the matrix/df structure and turn into vector,
+    # -> easier handle, prevents input errors
+    
+    beta = unname(unlist(u[1:d]))  # extract beta from the posterior sample
+    sigmasq = unname(unlist(u[d + 1]))             # extract sigmasq from the posterior sample
     
     # print(b)
     
@@ -99,7 +100,7 @@ log_mvnig = function(u, post, d = length(u) - 1) {
 #} # end of psi_true_mvn() function
 
 
-# updated 1/12
+# done -- updated 1/12
 psi_true_mvn = function(u, post) {
     
     # p = length(u) - 1
@@ -110,33 +111,65 @@ psi_true_mvn = function(u, post) {
     # logpost = log_mvnig(u, post$mu_star, post$V_star, post$a_n, post$b_n)
     logpost = log_mvnig(u, post)
     
-    return(-logpost) # negative log posterior
+    return(-logpost %>% c()) # negative log posterior
         
     # return(p)
 }
 
-
-
-# TODO: to be checked
-psi_mvn = function(u, y, X, mu_beta, V_beta, a, b, 
-                   n = length(y), d = length(u) - 1) {
+# checked + fixed -- 1/13
+psi_mvn = function(u, prior) {
     
-    ## TODO: put *prior* params into prior object
     ## TODO: verify this is calculating what's intended
     
-    beta = u[1:d]
-    sigmasq = u[d+1]
+    y = prior$y
+    X = prior$X
     
+    d = length(u) - 1
+    N = length(y)
+    
+    I_N = diag(1, N)       # (N x N) identity matrix
+    
+    # print(N)
+    
+    # extract prior parameters
+    mu_beta = prior$mu_beta
+    V_beta  = prior$V_beta
+    a       = prior$a_0
+    b       = prior$b_0
+    
+    # extract beta, sigmasq from posterior sample -> used to evaluate the 
+    # likelihood and the prior
+    beta    = unname(unlist(u[1:d]))     # (p x 1) -- 1/13 : additional unname()
+    sigmasq = unname(unlist(u[d+1]))     # (1 x 1) -- 1/13 :
+    
+    # unname, unlist needed in the two lines above otherwise dimension of 
+    # the mean and covariance matrix are messed up
+    
+    # print(beta)
+    # print(sigmasq)
+    
+    # print(dim(sigmasq * I_N))
     
     loglik = dmvnorm(c(y), mean = X %*% beta, sigma = sigmasq * I_N, log = T)
+    
+    # matches with:
+    # sum(dnorm(y, mean = X %*% beta, sd = sigmasq, log = T))
+    
+    # print(loglik)
     
     logprior = a * log(b) - d / 2 * log(2 * pi) - 
         0.5 * log_det(V_beta) - lgamma(a) -
         (a + d / 2 + 1) * log(sigmasq) - 
         1 / sigmasq * (b + 0.5 * t(beta - mu_beta) %*% solve(V_beta) %*% 
-                           (beta - mu_beta))
+                           (beta - mu_beta)) 
     
-    - loglik - logprior
+    # convert to scalar data type 
+    logprior = logprior %>% c()
+    
+    # print(logprior)
+    
+    return(- loglik - logprior)
+    
 } # end of psi_mvn() function
 
 

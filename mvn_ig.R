@@ -5,8 +5,10 @@ library("numDeriv")        # for grad() function - numerical differentiation
 library('MCMCpack')        # for rinvgamma() function
 
 
-setwd("C:/Users/ericc/mlike_approx/partition")
-source("partition.R")      # load partition extraction functions
+# setwd("C:/Users/ericc/mlike_approx/partition")
+
+setwd("C:/Users/chuu/mlike_approx")
+source("partition/partition.R")      # load partition extraction functions
 source("mvn_ig_helper.R")  # load functions specific to this model
 
 set.seed(1)
@@ -54,7 +56,8 @@ mu_star
 b_n / (a_n - 1)
 
 # create prior, posterior objects
-prior     = list(mu_beta = mu_beta, V_beta = V_beta, a_0 = a_0, b_0 = b_0)
+prior     = list(mu_beta = mu_beta, V_beta = V_beta, a_0 = a_0, b_0 = b_0,
+                 y = y, X = X)
 posterior = list(mu_star = mu_star, V_star = V_star, a_n = a_n, b_n = b_n)
 
 # compute true log marginal likelihood
@@ -101,9 +104,25 @@ post = list(V_star  =  V_star,
 
 ## (1) create u_df (required by the functions in partition.R)
 
+# START TEST : move this testing code elsewhere later 
+
+(u_post_test = head(u_post))
+
+# test for vector input
+psi_true_mvn(u_post_test[2,], post = post)
+
+# test for matrix input, using apply()
+apply(u_post_test, 1, psi_true_mvn, post = post) %>% unname() # (J x 1)
+
+## END TEST -------
+
+
 # (1.1) compute psi_true() to be passed into the tree
 
 psi_u = apply(u_post, 1, psi_true_mvn, post = post) %>% unname() # (J x 1)
+
+
+
 
 # (1.2) construct u_df -- this will require some automation for colnames
 u_df_names = character(D + 1)
@@ -134,19 +153,51 @@ names(u_df) = u_df_names
 u_rpart = rpart(psi_u ~ ., u_df)
 
 
+# START TEST : move this testing code elsewhere later 
 
+# psi_mvn() used in main algo
 
+# test for vector input
+psi_mvn(u_post_test[1,], prior)
+
+# test for matrix input, using apply()
+apply(u_post_test, 1, psi_mvn, prior = prior) %>% unname() # (J x 1)
+
+## END TEST -------
+
+# ------------------------------------------------------------------------------
 
 
 ## TODO: repliate the main algorithm here
 
+## (3) process the fitted tree
+
+# (3.1) obtain the (data-defined) support for each of the parameters
 
 
+# (3.2) obtain the partition --- moment of truth!!
+
+
+# (3.3) organize all data into single data frame (see partition.R for format)
 
 
 # ------------------------------------------------------------------------------
 
+
+
+
 ## TODO:perform algorithm for a batch approximation (averaged)
+
+
+## test/validate lambda (closed form vs. numerical) 
+
+## (4) begin main algorithm 
+n_partitions = nrow(u_partition)
+c_k = numeric(n_partitions)
+zhat = numeric(n_partitions)
+
+
+
 
 
 
