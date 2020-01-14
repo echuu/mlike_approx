@@ -1,7 +1,9 @@
 
 
 setwd("C:/Users/ericc/mlike_approx/partition")
-source("partition.R")
+
+setwd("C:/Users/chuu/mlike_approx")
+source("partition/partition.R")
 
 library(dplyr)
 
@@ -203,7 +205,9 @@ u_support = rbind(c(min(mu_post), max(mu_post)),
 u_partition = paramPartition(u_rpart, u_support)  # partition.R
 
 # organize all data into single data frame --> ready for approximation
-param_out = u_star(u_rpart, u_df, u_partition)
+param_out = u_star(u_rpart, u_df, u_partition, D)
+
+head(param_out)
 
 n_partitions = nrow(u_partition)
 c_k = numeric(n_partitions)

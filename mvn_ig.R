@@ -5,9 +5,11 @@ library("numDeriv")        # for grad() function - numerical differentiation
 library('MCMCpack')        # for rinvgamma() function
 
 
-setwd("C:/Users/ericc/mlike_approx")
+# path for lenovo
+# setwd("C:/Users/ericc/mlike_approx")
 
-# setwd("C:/Users/chuu/mlike_approx")
+# path for dell
+setwd("C:/Users/chuu/mlike_approx")
 source("partition/partition.R")      # load partition extraction functions
 source("mvn_ig_helper.R")  # load functions specific to this model
 
@@ -121,7 +123,7 @@ apply(u_post_test, 1, psi_true_mvn, post = post) %>% unname() # (J x 1)
 
 psi_u = apply(u_post, 1, psi_true_mvn, post = post) %>% unname() # (J x 1)
 
-
+head(psi_u)
 
 
 # (1.2) construct u_df -- this will require some automation for colnames
@@ -152,6 +154,8 @@ names(u_df) = u_df_names
 
 u_rpart = rpart(psi_u ~ ., u_df)
 
+# view the splits in the tree
+# plot(u_rpart)
 
 # START TEST : move this testing code elsewhere later 
 
@@ -183,10 +187,15 @@ for (d in 1:D) {
 }
 
 # (3.2) obtain the partition --- moment of truth!!
+u_partition = paramPartition(u_rpart, param_support)  # partition.R
 
 
 # (3.3) organize all data into single data frame (see partition.R for format)
 
+# extracts u_star, representative point of each partition (u_star \in R^D)
+# psi_hat, leaf_id, u1_star, u2_star, ... , uD_star, 
+#                   u1_lb, u1_ub, ...uD_lb, uD_ub
+param_out = u_star(u_rpart, u_df, u_partition)
 
 # ------------------------------------------------------------------------------
 

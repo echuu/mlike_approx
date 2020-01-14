@@ -14,9 +14,10 @@ library('MASS')         # mvnorm()
 library('ggplot2')      # don't think we use this in these functions
 library('rpart')        # rpart() for fitting the tree
 library('rpart.plot')   # do we need this?
-library('tidyr')        # data mangement
+library('tidyr')        # data mangaement
 library('readr')        # data management
 library('stringr')      # regex functions
+library('dplyr')        # data mangaement
 
 
 # steps to extract the representative points of each partition
@@ -65,14 +66,15 @@ processFit = function(u_df, rpart_obj) {
 
 
 #### (1) obtain partition location of each observation
-u_star = function(rpart_obj, u_df, partition) {
+u_star = function(rpart_obj, u_df_in, partition, n_params) {
     
     # (1.1) determine which partition each observation is grouped in
-    u_df = u_df %>% mutate(leaf_id = rpart_obj$where)
+    u_df = u_df_in %>% mutate(leaf_id = rpart_obj$where)
     
     # (1.2) obtain the rows in rpart.object$frame associated with the leaf nodes
-    # these rows contain the fitted value for nodes that fall w/in a given partition
-    partition_id = sort(unique(rpart_obj$where)) # row id of leaf node information
+    # these rows contain the fitted value for nodes that fall w/in a 
+    # given partition
+    partition_id = sort(unique(rpart_obj$where)) # row id of leaf node
     
     # number of observations in each leaf node
     part_obs_tbl = table(rpart_obj$where) %>% data.frame
@@ -95,23 +97,23 @@ u_star = function(rpart_obj, u_df, partition) {
     
     # rownames(u_df) = NULL
     
-    ## at this point u_df looks like: ----------------------------------------------
+    ## at this point u_df looks like: ------------------------------------------
     #
-    # | leaf_id |    u1   |    u2   | ... |   up  |  psi_u  |  psi_hat  |  dev_sq
-    # |---------------------------------------------------------------------------
-    # |       4 |  0.423  | -4.584  | ... |   up  | -10.436  |  -6.522  |  15.315
-    # |       4 | -0.425  | -4.455  | ... |   up  | -8.1148  |  -6.522  |  2.5353
-    # |     ... |    ...  |    ...  | ... |   up  |    ...   |     ...  |    ... 
+    # | leaf_id |   u1   |   u2   | ... |   up  |  psi_u  |  psi_hat |  dev_sq
+    # |------------------------------------------------------------------------
+    # |       4 |  0.423 | -4.584 | ... |   up  | -10.436 |  -6.522  |  15.315
+    # |       4 | -0.425 | -4.455 | ... |   up  | -8.1148 |  -6.522  |  2.5353
+    # |     ... |    ... |    ... | ... |   up  |    ...  |     ...  |    ... 
     #
-    ## ----------------------------------------------------------------------------- 
+    ## -------------------------------------------------------------------------
     
     # (4.1) for each partition: sort the rows by squared residual values
     n_partitions = length(partition_id)
-    n_params = 2 # TODO: this should be passed in at the beginning of the function
+    # n_params = 2 # DONE: this should be passed into the function
     
     # initialize data.frame to store the representative points of each partition
     # (n_partitions x n_params) 
-    # TODO: column names should match the convention of 'u1, u2, ... '
+    # DONE: column names should match the convention of 'u1, u2, ... '
     # extra column for the lead id
     u_star_df = matrix(NA, n_partitions, n_params + 1) %>% data.frame() 
     
@@ -133,20 +135,29 @@ u_star = function(rpart_obj, u_df, partition) {
         
         # extract the 'representative point' of partition k -- this will be a 
         # p-dim vector
-        u_vec_k = (part_k_med %>% dplyr::select(u1:psi_u))[, -(n_params + 1)] %>% 
+        u_vec_k = (part_k_med %>% 
+                       dplyr::select(u1:psi_u))[, -(n_params + 1)] %>% 
             as.matrix() %>% c()
         
         u_star_df[k,] = c(u_vec_k, part_k_med$leaf_id)
     } # end of loop extracting representative points
     
-    # needs to be generalized
-    names(u_star_df) = c("u1_star", "u2_star", "leaf_id")
+    # 1/14 -- generalizing this to D many parameters -- DONE
+    u_star_names = character(n_params + 1)
+    for (d in 1:n_params) {
+        u_star_names[d] = paste(names(u_df_in)[d], '_star', sep = '')
+    }
+    u_star_names[n_params + 1] = "leaf_id"
+    
+    names(u_star_df) = u_star_names
+    
+    # names(u_star_df) = c("u1_star", "u2_star", "leaf_id")
     
     ## merge with the boundary of each of the partitions
     u_df_full = merge(u_star_df, partition, by = 'leaf_id')
 
     return(u_df_full)
-}
+} # end u_star() function ------------------------------------------------------
 
 
 
@@ -165,7 +176,8 @@ paramPartition = function(u_tree, param_support = NULL) {
     rules_str = data.frame(x = matrix(0, nrow(rules_df))) # n_partitions x 1
     
     # predicted values for each partition
-    psi_hat = round(as.numeric(rules[,1]), 4) # generalize the 4 to user input later
+    # TODO: generalize the 4 to user input later
+    psi_hat = round(as.numeric(rules[,1]), 4) 
     
     n_params = length(u_tree$variable.importance)
     n_partitions = nrow(rules_str)
@@ -245,7 +257,7 @@ paramPartition = function(u_tree, param_support = NULL) {
     
     return(partition_out)
     
-} # end paramPartition() function
+} # end paramPartition() function ----------------------------------------------
 
 
 
