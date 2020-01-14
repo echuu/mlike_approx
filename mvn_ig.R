@@ -5,9 +5,9 @@ library("numDeriv")        # for grad() function - numerical differentiation
 library('MCMCpack')        # for rinvgamma() function
 
 
-# setwd("C:/Users/ericc/mlike_approx/partition")
+setwd("C:/Users/ericc/mlike_approx")
 
-setwd("C:/Users/chuu/mlike_approx")
+# setwd("C:/Users/chuu/mlike_approx")
 source("partition/partition.R")      # load partition extraction functions
 source("mvn_ig_helper.R")  # load functions specific to this model
 
@@ -173,7 +173,14 @@ apply(u_post_test, 1, psi_mvn, prior = prior) %>% unname() # (J x 1)
 ## (3) process the fitted tree
 
 # (3.1) obtain the (data-defined) support for each of the parameters
+param_support = matrix(NA, D, 2) # store the parameter supports row-wise
 
+for (d in 1:D) {
+    param_d_min = min(u_df[,d])
+    param_d_max = max(u_df[,d])
+    
+    param_support[d,] = c(param_d_min, param_d_max)
+}
 
 # (3.2) obtain the partition --- moment of truth!!
 
