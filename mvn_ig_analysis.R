@@ -21,7 +21,7 @@ D_vec = c(3, 5, 7, 10)
 n_cases = length(D_vec)
 LIL_d   = numeric(n_cases)
 
-N_approx = 5 # number of approximations to compute
+N_approx = 1000 # number of approximations to compute
 
 # store the approximations for each LIL in a column
 approx_d = matrix(NA, N_approx, n_cases) # (N_approx x n_cases)
@@ -97,9 +97,14 @@ for (i in 1:n_cases) {
 } # end loop
 
 
-approx_d
+write.csv(approx_d, "sim_results.csv", row.names = F)
 
-rbind(LIL_d, colMeans(approx_d))
+test_read = read.csv("sim_results.csv")
+
+
+read.csv("sim_results.csv")
+
+# rbind(LIL_d, colMeans(approx_d))
 
 ### plot true value as dashed line, plot approximation points
 

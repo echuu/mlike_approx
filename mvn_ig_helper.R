@@ -251,7 +251,7 @@ approx_lil = function(N_approx, prior, post, D) {
     
     for (t in 1:N_iters) {
         
-        if (t %% 10 == 0) {
+        if (t %% 100 == 0) {
             print(paste("iter", t))
         }
         
