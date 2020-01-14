@@ -171,7 +171,7 @@ u_star = function(rpart_obj, u_df_in, partition, n_params) {
 paramPartition = function(u_tree, param_support = NULL) {
     
     # pre-process the partition output
-    rules = rpart.rules(u_tree, digits = 6)
+    rules = rpart.rules(u_tree, digits = 6, roundint = FALSE)
     rules_df = apply(rules, 2, as.character)[,-c(1:2)]
     rules_str = data.frame(x = matrix(0, nrow(rules_df))) # n_partitions x 1
     
