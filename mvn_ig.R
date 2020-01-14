@@ -189,28 +189,89 @@ for (d in 1:D) {
 # (3.2) obtain the partition --- moment of truth!!
 u_partition = paramPartition(u_rpart, param_support)  # partition.R
 
+head(u_partition)
 
 # (3.3) organize all data into single data frame (see partition.R for format)
 
 # extracts u_star, representative point of each partition (u_star \in R^D)
 # psi_hat, leaf_id, u1_star, u2_star, ... , uD_star, 
 #                   u1_lb, u1_ub, ...uD_lb, uD_ub
-param_out = u_star(u_rpart, u_df, u_partition)
+param_out = u_star(u_rpart, u_df, u_partition, D)
+
+head(param_out)
 
 # ------------------------------------------------------------------------------
 
+## TODO : perform algorithm for a batch approximation (averaged)
 
-
-
-## TODO:perform algorithm for a batch approximation (averaged)
-
-
+## TODO : define, validate lambda() --> mvn_ig_helper.R
 ## test/validate lambda (closed form vs. numerical) 
+
+k = 1
+u = c(param_out[k,]$u1_star, param_out[k,]$u2_star, param_out[k,]$u3_star)
+
+exp(-psi_mvn(u, prior))     # (1 x 1) -- c_k[k] calculation
+
+lambda_mvn_closed(u, prior) # (D x 1) -- lambda(u_star) calculation
+
+# check that numerical evaluation of gradient matches above closed form
+lambda_mvn(u, y, X, mu_beta, V_beta, a_0, b_0) # (D x 1)
 
 ## (4) begin main algorithm 
 n_partitions = nrow(u_partition)
 c_k = numeric(n_partitions)
 zhat = numeric(n_partitions)
+
+for (k in 1:n_partitions) {
+    
+    # u_star_k = (mu_k, sigma_sq_k)
+    # c_k[k] = exp(-psi(param_out[k,]$u1_star, 
+    #                   param_out[k,]$u2_star,
+    #                   y, m_0, w_0, r_0, s_0)) # (1 x 1)
+    
+    # not ideal to do this here -- fix later (define another function)
+    u = c(param_out[k,]$u1_star, param_out[k,]$u2_star)
+    
+    c_k[k] = exp(-psi_rf(u, y, prior)) # (1 x 1)
+    
+    l_k = lambda_rf(u, y, prior)
+    
+    integral_d = numeric(D) # store each component of the D-dim integral 
+    
+    
+    # nothing to refactor in this loop (i think?) since we're just iterating
+    # thru each of the integrals and computing an exponential term
+    for (d in 1:D) {
+        
+        # verify these -- these need to be recalculated if the form of param_out
+        # changes (if columns get shuffled)
+        
+        # col id will change for D > 2
+        # TODO: generalize this better so there's less obscure calculation
+        col_id_lb = 5 + 2 * (d - 1)
+        col_id_ub = col_id_lb + 1
+        
+        # d-th integral computed in closed form
+        integral_d[d] = -1/l_k[d] * 
+            exp(-l_k[d] * (param_out[k,col_id_ub] - param_out[k,col_id_lb]))        
+        
+    }
+    
+    zhat[k] = prod(c_k[k], integral_d)
+    
+}
+
+log(sum(zhat))
+
+
+# end of single approximation simulation ---------------------------------------
+
+
+
+
+
+
+
 
 
 
@@ -224,12 +285,11 @@ zhat = numeric(n_partitions)
 
 u = c(beta, sigmasq)
 
-log_mvnig(u, b_0, V_0, r_0, s_0)
+log_mvnig(u, post)
 
-grad(psi_mvn, u, y = y, mu_beta = b_0, V_beta = V_0, a = r_0, b = s_0)
+lambda_mvn(u, prior)
 
-psi_mvn(u, y = y, mu_beta = b_0, V_beta = V_0, a = r_0, b = s_0)
-
+lambda_mvn_closed(u, prior)
 
 
 

@@ -178,7 +178,7 @@ psi_mvn = function(u, prior) {
 # u is the "representative point" of each partition from the tree output
 # mu_beta, V_beta, a, b are the PRIOR PARAMTERS since psi_mvn evaluates the
 # log-likelihood and the log-prior
-lambda_mvn = function(u, y, mu_beta, V_beta, a, b) {
+lambda_mvn = function(u, prior) {
     
     
     # don't want to compute this by hand, so we use numerical differentiation
@@ -186,10 +186,48 @@ lambda_mvn = function(u, y, mu_beta, V_beta, a, b) {
     
     ## TODO: closed form of the gradient is easy, check it by hand first
     
-    grad(psi_mvn, u, y = y, mu_beta = mu_beta, V_beta = V_beta, a = a, b = b)
+    # grad(psi_mvn, u, y = y, X = X, 
+    #      mu_beta = mu_beta, V_beta = V_beta, a = a, b = b)
+    
+    grad(psi_mvn, u, prior = prior)
+    
     
 } # end of lambda_mvn() function
 
+
+# closed form expression for the gradient of psi_mvn()
+# returns a D-dim vector containing the partial derivatives of each param
+lambda_mvn_closed = function(u, prior) {
+    
+    # extract priors
+    y = prior$y
+    X = prior$X
+    mu_beta = prior$mu_beta
+    V_beta = prior$V_beta
+    a = prior$a_0
+    b = prior$b_0
+    
+    # closed form expression of the gradient
+    
+    N = length(y)
+    p = length(u) - 1   # dimension of beta
+    
+    l_beta = numeric(p)      # derivative wrt beta
+    l_sigmasq = numeric(1)   # derivative wrt sigmasq
+    
+    # evaluate gradient at these points
+    beta = u[1:p]
+    sigmasq = u[p + 1]
+    
+    l_beta = solve(V_beta) %*% (beta - mu_beta) - t(X) %*% (y - X %*% beta)
+    
+    l_sigmasq = (N / 2 + a + p / 2 + 1) - 
+        1 / sigmasq * (0.5 * t(y - X %*% beta) %*% (y - X %*% beta) + 
+                           b + 0.5 * t(beta - mu_beta) %*% solve(V_beta) %*% 
+                           (beta - mu_beta))
+        
+    return(1 / sigmasq * c(l_beta, l_sigmasq))
+}
 
 
 
