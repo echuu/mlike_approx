@@ -1,10 +1,10 @@
 
 
 # path for lenovo
-# setwd("C:/Users/ericc/mlike_approx")
+setwd("C:/Users/ericc/mlike_approx")
 
 # path for dell
-setwd("C:/Users/chuu/mlike_approx")
+# setwd("C:/Users/chuu/mlike_approx")
 
 library(mvtnorm)           # for draws from multivariate normal
 library("numDeriv")        # for grad() function - numerical differentiation
@@ -89,31 +89,79 @@ for (i in 1:n_cases) {
     # --------------------------------------------------------------------------
     
     
-    def_approx = approx_lil(N_approx, prior, post, D) # (N_approx x 1)
+    # def_approx = approx_lil(N_approx, prior, post, D) # (N_approx x 1)
     
     
-    approx_d[,i] = def_approx
+    # approx_d[,i] = def_approx
     
 } # end loop
+
+LIL_d
+
+# different because theres more RNG in between the steps of computing the LIL
+# for different values of D
+# LIL_true = c(-110.9457, -116.7249, -140.0094, -129.2714)
 
 
 write.csv(approx_d, "sim_results.csv", row.names = F)
 
-test_read = read.csv("sim_results.csv")
 
+# ------------------------------------------------------------------------------
 
-read.csv("sim_results.csv")
+# use these since they are the correct versions of the true LIL
+LIL_true = c(-110.9457, -120.3410, -120.7169, -133.6093) # DELL OUTPUT 
 
-# rbind(LIL_d, colMeans(approx_d))
+approx_sim = read.csv("sim_results.csv")
+
+approx_means = colMeans(approx_sim) %>% unlist %>% unname()
+
+approx_med = apply(approx_sim, 2, median) %>%  unlist() %>% unname() 
+
+approx_sds = apply(approx_sim, 2, sd) %>%  unlist() %>% unname() 
+
+approx_means[1]
 
 ### plot true value as dashed line, plot approximation points
 
-approx_df = data.frame(lil_hat = approx_d[,1], lil = LIL_d[1]) %>% 
-    mutate(iter = 1:N_approx)
+plot_approx = function(approx, approx_mean, approx_sd, LIL_true) {
+    
+    N_approx = length(approx)
+    
+    # (N_approx x 3) dataframe constructed so that we can use ggplot2
+    approx_df = data.frame(lil_hat = approx, lil = LIL_true) %>% 
+        mutate(iter = 1:N_approx)
+    
+    p = ggplot(approx_df, aes(iter, lil_hat)) + geom_point(col = 'blue') + 
+        geom_hline(aes(yintercept = lil), 
+                   linetype = 'dashed', size = 1.5, color = "red") +
+        ggtitle(paste("LIL = ", LIL_true, 
+                      ", Mean Approx = ", round(approx_mean, 3), 
+                      ", SD Approx = ", round(approx_sd, 3),
+                      sep = '')) + 
+        theme(plot.title = element_text(size = 18))
+    
+    return(p)
+}
 
-ggplot(approx_df, aes(iter, lil_hat)) + geom_point(col = 'blue') + 
-    geom_hline(aes(yintercept = lil), 
-               linetype = 'dashed', size = 1.5, color = "red")
+
+plot_approx(approx_sim[,1], approx_means[1], approx_sds[1], LIL_true[1])
+
+plot_approx(approx_sim[,2], approx_means[2], approx_sds[2], LIL_true[2])
+
+plot_approx(approx_sim[,3], approx_means[3], approx_sds[3], LIL_true[3])
+
+plot_approx(approx_sim[,4], approx_means[4], approx_sds[4], LIL_true[4])
+
+
+
+# compare median vs mean for approximation results
+
+approx_compare = rbind(LIL_true, approx_med) %>% rbind(approx_means)
+
+# seems like the median does better for these approximations
+colnames(approx_compare) = c("d = 3", "d = 5", "d = 7", "d = 10")
+
+approx_compare
 
 
 

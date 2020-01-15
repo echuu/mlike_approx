@@ -1,0 +1,117 @@
+---
+title: "Simulation Results for Various Models"
+output:
+    prettydoc::html_pretty:
+         toc: true
+    theme: cayman
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, echo = FALSE, message = FALSE}
+
+# path for lenovo
+setwd("C:/Users/ericc/mlike_approx")
+
+# path for dell
+# setwd("C:/Users/chuu/mlike_approx")
+
+library(dplyr)
+library(ggplot2)
+```
+
+
+```{r, echo = FALSE, message = FALSE}
+
+### helper functions used to visualize results below
+
+### plot true value as dashed line, plot approximation points
+plot_approx = function(approx, approx_mean, approx_sd, LIL_true) {
+    
+    N_approx = length(approx)
+    
+    # (N_approx x 3) dataframe constructed so that we can use ggplot2
+    approx_df = data.frame(lil_hat = approx, lil = LIL_true) %>% 
+        mutate(iter = 1:N_approx)
+    
+    p = ggplot(approx_df, aes(iter, lil_hat)) + geom_point(col = 'blue') + 
+        geom_hline(aes(yintercept = lil), 
+                   linetype = 'dashed', size = 1.5, color = "red") +
+        ggtitle(paste("LIL = ", LIL_true, 
+                      ", Mean Approx = ", round(approx_mean, 3), 
+                      ", SD Approx = ", round(approx_sd, 3),
+                      sep = '')) + 
+        theme(plot.title = element_text(size = 15))
+    
+    return(p)
+}
+```
+
+
+```{r, echo = FALSE, message = FALSE}
+
+# use these since they are the correct versions of the true LIL
+LIL_true = c(-110.9457, -120.3410, -120.7169, -133.6093) # DELL OUTPUT 
+
+approx_sim = read.csv("sim_results.csv")
+
+approx_means = colMeans(approx_sim) %>% unlist %>% unname()
+
+approx_med = apply(approx_sim, 2, median) %>%  unlist() %>% unname() 
+
+approx_sds = apply(approx_sim, 2, sd) %>%  unlist() %>% unname() 
+```
+
+# Multivariate Normal - Inverse Gamma (D > 2)
+
+## MVN-IG (D = 3)
+```{r, echo = FALSE, message = FALSE}
+# D = 3
+plot_approx(approx_sim[,1], approx_means[1], approx_sds[1], LIL_true[1])
+```
+
+## MVN-IG (D = 5)
+```{r, echo = FALSE, message = FALSE}
+# D = 5
+plot_approx(approx_sim[,2], approx_means[2], approx_sds[2], LIL_true[2])
+```
+
+## MVN-IG (D = 7)
+```{r, echo = FALSE, message = FALSE}
+# D = 7
+plot_approx(approx_sim[,3], approx_means[3], approx_sds[3], LIL_true[3])
+```
+
+## MVN-IG (D = 10)
+```{r, echo = FALSE, message = FALSE}
+# D = 10
+plot_approx(approx_sim[,4], approx_means[4], approx_sds[4], LIL_true[4])
+```
+
+## Comparing the approximations
+```{r, echo = FALSE, message = FALSE}
+# compare median vs mean for approximation results
+
+approx_compare = rbind(LIL_true, approx_med) %>% rbind(approx_means)
+
+# seems like the median does better for these approximations
+colnames(approx_compare) = c("D = 3", "D = 5", "D = 7", "D = 10")
+
+approx_compare
+```
+
+
+# Singular Example (D = ?)
+
+
+# Skew Normal Example (D = ?)
+
+
+# Multivariate T (D = ?)
+
+
+
+
+
