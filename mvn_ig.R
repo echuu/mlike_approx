@@ -78,7 +78,7 @@ post  = list(V_star  =  V_star,
 # compute true log marginal likelihood
 LIL_mvn_ig = lil(y, X, prior, post)
 
-print(LIL_mvn_ig) # -106.3046 ///// -110.9457
+print(LIL_mvn_ig) # -110.9457
 
 
 ## obtain hybrid marginal likelihood approximation

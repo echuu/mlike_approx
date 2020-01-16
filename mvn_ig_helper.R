@@ -73,6 +73,7 @@ log_mvnig = function(u, post, d = length(u) - 1) {
 }
 
 
+
 ## psi_true_mvn:     the true negative log posterior, not available in practice, but 
 ##                   we can evaluate it
 ## psi_mvn:          the negative log posterior as described in the notes, 
@@ -233,6 +234,36 @@ lambda_mvn_closed = function(u, prior) {
 }
 
 
+preprocess = function(stan_fit, D) {
+    
+    u_samp = rstan::extract(stan_fit, pars = c("beta", "sigmasq"), permuted = TRUE)
+    
+    u_beta = u_samp$beta %>% data.frame()
+    u_sigmasq = u_samp$sigmasq
+    
+    u_post = data.frame(beta_post = u_beta, sigmasq_post = u_sigmasq)
+    
+    psi_u = apply(u_post, 1, psi_true_mvn, post = post) %>% unname() # (J x 1)
+    
+    # (1.2) construct u_df -- this will require some automation for colnames
+    u_df_names = character(D + 1)
+    for (d in 1:D) {
+        u_df_names[d] = paste("u", d, sep = '')
+    }
+    u_df_names[D + 1] = "psi_u"
+    
+    # populate u_df
+    u_df = cbind(u_post, psi_u) # (J * N_approx) x (D + 1)
+    
+    # rename columns (needed since these are referenced explicitly in partition.R)
+    names(u_df) = u_df_names
+    
+    
+    return(u_df)
+    
+}
+
+
 
 approx_lil = function(N_approx, prior, post, D) {
     
@@ -373,7 +404,8 @@ approx_lil = function(N_approx, prior, post, D) {
 
 
 
-approx_lil_stan = function(N_approx, prior, post, D, u_beta, u_sigmasq) {
+## faster verison of the approximation algorithm above
+approx_lil_stan = function(N_approx, prior, post, D, u_df_full, J) {
     
     mu_star = post$mu_star
     V_star  = post$V_star
@@ -395,12 +427,14 @@ approx_lil_stan = function(N_approx, prior, post, D, u_beta, u_sigmasq) {
         }
         
         # generate samples from the posterior probability to form the HME estimator
-        J = 2000 # number of random draws used per estimate
+        # J = 2000 # number of random draws used per estimate
         
         row_id = J * (t - 1) + 1
         
-        beta_post = u_beta[row_id:(row_id+J-1),]
-        sigmasq_post = u_sigmasq[row_id:(row_id+J-1)]
+        # beta_post = u_beta[row_id:(row_id+J-1),]
+        # sigmasq_post = u_sigmasq[row_id:(row_id+J-1)]
+        
+        u_df = u_df_full[row_id:(row_id+J-1),]
         
         # print(dim(beta_post))
         # print(length(sigmasq_post))
@@ -409,22 +443,22 @@ approx_lil_stan = function(N_approx, prior, post, D, u_beta, u_sigmasq) {
         # colnames: ( sigmasq_post, beta_post.X1, beta_post.X2, ... , beta_post.Xp )
         # ** order of paramters matters, since helper functions assume a 
         #    certain order when defined
-        u_post = data.frame(beta_post = beta_post, sigmasq_post = sigmasq_post)
+        #u_post = data.frame(beta_post = beta_post, sigmasq_post = sigmasq_post)
         
-        psi_u = apply(u_post, 1, psi_true_mvn, post = post) %>% unname() # (J x 1)
+        #psi_u = apply(u_post, 1, psi_true_mvn, post = post) %>% unname() # (J x 1)
         
         # (1.2) construct u_df -- this will require some automation for colnames
-        u_df_names = character(D + 1)
-        for (d in 1:D) {
-            u_df_names[d] = paste("u", d, sep = '')
-        }
-        u_df_names[D + 1] = "psi_u"
+        #u_df_names = character(D + 1)
+        #for (d in 1:D) {
+        #    u_df_names[d] = paste("u", d, sep = '')
+        #}
+        #u_df_names[D + 1] = "psi_u"
         
         # populate u_df
-        u_df = cbind(u_post, psi_u) # J x (D + 1)
+        # u_df = cbind(u_post, psi_u) # J x (D + 1)
         
         # rename columns (needed since these are referenced explicitly in partition.R)
-        names(u_df) = u_df_names
+        # names(u_df) = u_df_names
         
         
         ## (2) fit the regression tree via rpart()
