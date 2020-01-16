@@ -9,28 +9,34 @@ num_sims = length(N_vec)
 
 u_mat = matrix(NA, J, num_sims * 2) # (J x 2 * num_sums)
 
+set.seed(1)
 # simulate all data first --> save 
 for (i in 1:num_sims) {
     
     N = N_vec[i]
     
+    print(paste("Generating data for N =", N))
+    
     gamma_dat = list(N = N)
     
     # uncomment to refit model
-    gamma_fit = stan(file = 'gamma_sample.stan', data = gamma_dat,
-                     seed = 1,)
+    gamma_fit = stan(file = 'gamma_sample.stan', data = gamma_dat)
     
     u_samp = extract(gamma_fit, pars = c("u"), permuted = TRUE)
     
     u_post = u_samp$u[1:J,] %>% data.frame() # (J x 2) : post sample stored row-wise
     
-    u_mat[,i]   = u_post[,i]
-    u_mat[,i+1] = u_post[,i+1]
+    col_id = 2 * (i - 1) + 1
+    
+    u_mat[, col_id]     = u_post[, 1]
+    u_mat[, col_id + 1] = u_post[, 2]
     
 }
 
 
-
+write.csv(u_mat, "gamma_samples.csv", row.names = F)
+test_read = read.csv("gamma_samples.csv")
+dim(u_mat)
 
 
 gamma_dat = list(N = N)
