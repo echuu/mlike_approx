@@ -6,16 +6,16 @@ library('MCMCpack')        # for rinvgamma() function
 library('microbenchmark')
 
 # path for lenovo
-# setwd("C:/Users/ericc/mlike_approx")
+setwd("C:/Users/ericc/mlike_approx")
 
 # path for dell
-setwd("C:/Users/chuu/mlike_approx")
+# setwd("C:/Users/chuu/mlike_approx")
 source("partition/partition.R")      # load partition extraction functions
 source("mvn_ig_helper.R")  # load functions specific to this model
 
 set.seed(1)
 
-D = 10           # dimension of paramter
+D = 3           # dimension of paramter
 p = D - 1        # dimension of beta
 N = 50           # sample size
 
@@ -84,7 +84,7 @@ print(LIL_mvn_ig) # -106.3046 ///// -110.9457
 ## obtain hybrid marginal likelihood approximation
 
 set.seed(1)
-N_approx = 1 # number of approximations to compute
+N_approx = 100 # number of approximations to compute
 def_approx = approx_lil(N_approx, prior, post, D) # (100 x 1)
 
 def_approx # -111.433
@@ -120,7 +120,7 @@ microbenchmark(
 ## TODO: perform algorithm for a single approximation (see code starting at 
 ##       line 144 in nig_2d_vec.R for skeleton)
 
-J = 3000
+J = 2000
 
 ## (0) sample from posterior (assumed that we're able to do this) --------------
 # set.seed(2)
@@ -141,6 +141,9 @@ for (j in 1:J) {
 # ** order of paramters matters, since helper functions assume a 
 #    certain order when defined
 u_post = data.frame(beta_post = beta_post, sigmasq_post = sigmasq_post)
+
+
+
 
 
 
@@ -180,6 +183,13 @@ u_df = cbind(u_post, psi_u) # J x (D + 1)
 
 # rename columns (needed since these are referenced explicitly in partition.R)
 names(u_df) = u_df_names
+
+
+## plot posterior parameters
+ggplot(u_df, aes(u1, u2)) + geom_point() # for 2-d, this plots distrib of beta
+
+ggplot(u_df, aes(u3)) + geom_histogram() # distribution of sigmasq 
+
 
 # use for testing
 # u_post_test = head(u_post)
