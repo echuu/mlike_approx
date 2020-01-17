@@ -69,7 +69,7 @@ for (i in 1:N_sims) {
     
     gamma_dat = list(N = N)
     
-    # should give us J * N_approx draws
+    # should give us (J * N_approx) draws
     gamma_fit_N = stan(file    =  'gamma_sample.stan', 
                        data    =  gamma_dat,
                        iter    =  J_iter,
@@ -80,15 +80,20 @@ for (i in 1:N_sims) {
     
     u_df_N = preprocess(gamma_fit_N, D, N)
     
-    filename = paste("u_df_", N, ".csv", sep = '', row.names = FALSE)
-    
+    # save data 
+    filename_N = paste("u_df_", N, ".csv", sep = '')
+    write.csv(u_df_N, filename_N, row.names = FALSE)
+
 }
 
+u_df_50 = read.csv("u_df_50.csv")
+
+plot(u_df_50[,1:2])
 
 
+u_df_1000 = read.csv("u_df_10000.csv")
 
-
-
+plot(u_df_1000[,1:2])
 
 
 # ------------------------------------------------------------------------------
