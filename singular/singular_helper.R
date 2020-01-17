@@ -57,9 +57,9 @@ approx_lil_stan = function(N_approx, D, N, u_df_full, J) {
     
     for (t in 1:N_iters) {
         
-        if (t %% 100 == 0) {
-            print(paste("iter", t))
-        }
+        # if (t %% 10 == 0) {
+        #     print(paste("iter", t))
+        # }
         
         # generate samples from the posterior probability to form the HME estimator
         # J = 2000 # number of random draws used per estimate

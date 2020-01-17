@@ -13,7 +13,7 @@ knitr::opts_chunk$set(echo = TRUE)
 ```{r, echo = FALSE, message = FALSE}
 
 # path for lenovo
-setwd("C:/Users/ericc/mlike_approx")
+setwd("C:/Users/chuu/mlike_approx")
 
 # path for dell
 # setwd("C:/Users/chuu/mlike_approx")
@@ -103,7 +103,44 @@ approx_compare
 ```
 
 
-# Singular Example (D = ?)
+# 2-d Singular Example
+
+Setup: $u \in \left[ 0, 1 \right]^2$, $K(u) = u_1^2 u_2^4$. 
+
+Density: $\gamma_n (u) = \frac{1}{\mathcal{Z}} \cdot e^{-n K(u)} \cdot \pi(u)$, where $\pi(\cdot)$ is the uniform measure on $\left[ 0, 1 \right]^2$. 
+
+We perform the following steps:
+
+1. Use STAN to draw samples from $\gamma_n$ for a given $n$
+2. Use these samples to estimate $\mathcal{Z}_n$ using your method. 
+3. Repeat (1) and (2) for a range of values of n. 
+4. Regress your (estimate for) $\log \mathcal{Z}_n$ on $\log n$ and check if the slope parameter equals -0.25. 
+
+Simulation results below show a slope of -0.3562. 
+
+Details: For each $n$, we averaged $200$ approximations, with each approximation using $J = 2000$ samples from the posterior. 
+
+```{r, echo = FALSE}
+
+approx_N = read.csv("singular/singular_lil_v1.csv")
+
+approx_mean = colMeans(approx_N)
+
+N_vec  = seq(100, 10000, 200)
+
+z_n = exp(approx_mean)
+log_z_n = approx_mean
+log_n = log(N_vec)
+
+lil_df = data.frame(z_n, log_z_n, log_n)
+
+ggplot(lil_df, aes(log_n, log_z_n)) + geom_point()
+
+lm(log_z_n ~ log_n, lil_df) 
+
+# intercept = 10.9585
+# slope     = -0.3562
+```
 
 
 # Skew Normal Example (D = ?)
