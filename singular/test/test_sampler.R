@@ -82,7 +82,7 @@ names(u_df) = u_df_names
 
 ## start back here after fitting the stan object
 
-u_df = preprocess(mvnig_fit, D)
+u_df = preprocess(mvnig_fit, D, post)
 
 stan_approx = approx_lil_stan(N_approx, prior, post, D, u_df, J)
 

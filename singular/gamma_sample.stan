@@ -16,14 +16,14 @@ data {
 
 
 parameters {
-  vector[2] u;   // 2-dim parameter
+  vector<lower=0, upper=1>[2] u;   // 2-dim parameter
 }
 
 
 model {
-
-  target += -N * square(u[1]) * square(square(u[2])); // log likelihood
+  
   target += uniform_lpdf(u[1] | 0, 1) + uniform_lpdf(u[2] | 0, 1); // log prior
+  target += -N * square(u[1]) * square(square(u[2])); // log likelihood
   
 }
 

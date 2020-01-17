@@ -1,67 +1,92 @@
 
 
-# simulate data ------------------------------------------------------
-
-N_vec = c(50, 100, 200, 500, 750, 1000, 2000, 5000, 8000, 10000)
-J = 2000
-D = 2
-num_sims = length(N_vec)
-
-u_mat = matrix(NA, J, num_sims * 2) # (J x 2 * num_sums)
-
-set.seed(1)
-# simulate all data first --> save 
-for (i in 1:num_sims) {
-    
-    N = N_vec[i]
-    
-    print(paste("Generating data for N =", N))
-    
-    gamma_dat = list(N = N)
-    
-    # uncomment to refit model
-    gamma_fit = stan(file = 'gamma_sample.stan', data = gamma_dat)
-    
-    u_samp = extract(gamma_fit, pars = c("u"), permuted = TRUE)
-    
-    u_post = u_samp$u[1:J,] %>% data.frame() # (J x 2) : post sample stored row-wise
-    
-    col_id = 2 * (i - 1) + 1
-    
-    u_mat[, col_id]     = u_post[, 1]
-    u_mat[, col_id + 1] = u_post[, 2]
-    
-}
+library(rstan)
+library(rstudioapi) # running  RStan in parallel via Rstudio
 
 
-write.csv(u_mat, "gamma_samples.csv", row.names = F)
-test_read = read.csv("gamma_samples.csv")
-dim(u_mat)
+# use stan to draw from the posterior distribution -----------------------------
+setwd("C:/Users/ericc/mlike_approx/singular")
 
+J         = 2000         # number of MC samples per approximation
+N_approx  = 10           # number of approximations
+burn_in   = 1000         # number of burn in draws, must be > (N_approx * J)
+n_chains  = 4            # number of markov chains to run
+stan_seed = 123          # seed
+
+J_iter = 1 / n_chains * N_approx * J + burn_in 
+
+
+N = 50  # (pseudo) sample size
+D = 2   # dimension of parameter
 
 gamma_dat = list(N = N)
 
-# uncomment to refit model
-gamma_fit = stan(file = 'gamma_sample.stan', data = gamma_dat,
-                 seed = 1,)
+# should give us J * N_approx draws
+gamma_fit = stan(file    = 'gamma_sample.stan', 
+                 data    = gamma_dat,
+                 iter    = J_iter,
+                 warmup  = burn_in,
+                 chains  = n_chains,
+                 seed    = stan_seed,
+                 control = list(adapt_delta = 0.99)) 
 
-u_samp = extract(gamma_fit, pars = c("u"), permuted = TRUE)
 
-u_post = u_samp$u[1:J,] %>% data.frame() # (J x 2) : post sample stored row-wise
+# manually extract just to see if we're sampling the right thing
+u_samp = rstan::extract(gamma_fit, pars = c("u"), permuted = TRUE)
 
-psi_u = apply(u_post, 1, psi, N = N)     # (J x 1) : negative log posterior
+u_post = u_samp$u %>% data.frame() # (J * N_approx) x 2
 
-u_df_names = character(D + 1)
-for (d in 1:D) {
-    u_df_names[d] = paste("u", d, sep = '')
+plot(u_post)
+
+
+
+# line below can be called directly after stan() functin call
+u_df_all = preprocess(gamma_fit, D, N)
+
+filename = paste("u_df_", N, ".csv", sep = '')
+test_write = write.csv(u_df_all, filename, row.names = FALSE)
+test_read = read.csv("u_df_50.csv") # (J * N_approx) x 3
+
+# repeat above analysis for a grid of N ----------------------------------------
+
+N_vec  = c(50, 100, 200, 500, 750, 1000, 2000, 4000, 8000, 10000)
+N_sims = length(N_vec)
+
+for (i in 1:N_sims) {
+    
+    N = N_vec[i]   # pseudo-sample size
+    D = 2          # dimension of parameter
+    
+    gamma_dat = list(N = N)
+    
+    # should give us J * N_approx draws
+    gamma_fit = stan(file    = 'gamma_sample.stan', 
+                     data    = gamma_dat,
+                     iter    = J_iter,
+                     warmup  = burn_in,
+                     chains  = n_chains,
+                     seed    = stan_seed,
+                     control = list(adapt_delta = 0.99)) 
+    
+    u_df_N = preprocess(gamma_fit, D, N)
+    
+    filename = paste("u_df_", N, ".csv", sep = '', row.names = FALSE)
+    
 }
-u_df_names[D + 1] = "psi_u"
 
-# populate u_df
-u_df = cbind(u_post, psi_u) # J x (D + 1)
 
-# rename columns (needed since these are referenced explicitly in partition.R)
-names(u_df) = u_df_names
+
+
+
+
+
+
+# ------------------------------------------------------------------------------
+
+ggplot(u_df_all, aes(u1, u2)) + geom_density_2d()
+
+
+u_df = u_df_all[1:J,]
 
 u_rpart = rpart(psi_u ~ ., u_df)
 
@@ -143,9 +168,6 @@ for (k in 1:n_partitions) {
 }
 
 log(sum(zhat))
-
-
-
 
 
 

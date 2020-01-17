@@ -234,7 +234,7 @@ lambda_mvn_closed = function(u, prior) {
 }
 
 
-preprocess = function(stan_fit, D) {
+preprocess = function(stan_fit, D, post) {
     
     u_samp = rstan::extract(stan_fit, pars = c("beta", "sigmasq"), permuted = TRUE)
     
