@@ -6,6 +6,7 @@ library(rstudioapi) # running  RStan in parallel via Rstudio
 
 # use stan to draw from the posterior distribution -----------------------------
 setwd("C:/Users/ericc/mlike_approx/singular")
+source("singular_helper.R")
 
 J         = 2000         # number of MC samples per approximation
 N_approx  = 10           # number of approximations
@@ -30,7 +31,7 @@ gamma_fit = stan(file    = 'gamma_sample.stan',
                  seed    = stan_seed,
                  control = list(adapt_delta = 0.99)) 
 
-
+# to test functionality of preprocess(), don't run the code under this ---------
 # manually extract just to see if we're sampling the right thing
 u_samp = rstan::extract(gamma_fit, pars = c("u"), permuted = TRUE)
 
@@ -38,14 +39,20 @@ u_post = u_samp$u %>% data.frame() # (J * N_approx) x 2
 
 plot(u_post)
 
-
+# ------------------------------------------------------------------------------
 
 # line below can be called directly after stan() functin call
 u_df_all = preprocess(gamma_fit, D, N)
 
+plot(u_df_all[,1:2])
+
+
 filename = paste("u_df_", N, ".csv", sep = '')
 test_write = write.csv(u_df_all, filename, row.names = FALSE)
 test_read = read.csv("u_df_50.csv") # (J * N_approx) x 3
+
+# ------------------------------------------------------------------------------
+
 
 # repeat above analysis for a grid of N ----------------------------------------
 
@@ -54,21 +61,24 @@ N_sims = length(N_vec)
 
 for (i in 1:N_sims) {
     
+    
     N = N_vec[i]   # pseudo-sample size
     D = 2          # dimension of parameter
+    
+    print(paste('iter = ', i, ' -- sampling data for N = ', N, sep = ''))
     
     gamma_dat = list(N = N)
     
     # should give us J * N_approx draws
-    gamma_fit = stan(file    = 'gamma_sample.stan', 
-                     data    = gamma_dat,
-                     iter    = J_iter,
-                     warmup  = burn_in,
-                     chains  = n_chains,
-                     seed    = stan_seed,
-                     control = list(adapt_delta = 0.99)) 
+    gamma_fit_N = stan(file    =  'gamma_sample.stan', 
+                       data    =  gamma_dat,
+                       iter    =  J_iter,
+                       warmup  =  burn_in,
+                       chains  =  n_chains,
+                       seed    =  stan_seed,
+                       control =  list(adapt_delta = 0.99)) 
     
-    u_df_N = preprocess(gamma_fit, D, N)
+    u_df_N = preprocess(gamma_fit_N, D, N)
     
     filename = paste("u_df_", N, ".csv", sep = '', row.names = FALSE)
     
