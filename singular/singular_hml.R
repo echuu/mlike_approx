@@ -5,8 +5,10 @@ library(rstudioapi) # running  RStan in parallel via Rstudio
 
 
 # use stan to draw from the posterior distribution -----------------------------
-setwd("C:/Users/ericc/mlike_approx/singular")
+# setwd("C:/Users/ericc/mlike_approx/singular")
+setwd("C:/Users/chuu/mlike_approx/singular")
 source("singular_helper.R")
+source("C:/Users/chuu/mlike_approx/partition/partition.R")
 
 J         = 2000         # number of MC samples per approximation
 N_approx  = 10           # number of approximations
@@ -14,10 +16,11 @@ burn_in   = 1000         # number of burn in draws, must be > (N_approx * J)
 n_chains  = 4            # number of markov chains to run
 stan_seed = 123          # seed
 
+# 6000 iterations needed if we want 2000 MC samples for each approximation
 J_iter = 1 / n_chains * N_approx * J + burn_in 
 
 
-N = 50  # (pseudo) sample size
+N = 10000  # (pseudo) sample size
 D = 2   # dimension of parameter
 
 gamma_dat = list(N = N)
@@ -29,15 +32,24 @@ gamma_fit = stan(file    = 'gamma_sample.stan',
                  warmup  = burn_in,
                  chains  = n_chains,
                  seed    = stan_seed,
-                 control = list(adapt_delta = 0.99)) 
+                 control = list(adapt_delta = 0.99),
+                 refresh = 0) 
 
 # to test functionality of preprocess(), don't run the code under this ---------
 # manually extract just to see if we're sampling the right thing
 u_samp = rstan::extract(gamma_fit, pars = c("u"), permuted = TRUE)
 
-u_post = u_samp$u %>% data.frame() # (J * N_approx) x 2
+# line below can be called directly after stan() functin call
+u_df_all = preprocess(gamma_fit, D, N)
 
-plot(u_post)
+u_df_all %>% head
+
+plot(u_df_all[,1:2])
+
+
+# u_post = u_samp$u %>% data.frame() # (J * N_approx) x 2
+
+# plot(u_post)
 
 # ------------------------------------------------------------------------------
 
@@ -74,34 +86,52 @@ for (i in 1:N_sims) {
                        data    =  gamma_dat,
                        iter    =  J_iter,
                        warmup  =  burn_in,
-                       chains  =  n_chains,
+                       chains  =  n_chains,                  # num chains used
                        seed    =  stan_seed,
-                       control =  list(adapt_delta = 0.99)) 
+                       control =  list(adapt_delta = 0.99),  # small step size
+                       refresh = 0)                          # suppress output
     
     u_df_N = preprocess(gamma_fit_N, D, N)
     
     # save data 
     filename_N = paste("u_df_", N, ".csv", sep = '')
     write.csv(u_df_N, filename_N, row.names = FALSE)
+    print(paste('iter = ', i, ' -- writing out ', filename_N, sep = ''))
 
 }
 
-u_df_50 = read.csv("u_df_50.csv")
+# plot 2-d distributions for a given N
+N = 50
+filename = paste("u_df_", N, ".csv", sep = '')
+u_df_N = read.csv(filename)
+plot(u_df_N[,1:2], main = "N = 50")
 
-plot(u_df_50[,1:2])
-
-
-u_df_1000 = read.csv("u_df_10000.csv")
-
-plot(u_df_1000[,1:2])
+# contour plot of 2-d distribution for a given N
+ggplot(u_df_N, aes(u1, u2)) + geom_density_2d()
 
 
 # ------------------------------------------------------------------------------
 
-ggplot(u_df_all, aes(u1, u2)) + geom_density_2d()
+
+# read in u_df data
+N = 100
+filename = paste("u_df_", N, ".csv", sep = '')
+u_df_N = read.csv(filename)
+
+# stan_approx will N_approx - dim vector of approximations of the LIL
+stan_approx = approx_lil_stan(1, D, N, u_df_N[1:J,], J)
+
+stan_approx
+
+mean(stan_approx, na.rm = TRUE) # 
+var(stan_approx, na.rm = TRUE)  # 
 
 
-u_df = u_df_all[1:J,]
+
+
+
+
+u_df = u_df_N[1:J,]
 
 u_rpart = rpart(psi_u ~ ., u_df)
 

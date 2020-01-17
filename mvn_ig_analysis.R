@@ -88,8 +88,8 @@ for (i in 1:n_cases) {
     
     # --------------------------------------------------------------------------
     
-    
-    # def_approx = approx_lil(N_approx, prior, post, D) # (N_approx x 1)
+    # obtain approximation corresponding to LIL for dim = D
+    def_approx = approx_lil(N_approx, prior, post, D) # (N_approx x 1)
     
     
     # approx_d[,i] = def_approx
