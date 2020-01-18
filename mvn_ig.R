@@ -39,7 +39,8 @@ I_p = diag(1, p)       # (p x p) identity matrix
 
 X = matrix(rnorm(N * p), N, p) # (N x p) design matrix
 
-eps = t(rmvnorm(1, mean = rep(0, N), sigma = sigmasq * I_N)) # (N x 1)
+# eps = t(rmvnorm(1, mean = rep(0, N), sigma = sigmasq * I_N)) # (N x 1)
+eps = rnorm(N, mean = 0, sd = sqrt(sigmasq))
 
 y = X %*% beta + eps # (N x 1) response vector
 

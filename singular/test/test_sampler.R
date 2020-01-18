@@ -17,9 +17,9 @@ setwd("C:/Users/ericc/mlike_approx/singular/test")
 
 # sample from posterior via stan -----------------------------------------------
 
-J         = 2000         # number of MC samples per approximation
-N_approx  = 10           # number of approximations
-burn_in   = 1000         # number of burn in draws, must be > (N_approx * J)
+J         = 100          # number of MC samples per approximation
+N_approx  = 20           # number of approximations
+burn_in   = 2000         # number of burn in draws
 n_chains  = 4            # number of markov chains to run
 stan_seed = 123          # seed
 
@@ -35,7 +35,8 @@ mvnig_fit = stan(file   = 'mvn_ig_sampler.stan',
                  iter   = J_iter,
                  warmup = burn_in,
                  chains = n_chains,
-                 seed   = stan_seed) # should give us J * N_approx draws
+                 seed   = stan_seed,
+                 refresh = 0) # should give us J * N_approx draws
 
 # skip to bottom ---------------------------------------------------------------
 
@@ -89,7 +90,7 @@ stan_approx = approx_lil_stan(N_approx, prior, post, D, u_df, J)
 stan_approx
 
 mean(stan_approx, na.rm = TRUE) # -106.1804
-var(stan_approx, na.rm = TRUE)  # 4.491305
+sd(stan_approx, na.rm = TRUE)  # 4.491305
 
 
 
