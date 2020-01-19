@@ -177,9 +177,15 @@ paramPartition = function(u_tree, param_support = NULL) {
     
     # predicted values for each partition
     # TODO: generalize the 4 to user input later
-    psi_hat = round(as.numeric(rules[,1]), 4) 
+    # psi_hat = round(as.numeric(rules[,1]), 4) 
     
-    n_params = length(u_tree$variable.importance)
+    partition_id = sort(unique(u_tree$where)) # row id of leaf node information
+    psi_hat = round(u_tree$frame[partition_id,]$yval, 4)
+    
+    # n_params = length(u_tree$variable.importance)
+    
+    n_params = length(u_tree$ordered)
+    
     n_partitions = nrow(rules_str)
     
     for(r in 1:nrow(rules)) {
@@ -244,7 +250,7 @@ paramPartition = function(u_tree, param_support = NULL) {
     part_obs_tbl = table(u_tree$where) %>% data.frame
     names(part_obs_tbl) = c("leaf_id", "n_obs")
     
-    partition_id = sort(unique(u_tree$where)) # row id of leaf node information
+    
     
     #### (2) obtain predicted value for each of the observations
     psi_hat_leaf = cbind(leaf_id = partition_id,

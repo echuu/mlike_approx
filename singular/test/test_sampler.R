@@ -85,6 +85,11 @@ names(u_df) = u_df_names
 
 u_df = preprocess(mvnig_fit, D, post)
 
+
+u_rpart = rpart(psi_u ~ ., u_df)
+
+
+
 stan_approx = approx_lil_stan(N_approx, prior, post, D, u_df, J)
 
 stan_approx

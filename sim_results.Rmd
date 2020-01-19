@@ -13,7 +13,7 @@ knitr::opts_chunk$set(echo = TRUE)
 ```{r, echo = FALSE, message = FALSE}
 
 # path for lenovo
-setwd("C:/Users/chuu/mlike_approx")
+setwd("C:/Users/ericc/mlike_approx")
 
 # path for dell
 # setwd("C:/Users/chuu/mlike_approx")
