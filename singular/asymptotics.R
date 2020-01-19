@@ -33,7 +33,7 @@ J_iter = 1 / n_chains * N_approx * J + burn_in
 
 set.seed(123)
 # priors, true parameter values --
-D       = 7                # dimension of paramter
+D       = 5                # dimension of paramter
 p       = D - 1            # dimension of beta
 mu_beta = rep(0, p)        # prior mean for beta
 V_beta  = diag(1, p)       # scaled precision matrix for betaV_beta
@@ -48,12 +48,12 @@ I_p = diag(1, p)       # (p x p) identity matrix
 
 N_vec = c(50, 100, 150, 200, 300)
 
-N_vec = c(100)
+N_vec = c(50)
 
 LIL_N = numeric(length(N_vec))  # store the LIL for each of the grid values of N
 LIL_N_hat = numeric(length(N_vec)) # store LIL approximations
 
-K_sims = 100  # num of simulations to run FOR EACH N in N_vec
+K_sims = 10  # num of simulations to run FOR EACH N in N_vec
 
 
 # compute the true value of the LIL for each N 
@@ -154,14 +154,50 @@ lm(LIL_N ~ log_N, LIL_df)
 # ------------------------------------------------------------------------------
 
 # debug
+library(tidyr)
+library(reshape2)
+LIL_N     = c(-111.1035, -217.9100, -323.8850, -428.6827, -639.7675)
+LIL_N_hat = c(-111.1026, -218.8912, -325.3857, -430.5287, -641.9532)
 
-u_df_full = u_df
+df_3 = data.frame(LIL_N, LIL_N_hat, N_vec)
+df_3_long = melt(df_3, id.vars = "N_vec")
 
-LIL_N_k
-LIL_N_k_hat
+ggplot(df_3_long, aes(N_vec, value, col = as.factor(variable),
+                      shape = as.factor(variable), size = 1)) + geom_point() + 
+    theme(legend.position="none")
+    
+
+LIL_N     = c(-117.6408, -225.1037, -331.7408, -438.5589, -648.6019)
+LIL_N_hat = c(-118.2886, -227.2071, -334.3636, -442.4135, -653.1722)
 
 
+df_5 = data.frame(LIL_N, LIL_N_hat, N_vec)
+df_5_long = melt(df_5, id.vars = "N_vec")
 
+ggplot(df_5_long, aes(N_vec, value, col = as.factor(variable),
+                      shape = as.factor(variable), size = 1)) + geom_point() + 
+    theme(legend.position="none")
+
+LIL_N     = c(-124.1972, -232.3226,  -338.8198, -445.7404, -658.5037)
+LIL_N_hat = c(-125.5221, -236.7784,  -344.6241, -452.6372, -666.7680)
+
+df_7 = data.frame(LIL_N, LIL_N_hat, N_vec)
+df_7_long = melt(df_5, id.vars = "N_vec")
+
+ggplot(df_7_long, aes(N_vec, value, col = as.factor(variable),
+                      shape = as.factor(variable), size = 1)) + geom_point() + 
+    theme(legend.position="none")
+
+LIL_N     = c(-130.0039, -240.4018, -348.6383, -454.0935, -669.4216)
+LIL_N_hat = c(-133.6212, -248.6755, -359.5591, -466.7671, -684.1473)
+
+
+df_10 = data.frame(LIL_N, LIL_N_hat, N_vec)
+df_10_long = melt(df_5, id.vars = "N_vec")
+
+ggplot(df_10_long, aes(N_vec, value, col = as.factor(variable),
+                      shape = as.factor(variable), size = 1)) + geom_point() + 
+    theme(legend.position="none")
 
 
 # ------------------------------------------------------------------------------
@@ -169,14 +205,28 @@ LIL_N_k_hat
 # values of N for which we will compute + approximate the LIL
 # N_vec  = c(50, 100, 200, 500, 750, 1000, 2000, 4000, 8000, 10000)
 
+
+# priors
+D       = 6                # dimension of paramter
+p       = D - 1            # dimension of beta
+mu_beta = rep(0, p)        # prior mean for beta
+V_beta  = diag(1, p)       # scaled precision matrix for betaV_beta
+a_0     = 2 / 2            # shape param for sigmasq
+b_0     = 1 / 2            # scale param 
+
+
+# true model parameters  
+beta    = sample(-10:10, p, replace = T)   # coefficient vector (p x 1)
+sigmasq = 4                                # true variance (1 x 1) 
+
+
+
+I_p = diag(1, p)       # (p x p) identity matrix
+
 # values of N for which we will compute + approximate the LIL
 N_vec = seq(50, 5000, 100)
-
 LIL_N = numeric(length(N_vec)) # store the LIL for each of the grid values of N
-
-# N_vec = c(50, , 100)
-
-K_sims = 500  # num of simulations to run FOR EACH N in N_vec
+K_sims = 200  # num of simulations to run FOR EACH N in N_vec
 
 set.seed(1)
 for (i in 1:length(N_vec)) {
@@ -234,6 +284,13 @@ for (i in 1:length(N_vec)) {
         
         LIL_N_k[k] = lil(y, X, prior, post) - 
             sum(dnorm(y, ybar, sqrt(sigmasq_mle), log = T))
+        
+        # a_0 * log(b_0) + lgamma(a_n) + 0.5 * log_det(V_star) - 
+        #    0.5 * log_det(V_star) - N / 2 * log(2 * pi) - lgamma(a_0) - 
+        #    a_n * log(b_n)
+        
+        
+        
     }
     
     LIL_N[i] = mean(LIL_N_k)

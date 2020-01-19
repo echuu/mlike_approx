@@ -17,68 +17,88 @@ source("partition/partition.R")      # load partition extraction functions
 library(sn)
 library(VGAM)
 
-D = 2
-N = 50 # pseudo-sample size
+
+# fixed settings ---------------------------------------------------------------
+D = 4
+N = 500 # pseudo-sample size
+Omega = diag(1, D)
+Sigma = D / N * Omega 
+Sigma_inv = solve(Sigma)
+alpha = rep(1, D) 
+mu_0 = rep(0, D)
+# ------------------------------------------------------------------------------
 
 set.seed(1)
+J = 5000
+N_approx = 10
+u_samps = rmsn(J, xi = mu_0, Omega = Sigma, alpha = alpha) %>% data.frame 
+u_df_full = preprocess(u_samps, D)
+approx_skew = approx_lil(N_approx, D, u_df_full, J/N_approx)
+mean(approx_skew)
 
-J = 200
+D / 2 * log(2 * pi) + 0.5 * log_det(Sigma) + log(0.5) # -4.376731 for D = 2
 
-Omega = diag(1, D)
-Sigma = D / N * Omega   # to mimic situation where gamma is relatively concentrated
-Sigma_inv = solve(Sigma)
-alpha = c(1, 2)  # slant
-
-mu_0 = c(5, 2)
-
-u_samps = rmsn(J, xi = mu_0, Omega = Sigma, alpha = alpha) %>% data.frame # 200 x 3
 
 # ------------------------------------------------------------------------------
-
-
+plot(u_samps)
 u_df_full = preprocess(u_samps, D)
 
-approx_skew = approx_lil_stan(1, D, u_df_full, J)
+# skew_rpart = rpart(psi_u ~ ., u_df_full)
+# plot(skew_rpart)
+# approx_skew
 
-approx_skew
-
-
-
-
-D / 2 * log(2 * pi) + 0.5 * log_det(Sigma) + log(0.5) # -1.4633 for D = 3
-
+D / 2 * log(2 * pi) + 0.5 * log_det(Sigma) + log(0.5) # -4.376731 for D = 2
 
 # ------------------------------------------------------------------------------
-D = 2
-N = 50 # pseudo-sample size
+
+
+# repeat analysis for many D
+
+N = 1000 # pseudo-sample size
+
+
+D_vec = c(2:10)
+LIL_D = numeric(length(D_vec))
+LIL_D_approx = numeric(length(D_vec))
 
 set.seed(1)
+for (d_i in 1:length(D_vec)) {
+    
+    D = D_vec[d_i]
+    
+    Omega = diag(1, D)
+    Sigma = D / N * Omega 
+    Sigma_inv = solve(Sigma)
+    alpha = rep(1, D) 
+    mu_0 = rep(0, D)
+    
+    LIL_D[d_i] = D / 2 * log(2 * pi) + 0.5 * log_det(Sigma) + log(0.5)
+    
+    J = 5000
+    N_approx = 10
+    u_samps = rmsn(J, xi = mu_0, Omega = Sigma, alpha = alpha) %>% data.frame 
+    
+    u_df_full = preprocess(u_samps, D)
+    
+    # skew_rpart = rpart(psi_u ~ ., u_df_full)
+    # plot(skew_rpart)
+    
+    approx_skew = approx_lil(N_approx, D, u_df_full, J/N_approx)
+    LIL_D_approx[d_i] = mean(approx_skew)
+    
+}
 
-J = 2000
-
-Omega = diag(1, D)
-Sigma = D / N * Omega   # to mimic situation where gamma is relatively concentrated
-Sigma_inv = solve(Sigma)
-alpha = c(1, 2)  # slant
-
-mu_0 = c(0, 0)
-
-u_samps = rmvnorm(J, mu_0, sigma = Sigma) %>% data.frame # 200 x 3
 
 
-# ------------------------------------------------------------------------------
+rbind(LIL_D, LIL_D_approx)
 
 
-u_df_full = preprocess(u_samps, D)
-
-approx_skew = approx_lil_stan(1, D, u_df_full, J)
-
-log(-sum(approx_skew))
-
-D / 2 * log(2 * pi) + 0.5 * log_det(Sigma)
 
 
-D / 2 * log(2 * pi) + 0.5 * log_det(Sigma) + log(0.5) # -1.4633 for D = 3
+
+
+
+
 
 
 

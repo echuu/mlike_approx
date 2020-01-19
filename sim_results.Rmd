@@ -23,102 +23,82 @@ library(ggplot2)
 ```
 
 
-```{r, echo = FALSE, message = FALSE}
+# Multivariate Normal Inverse Gamma 
 
-### helper functions used to visualize results below
+For the multivariate normal - inverse gamma example, we 
+consider the Bayesian regression setup. 
 
-### plot true value as dashed line, plot approximation points
-plot_approx = function(approx, approx_mean, approx_sd, LIL_true) {
-    
-    N_approx = length(approx)
-    
-    # (N_approx x 3) dataframe constructed so that we can use ggplot2
-    approx_df = data.frame(lil_hat = approx, lil = LIL_true) %>% 
-        mutate(iter = 1:N_approx)
-    
-    p = ggplot(approx_df, aes(iter, lil_hat)) + geom_point(col = 'blue') + 
-        geom_hline(aes(yintercept = lil), 
-                   linetype = 'dashed', size = 1.5, color = "red") +
-        ggtitle(paste("LIL = ", LIL_true, 
-                      ", Mean Approx = ", round(approx_mean, 3), 
-                      ", SD Approx = ", round(approx_sd, 3),
-                      sep = '')) + 
-        theme(plot.title = element_text(size = 15))
-    
-    return(p)
-}
+$$ y = X \beta + \varepsilon $$ 
+
+where $y \in \mathbb{R}^N$, $X \in \mathbb{R}^{N \times p}$, 
+$\beta \in \mathbb{R}^p$, and 
+$\varepsilon \sim \mathcal{N}_N \left( 0, \sigma^2 I_N \right)$. 
+
+The parameter $u = (\beta, \sigma^2) \sim \mathcal{NIG}(\cdot)$ is in 
+$\mathbb{R}^D$
+
+For each $D$ and for each $N$, the log marginal likelihood is
+calculated over 100 simulations. Each corresponding approximation 
+uses 100 samples from the posterior. 
+
+For $D = 3, 5, 7, 10$, we compute the log marginal likelihood for different 
+valuesof $N$. Since we can compute the true log marginal likelihood in closed 
+form, we have a quantity with which we can compare the approximations generated
+by the tree-based algorithm. Results from the analysis are shown below. The true 
+log marginal likelihood is denoted $\texttt{LIL_N}$ and the corresponding 
+approximation is directly beneath, denoted $\texttt{LIL_N_hat}$
+
+```{r, eval = FALSE}
+
+D = 3
+             N = 50   N = 100   N = 150   N = 200   N = 300
+LIL_N     -111.1035 -217.9100 -323.8850 -428.6827 -639.7675
+LIL_N_hat -111.1026 -218.8912 -325.3857 -430.5287 -641.9532
+
+
+D = 5
+             N = 50   N = 100   N = 150   N = 200   N = 300
+LIL_N     -117.6408 -225.1037 -331.7408 -438.5589 -648.6019
+LIL_N_hat -118.2886 -227.2071 -334.3636 -442.4135 -653.1722
+
+
+D = 7
+             N = 50   N = 100   N = 150   N = 200   N = 300
+LIL_N     -124.1972 -232.3226  -338.8198 -445.7404 -658.5037
+LIL_N_hat -125.5221 -236.7784  -344.6241 -452.6372 -666.7680
+
+
+D = 10     
+             N = 50   N = 100   N = 150   N = 200   N = 300
+LIL_N     -130.0039 -240.4018 -348.6383 -454.0935 -669.4216
+LIL_N_hat -133.6212 -248.6755 -359.5591 -466.7671 -684.1473
+
 ```
 
-
-```{r, echo = FALSE, message = FALSE}
-
-# use these since they are the correct versions of the true LIL
-LIL_true = c(-110.9457, -120.3410, -120.7169, -133.6093) # DELL OUTPUT 
-
-approx_sim = read.csv("sim_results.csv")
-
-approx_means = colMeans(approx_sim) %>% unlist %>% unname()
-
-approx_med = apply(approx_sim, 2, median) %>%  unlist() %>% unname() 
-
-approx_sds = apply(approx_sim, 2, sd) %>%  unlist() %>% unname() 
-```
-
-# Multivariate Normal - Inverse Gamma (D > 2)
-
-## MVN-IG (D = 3)
-```{r, echo = FALSE, message = FALSE}
-# D = 3
-plot_approx(approx_sim[,1], approx_means[1], approx_sds[1], LIL_true[1])
-```
-
-## MVN-IG (D = 5)
-```{r, echo = FALSE, message = FALSE}
-# D = 5
-plot_approx(approx_sim[,2], approx_means[2], approx_sds[2], LIL_true[2])
-```
-
-## MVN-IG (D = 7)
-```{r, echo = FALSE, message = FALSE}
-# D = 7
-plot_approx(approx_sim[,3], approx_means[3], approx_sds[3], LIL_true[3])
-```
-
-## MVN-IG (D = 10)
-```{r, echo = FALSE, message = FALSE}
-# D = 10
-plot_approx(approx_sim[,4], approx_means[4], approx_sds[4], LIL_true[4])
-```
-
-## Comparing the approximations
-```{r, echo = FALSE, message = FALSE}
-# compare median vs mean for approximation results
-
-approx_compare = rbind(LIL_true, approx_med) %>% rbind(approx_means)
-
-# seems like the median does better for these approximations
-colnames(approx_compare) = c("D = 3", "D = 5", "D = 7", "D = 10")
-
-approx_compare
-```
 
 
 # 2-d Singular Example
 
 Setup: $u \in \left[ 0, 1 \right]^2$, $K(u) = u_1^2 u_2^4$. 
 
-Density: $\gamma_n (u) = \frac{1}{\mathcal{Z}} \cdot e^{-n K(u)} \cdot \pi(u)$, where $\pi(\cdot)$ is the uniform measure on $\left[ 0, 1 \right]^2$. 
+Density: $\gamma_n (u) = \frac{1}{\mathcal{Z}} \cdot e^{-n K(u)} \cdot \pi(u)$, 
+where $\pi(\cdot)$ is the uniform measure on $\left[ 0, 1 \right]^2$. 
 
 We perform the following steps:
 
 1. Use STAN to draw samples from $\gamma_n$ for a given $n$
 2. Use these samples to estimate $\mathcal{Z}_n$ using your method. 
 3. Repeat (1) and (2) for a range of values of n. 
-4. Regress your (estimate for) $\log \mathcal{Z}_n$ on $\log n$ and check if the slope parameter equals -0.25. 
+4. Regress your (estimate for) $\log \mathcal{Z}_n$ on $\log n$ and check if 
+the slope parameter equals -0.25. 
 
-Simulation results below show a slope of -0.3562. 
+Simulation results below show a slope of -0.3562. This, however, is not the 
+desired value. I'll look more closely at this and see what else can be done to 
+improve the approximation.
 
-Details: For each $n$, we averaged $200$ approximations, with each approximation using $J = 2000$ samples from the posterior. 
+Details: For each $n$, we averaged $200$ approximations, with each approximation 
+using $J = 2000$ samples from the posterior. 
+
 
 ```{r, echo = FALSE}
 
@@ -143,10 +123,117 @@ lm(log_z_n ~ log_n, lil_df)
 ```
 
 
-# Skew Normal Example (D = ?)
+
+# Multivariate Skew Normal Example (varying N, D)
+
+Following the approach in the notes and choosing 
+
+$$\psi(u) = \frac{1}{2} u' \Sigma u - \log \Phi(\alpha'u)$$
+
+we know the normalizing constant is
+
+$$\mathcal{Z} = \left( 2 \pi \right)^{D/2} \cdot \frac{1}{2}|\Sigma |^{1/2}$$
+
+so the log normalizing constant is
+
+$$\log \mathcal{Z} = \frac{D}{2} \log \left( 2 \pi \right) + 
+\log\left( \frac{1}{2} \right) + \frac{1}{2}\log | \Sigma |$$
 
 
-# Multivariate T (D = ?)
+As written in the notes, we've taken $\Sigma = \left( D / N \right) \Omega$ for 
+a fixed covariance matrix $\Omega$.
+
+For $N = 100$, and $D$ ranging from 2 to 10, the true $\log \mathcal{Z}$ 
+is reported below, denoted $\texttt{log_Z}$ and its corresponding approximation
+below, denoted $\texttt{log_Z_hat}$
+
+
+```{r, eval = F}
+                 D = 2     D = 3     D = 4     D = 5     D = 6 
+log_Z        -2.767293 -3.196168 -3.455145 -3.587785 -3.619748
+log_Z_hat    -2.303287 -3.417133 -3.780998 -4.324953 -4.699987
+
+                 D = 7     D = 8     D = 9    D = 10
+log_Z        -3.567988 -3.444553 -3.258456 -3.016687
+log_Z_hat    -5.787880 -6.715651 -6.289311 -5.420558
+
+```
+
+For $N = 500$, and $D$ ranging from 2 to 10, the true $\log \mathcal{Z}$ 
+is reported below, denoted $\texttt{log_Z}$ and its corresponding approximation
+below, denoted $\texttt{log_Z_hat}$
+
+```{r, eval = F}
+                 D = 2     D = 3     D = 4     D = 5     D = 6
+log_Z        -4.376731 -5.610325 -6.674021 -7.611380 -8.448062
+log_Z_hat    -3.912725 -5.831289 -6.999874 -8.348547 -9.528301
+
+                 D = 7     D = 8     D = 9     D = 10
+log_Z         -9.20102  -9.882305 -10.50093 -11.06388
+log_Z_hat    -11.42091 -13.153403 -13.53178 -13.46775
+
+```
+
+
+For $N = 1000$, and $D$ ranging from 2 to 10, the true $\log \mathcal{Z}$ 
+is reported below, denoted $\texttt{log_Z}$ and its corresponding approximation
+below, denoted $\texttt{log_Z_hat}$
+
+
+```{r, eval = F}
+                 D = 2     D = 3     D = 4     D = 5      D = 6
+log_Z        -5.069878 -6.650046 -8.060315  -9.344248 -10.52750
+log_Z_hat    -4.605873 -6.871010 -8.386169 -10.081417 -11.60774
+
+                 D = 7     D = 8     D = 9     D = 10
+log_Z        -11.62704 -12.65489 -13.62009   -14.52961
+log_Z_hat    -13.84694 -15.92599 -16.65095   -16.93348
+
+```
+
+
+# Asymptotic Analysis
+
+## Regressing log marginal likelihood vs. log N
+
+After taking your suggestions with regards to taking an average of log marginal
+likelihoods and subtracting the corresponding log marginal likelihood, I was 
+able to get sensible results when regression the log marginal likelihood 
+vs log $N$ in the multivariate inverse gamma example. 
+
+
+# Issues
+
+## Underflowing when for larger N
+One quantity that became problematic to compute in some of the examples was 
+$\psi(u)$ when the sample size increased beyond a couple hundred (in the case 
+of the MVN-IG example). Since it's a function of the data, when we evaluate 
+$\exp\left( \psi(u \right))$, this tends to underflow. I recall there being 
+some numerical tricks that we can do in situations with underflow caused by the 
+log likelihood, but since $\psi(u)$ is an explicit term in the approximation, I
+didn't think that directly playing with the quantities inside was a viable 
+option.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

@@ -7,7 +7,7 @@ setwd("C:/Users/ericc/mlike_approx/singular/test")
 # sample from posterior via stan -----------------------------------------------
 
 J         = 100          # number of MC samples per approximation
-N_approx  = 10           # number of approximations
+N_approx  = 20           # number of approximations
 burn_in   = 2000         # number of burn in draws
 n_chains  = 4            # number of markov chains to run
 stan_seed = 123          # seed
@@ -15,17 +15,16 @@ stan_seed = 123          # seed
 J_iter = 1 / n_chains * N_approx * J + burn_in 
 
 
-K_sims = 100  # num of simulations to run FOR EACH N in N_vec
+K_sims = 200  # num of simulations to run FOR EACH N in N_vec
 
 # ------------------------------------------------------------------------------
 
 
 D_vec = c(3, 5, 7, 10)
+# D_vec = c(3, 5)
     
 LIL_d = vector("list", length = length(D_vec))    
 
-D_vec = c(7)
-LIL_d = vector("list", length = length(D_vec)) 
 set.seed(123)
 for (d_i in 1:length(D_vec)) {
     
@@ -47,7 +46,8 @@ for (d_i in 1:length(D_vec)) {
     
     # --------------------------------------------------------------------------
     
-    N_vec = c(100)
+    N_vec = c(50, 100, 150, 200, 300)
+    
     
     LIL_N = numeric(length(N_vec))      # store the LIL for each N
     LIL_N_hat = numeric(length(N_vec))  # store LIL approximations for N
@@ -143,12 +143,6 @@ for (d_i in 1:length(D_vec)) {
 LIL_N_k
 LIL_N_k_hat
 
-
-
-approx_lil_stan(N_approx, prior, post, D, u_df, J)
-
-
-rbind(LIL_N_k, LIL_N_k_hat)
 
 LIL_d
 

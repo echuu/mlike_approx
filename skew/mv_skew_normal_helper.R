@@ -54,7 +54,7 @@ preprocess = function(post_samps, D) {
 }
 
 
-approx_lil_stan = function(N_approx, D, u_df_full, J) {
+approx_lil = function(N_approx, D, u_df_full, J) {
 
     def_approx = numeric(N_approx)
     
@@ -120,7 +120,7 @@ approx_lil_stan = function(N_approx, D, u_df_full, J) {
             zhat[k] = prod(c_k[k], integral_d)
         }
         
-        return(zhat)
+        # return(zhat)
         
         def_approx[t] = log(sum(zhat))
         
