@@ -3,7 +3,8 @@
 
 psi_skew = function(u) {
     
-    0.5 * t(u) %*% Sigma_inv %*% u - log(erf(sum(alpha * u)))
+    0.5 * t(u) %*% Sigma_inv %*% u - 
+        log(0.5 * (1 + erf(sum(alpha * u) / sqrt(2))))
     
 }
 
@@ -33,7 +34,7 @@ log_det = function(xmat) {
 preprocess = function(post_samps, D) {
     
     
-    psi_u = apply(post_samps, 1, psi_mvn) %>% unname() # (J x 1)
+    psi_u = apply(post_samps, 1, psi_skew) %>% unname() # (J x 1)
     
     # (1.2) construct u_df -- this will require some automation for colnames
     u_df_names = character(D + 1)
@@ -99,9 +100,9 @@ approx_lil = function(N_approx, D, u_df_full, J) {
             star_ind = grep("_star", names(param_out))
             u = param_out[k, star_ind] %>% unlist %>% unname
             
-            c_k[k] = exp(-psi_mvn(u)) # (1 x 1)
+            c_k[k] = exp(-psi_skew(u)) # (1 x 1)
             
-            l_k = lambda_mvn(u)
+            l_k = lambda(u)
             
             integral_d = numeric(D) # store each component of the D-dim integral 
 

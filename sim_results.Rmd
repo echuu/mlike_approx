@@ -1,9 +1,15 @@
 ---
 title: "Simulation Results for Various Models"
+header-includes:
+   - \usepackage{amsmath}
 output:
-    prettydoc::html_pretty:
-         toc: true
-    theme: cayman
+  prettydoc::html_pretty:
+    toc: yes
+  pdf_document:
+  html_document:
+    df_print: paged
+    toc: yes
+  theme: cayman
 ---
 
 ```{r setup, include=FALSE}
@@ -28,14 +34,14 @@ library(ggplot2)
 For the multivariate normal - inverse gamma example, we 
 consider the Bayesian regression setup. 
 
-$$ y = X \beta + \varepsilon $$ 
+$$ y = X \beta + \varepsilon $$
 
 where $y \in \mathbb{R}^N$, $X \in \mathbb{R}^{N \times p}$, 
 $\beta \in \mathbb{R}^p$, and 
 $\varepsilon \sim \mathcal{N}_N \left( 0, \sigma^2 I_N \right)$. 
 
 The parameter $u = (\beta, \sigma^2) \sim \mathcal{NIG}(\cdot)$ is in 
-$\mathbb{R}^D$
+$\mathbb{R}^D$.
 
 For each $D$ and for each $N$, the log marginal likelihood is
 calculated over 100 simulations. Each corresponding approximation 
@@ -45,37 +51,42 @@ For $D = 3, 5, 7, 10$, we compute the log marginal likelihood for different
 valuesof $N$. Since we can compute the true log marginal likelihood in closed 
 form, we have a quantity with which we can compare the approximations generated
 by the tree-based algorithm. Results from the analysis are shown below. The true 
-log marginal likelihood is denoted $\texttt{LIL_N}$ and the corresponding 
-approximation is directly beneath, denoted $\texttt{LIL_N_hat}$
+log marginal likelihood is denoted `LIL_N` and the corresponding 
+approximation is directly beneath, denoted `LIL_N_hat`. 
+
+
+&nbsp;
+
 
 ```{r, eval = FALSE}
 
 D = 3
              N = 50   N = 100   N = 150   N = 200   N = 300
-LIL_N     -111.1035 -217.9100 -323.8850 -428.6827 -639.7675
-LIL_N_hat -111.1026 -218.8912 -325.3857 -430.5287 -641.9532
+LIL_N     -119.1375 -226.0264 -333.3248 -438.4928 -651.6707
+LIL_N_hat -115.3618 -222.4969 -329.7781 -435.0519 -648.2589
 
 
 D = 5
              N = 50   N = 100   N = 150   N = 200   N = 300
-LIL_N     -117.6408 -225.1037 -331.7408 -438.5589 -648.6019
-LIL_N_hat -118.2886 -227.2071 -334.3636 -442.4135 -653.1722
+LIL_N     -122.9931 -230.1301 -336.8971 -443.2184 -655.1442
+LIL_N_hat -115.7255 -223.3899 -329.9925 -436.6573 -648.5281
 
 
 D = 7
              N = 50   N = 100   N = 150   N = 200   N = 300
-LIL_N     -124.1972 -232.3226  -338.8198 -445.7404 -658.5037
-LIL_N_hat -125.5221 -236.7784  -344.6241 -452.6372 -666.7680
+LIL_N     -125.0980 -232.8142 -340.0919 -446.3879 -658.9896
+LIL_N_hat -115.0527 -223.2259 -331.0643 -437.5655 -650.1652
 
 
 D = 10     
              N = 50   N = 100   N = 150   N = 200   N = 300
-LIL_N     -130.0039 -240.4018 -348.6383 -454.0935 -669.4216
-LIL_N_hat -133.6212 -248.6755 -359.5591 -466.7671 -684.1473
+LIL_N     -149.3752 -263.4889 -374.5714 -483.5582 -697.5709
+LIL_N_hat -136.1000 -251.1660 -363.0205 -472.1533 -686.4052
 
 ```
 
 
+\newpage
 
 # 2-d Singular Example
 
@@ -97,8 +108,9 @@ desired value. I'll look more closely at this and see what else can be done to
 improve the approximation.
 
 Details: For each $n$, we averaged $200$ approximations, with each approximation 
-using $J = 2000$ samples from the posterior. 
+using $J = 2000$ samples from the $\gamma_N(\cdot)$ 
 
+&nbsp;
 
 ```{r, echo = FALSE}
 
@@ -143,41 +155,74 @@ $$\log \mathcal{Z} = \frac{D}{2} \log \left( 2 \pi \right) +
 As written in the notes, we've taken $\Sigma = \left( D / N \right) \Omega$ for 
 a fixed covariance matrix $\Omega$.
 
-For $N = 100$, and $D$ ranging from 2 to 10, the true $\log \mathcal{Z}$ 
-is reported below, denoted $\texttt{log_Z}$ and its corresponding approximation
-below, denoted $\texttt{log_Z_hat}$
+In the following simulations, for each $N$, we approximate the log normalizing
+constant for $D = 2, \ldots, 10$. The true $\log \mathcal{Z}$ is denoted
+`log_Z` and its corresponding approximation is denoted 
+`log_Z_hat`.
 
+
+### $N = 100$, and $D$ ranging from 2 to 10, 
+
+*Note approximations are quite poor for $D > 5$*
+
+&nbsp;
 
 ```{r, eval = F}
                  D = 2     D = 3     D = 4     D = 5     D = 6 
 log_Z        -2.767293 -3.196168 -3.455145 -3.587785 -3.619748
-log_Z_hat    -2.303287 -3.417133 -3.780998 -4.324953 -4.699987
+log_Z_hat    -1.485009 -1.470474 -1.963887 -2.554357  1.729797
 
-                 D = 7     D = 8     D = 9    D = 10
-log_Z        -3.567988 -3.444553 -3.258456 -3.016687
-log_Z_hat    -5.787880 -6.715651 -6.289311 -5.420558
+                 D = 7     D = 8      D = 9    D = 10
+log_Z        -3.567988 -3.444553 -3.2584556 -3.016687
+log_Z_hat     2.006608  1.682807  0.7620404  5.932742
 
 ```
 
-For $N = 500$, and $D$ ranging from 2 to 10, the true $\log \mathcal{Z}$ 
-is reported below, denoted $\texttt{log_Z}$ and its corresponding approximation
-below, denoted $\texttt{log_Z_hat}$
+### $N = 200$, and $D$ ranging from 2 to 10, 
 
 ```{r, eval = F}
                  D = 2     D = 3     D = 4     D = 5     D = 6
-log_Z        -4.376731 -5.610325 -6.674021 -7.611380 -8.448062
-log_Z_hat    -3.912725 -5.831289 -6.999874 -8.348547 -9.528301
+log_Z        -3.460440 -4.235889 -4.841439 -5.320653 -5.699190
+log_Z_hat    -3.625409 -2.782186 -4.299633 -3.519087 -3.750553
 
                  D = 7     D = 8     D = 9     D = 10
-log_Z         -9.20102  -9.882305 -10.50093 -11.06388
-log_Z_hat    -11.42091 -13.153403 -13.53178 -13.46775
+log_Z        -5.994003 -6.217142 -6.377618  -6.482423
+log_Z_hat    -3.798406 -3.510086 -3.446793  -1.458410
 
 ```
 
 
-For $N = 1000$, and $D$ ranging from 2 to 10, the true $\log \mathcal{Z}$ 
-is reported below, denoted $\texttt{log_Z}$ and its corresponding approximation
-below, denoted $\texttt{log_Z_hat}$
+### $N = 500$, and $D$ ranging from 2 to 10, 
+
+
+```{r, eval = F}
+                 D = 2     D = 3     D = 4     D = 5      D = 6
+log_Z        -4.376731 -5.610325 -6.674021 -7.611380  -8.448062
+log_Z_hat    -3.763879 -5.099502 -5.042377 -6.326623  -5.305841
+
+                 D = 7     D = 8     D = 9       D = 10
+log_Z        -9.201020 -9.882305 -10.500926  -11.063877
+log_Z_hat    -7.443714 -8.828195  -6.638853   -9.236426
+
+```
+
+
+### $N = 1000$, and $D$ ranging from 2 to 10, 
+
+
+```{r, eval = F}
+                 D = 2     D = 3     D = 4     D = 5      D = 6
+log_Z        -6.679316 -9.064203 -11.27919 -13.36784  -15.35582
+log_Z_hat    -6.885154 -9.646416 -10.19667 -13.77284  -17.10972
+
+                 D = 7     D = 8     D = 9     D = 10
+log_Z        -17.26007 -19.09265 -20.86256  -22.57680
+log_Z_hat    -19.16342 -22.14646 -23.68828  -22.68788
+
+```
+
+
+### $N = 5000$, and $D$ ranging from 2 to 10, 
 
 
 ```{r, eval = F}
@@ -186,10 +231,11 @@ log_Z        -5.069878 -6.650046 -8.060315  -9.344248 -10.52750
 log_Z_hat    -4.605873 -6.871010 -8.386169 -10.081417 -11.60774
 
                  D = 7     D = 8     D = 9     D = 10
-log_Z        -11.62704 -12.65489 -13.62009   -14.52961
-log_Z_hat    -13.84694 -15.92599 -16.65095   -16.93348
+log_Z        -11.62704 -12.65489 -13.62009  -14.52961
+log_Z_hat    -13.84694 -15.92599 -16.65095  -16.93348
 
 ```
+
 
 
 # Asymptotic Analysis

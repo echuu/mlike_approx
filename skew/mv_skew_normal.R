@@ -20,7 +20,7 @@ library(VGAM)
 
 # fixed settings ---------------------------------------------------------------
 D = 4
-N = 500 # pseudo-sample size
+N = 5000 # pseudo-sample size
 Omega = diag(1, D)
 Sigma = D / N * Omega 
 Sigma_inv = solve(Sigma)
@@ -53,15 +53,13 @@ D / 2 * log(2 * pi) + 0.5 * log_det(Sigma) + log(0.5) # -4.376731 for D = 2
 
 
 # repeat analysis for many D
-
-N = 1000 # pseudo-sample size
+set.seed(1)
+N = 5000 # pseudo-sample size
 
 
 D_vec = c(2:10)
 LIL_D = numeric(length(D_vec))
 LIL_D_approx = numeric(length(D_vec))
-
-set.seed(1)
 for (d_i in 1:length(D_vec)) {
     
     D = D_vec[d_i]

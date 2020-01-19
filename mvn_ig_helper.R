@@ -27,7 +27,7 @@ lil = function(y, X, prior, post, N = length(y), d = ncol(X)) {
     b_0 = prior$a_0
     
     log_py = a_0 * log(b_0) + lgamma(a_n) + 0.5 * log_det(V_star) - 
-        0.5 * log_det(V_star) - N / 2 * log(2 * pi) - lgamma(a_0) - 
+        0.5 * log_det(V_beta) - N / 2 * log(2 * pi) - lgamma(a_0) - 
         a_n * log(b_n)
     
     return(log_py)
