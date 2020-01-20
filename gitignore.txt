@@ -1,3 +1,0 @@
-research_updates/
-old/
-old/simulations/
