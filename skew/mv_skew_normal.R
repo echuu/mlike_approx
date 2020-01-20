@@ -5,7 +5,6 @@
 library(mvtnorm)           # for draws from multivariate normal
 library("numDeriv")        # for grad() function - numerical differentiation
 library('MCMCpack')        # for rinvgamma() function
-library('microbenchmark')
 
 # path for lenovo
 setwd("C:/Users/ericc/mlike_approx")
@@ -13,13 +12,15 @@ setwd("C:/Users/ericc/mlike_approx")
 # path for dell
 # setwd("C:/Users/chuu/mlike_approx")
 source("partition/partition.R")      # load partition extraction functions
+source("skew/mv_skew_normal_helper.R")
+
 
 library(sn)
 library(VGAM)
 
 
 # fixed settings ---------------------------------------------------------------
-D = 4
+D = 7
 N = 5000 # pseudo-sample size
 Omega = diag(1, D)
 Sigma = D / N * Omega 
