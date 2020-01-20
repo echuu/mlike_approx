@@ -53,7 +53,7 @@ approx_lil_stan = function(N_approx, D, N, u_df_full, J) {
     N_iters = N_approx
     
     # test_out = numeric()
-    def_approx = numeric(N_iters)   # storage for default approximations (no r.p.)
+    def_approx = numeric(N_iters)  
     
     for (t in 1:N_iters) {
         
@@ -105,21 +105,17 @@ approx_lil_stan = function(N_approx, D, N, u_df_full, J) {
             
             integral_d = numeric(D) # store each component of the D-dim integral 
             
-            # nothing to refactor in this loop (i think?) since we're just iterating
-            # thru each of the integrals and computing an exponential term
+
             for (d in 1:D) {
-                # col id will change for D > 2
-                # DONE: generalize this better so there's less obscure calculation
-                # col_id_lb = 5 + 2 * (d - 1)
-                # col_id_ub = col_id_lb + 1
-                
+
                 # updated 1/14: find column id of the first lower bound
                 col_id_lb = grep("u1_lb", names(param_out))
                 col_id_ub = col_id_lb + 1
                 
                 # d-th integral computed in closed form
                 integral_d[d] = - 1 / l_k[d] * 
-                    exp(- l_k[d] * (param_out[k, col_id_ub] - param_out[k, col_id_lb]))        
+                    exp(- l_k[d] * (param_out[k, col_id_ub] - 
+                                        param_out[k, col_id_lb]))        
                 
             }
             
@@ -141,7 +137,7 @@ approx_lil_stan = function(N_approx, D, N, u_df_full, J) {
     
     # return(0)
     
-} # end of approx_lil()
+} # end of approx_lil_stan()
 
 
 

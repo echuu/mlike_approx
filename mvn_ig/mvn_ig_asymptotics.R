@@ -89,9 +89,9 @@ for (d_i in 1:length(D_vec)) {
             V_star  = solve(V_star_inv)                                # (p x p)
             mu_star = V_star %*% (t(X) %*% y + V_beta_inv %*% mu_beta) # (p x 1)
             a_n =  a_0 + N / 2 
-            b_n =  b_0 + 0.5 * (t(y) %*% y + 
-                                    t(mu_beta) %*% V_beta_inv %*% mu_beta - 
-                                    t(mu_star) %*% V_star_inv %*% mu_star) %>%  c()
+            b_n =  c(b_0 + 0.5 * (t(y) %*% y + 
+                                      t(mu_beta) %*% V_beta_inv %*% mu_beta - 
+                                      t(mu_star) %*% V_star_inv %*% mu_star))
             
             # create prior, posterior objects
             prior = list(V_beta = V_beta, 
@@ -131,7 +131,8 @@ for (d_i in 1:length(D_vec)) {
             
             u_df = preprocess(mvnig_fit, D, post)
             
-            LIL_N_k_hat[k] = mean(approx_lil_stan(N_approx, prior, post, D, u_df, J))
+            LIL_N_k_hat[k] = mean(approx_lil_stan(N_approx, prior, post, 
+                                                  D, u_df, J))
 
         }
         
