@@ -5,13 +5,21 @@
 library(mvtnorm)           # for draws from multivariate normal
 library("numDeriv")        # for grad() function - numerical differentiation
 library('MCMCpack')        # for rinvgamma() function
-
-# path for lenovo
-setwd("C:/Users/ericc/mlike_approx")
-
-
 library(sn)
 library(VGAM)
+
+DELL_PATH = "C:/Users/chuu/mlike_approx"
+# LEN_PATH  = "C:/Users/ericc/mlike_approx"
+# path for lenovo
+# setwd(LEN_PATH)
+
+# path for dell
+setwd(DELL_PATH)
+
+source("partition/partition.R")         # load partition extraction functions
+source("hybrid_approx.R")               # load main algorithm functions
+source("skew/mv_skew_normal_helper.R")  # load psi(), lambda()
+
 
 
 # fixed settings ---------------------------------------------------------------

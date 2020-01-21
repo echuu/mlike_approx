@@ -5,14 +5,19 @@ library(rstudioapi) # running  RStan in parallel via Rstudio
 library("ggpmisc")
 
 # use stan to draw from the posterior distribution -----------------------------
-# setwd("C:/Users/ericc/mlike_approx/singular")
 
-setwd("C:/Users/ericc/mlike_approx/singular")
-source("singular_helper.R")
+DELL_PATH = "C:/Users/chuu/mlike_approx"
+# LEN_PATH  = "C:/Users/ericc/mlike_approx"
+# path for lenovo
+# setwd(LEN_PATH)
 
-source("C:/Users/ericc/mlike_approx/partition/partition.R")
-source("C:/Users/ericc/mlike_approx/hybrid_approx.R")
+# path for dell
+setwd(DELL_PATH)
 
+source("partition/partition.R")         # load partition extraction functions
+source("hybrid_approx.R")               # load main algorithm functions
+
+source("singular/singular_helper.R")    # load psi(), lambda()
 
 
 
@@ -37,7 +42,7 @@ gamma_dat = list(N = N) # for STAN sampler
 prior     = list(N = N) # for evaluation of psi, lambda
 
 # (1) generate posterior samples -- should give us (J * N_approx) draws
-gamma_fit_N = stan(file    =  'gamma_sample.stan', 
+gamma_fit_N = stan(file    =  'singular/gamma_sample.stan', 
                    data    =  gamma_dat,
                    iter    =  J_iter,
                    warmup  =  burn_in,
@@ -59,7 +64,7 @@ approx = approx_lil(N_approx, D, u_df_N, J, prior)
 
 approx
 
-mean(approx)
+mean(approx) # 9.044141 for D = 2, N = 1000
 
 # ------------------------------------------------------------------------------
 
@@ -68,19 +73,13 @@ mean(approx)
 
 
 # values of N for which we will compute + approximate the LIL
-N_vec = seq(50, 5000, 10)
-N_vec = c(22026)   # pseudo sample size
+
+N_vec_log = seq(4, 10, 0.05)       # sample size that is uniform over log scale
+N_vec     = floor(exp(N_vec_log))  # sample size to use to generate data
 
 
-N_vec_log = seq(4, 10, 0.05)        # sample size that is uniform over log scale
-N_vec     = floor(exp(N_vec_log))   # sample size to use to generate data
-
-
-N_vec = floor(exp(logn))
-
-
+N_vec     = c(1000)                # sample size to use to generate data
 set.seed(1)
-N_vec = c(1000)   # pseudo sample size
 
 # store approximations corresponding to each sample size
 approx_N = matrix(NA, N_approx, length(N_vec))
@@ -96,7 +95,7 @@ for (i in 1:length(N_vec)) {
     prior     = list(N = N) # for evaluation of psi, lambda
     
     # (1) generate posterior samples -- should give us (J * N_approx) draws
-    gamma_fit_N = stan(file    =  'gamma_sample.stan', 
+    gamma_fit_N = stan(file    =  'singular/gamma_sample.stan', 
                        data    =  gamma_dat,
                        iter    =  J_iter,
                        warmup  =  burn_in,
