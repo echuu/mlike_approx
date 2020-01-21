@@ -264,146 +264,6 @@ preprocess = function(stan_fit, D, post) {
 }
 
 
-
-approx_lil = function(N_approx, prior, post, D) {
-    
-    mu_star = post$mu_star
-    V_star  = post$V_star
-    a_n = post$a_n
-    b_n = post$b_n
-    
-    p = D - 1
-    
-    #### algorithm: main loop
-    N_iters = N_approx
-    
-    # test_out = numeric()
-    def_approx = numeric(N_iters)   # storage for default approximations (no r.p.)
-    
-    for (t in 1:N_iters) {
-        
-        if (t %% 100 == 0) {
-            print(paste("iter", t))
-        }
-        
-        # generate samples from the posterior probability to form the HME estimator
-        J = 3000 # number of random draws used per estimate
-        
-        # (0.1) sample from sigmasq | y
-        sigmasq_post = MCMCpack::rinvgamma(J, shape = a_n, scale = b_n) # (J x 1)
-        
-        # (0.2) sample from mu | sigmasq, y
-        beta_post = data.frame(matrix(0, J, p))                         # (J x p)
-        
-        for (j in 1:J) {
-            # each posterior sample is stored row-wise
-            beta_post[j,] = rmvnorm(1, mean = mu_star, sigma = sigmasq_post[j] * V_star)
-        }
-        
-        # store the posterior samples (row-wise) in a (J x D) matrix
-        # colnames: ( sigmasq_post, beta_post.X1, beta_post.X2, ... , beta_post.Xp )
-        # ** order of paramters matters, since helper functions assume a 
-        #    certain order when defined
-        u_post = data.frame(beta_post = beta_post, sigmasq_post = sigmasq_post)
-        
-        psi_u = apply(u_post, 1, psi_true_mvn, post = post) %>% unname() # (J x 1)
-        
-        # (1.2) construct u_df -- this will require some automation for colnames
-        u_df_names = character(D + 1)
-        for (d in 1:D) {
-            u_df_names[d] = paste("u", d, sep = '')
-        }
-        u_df_names[D + 1] = "psi_u"
-        
-        # populate u_df
-        u_df = cbind(u_post, psi_u) # J x (D + 1)
-        
-        # rename columns (needed since these are referenced explicitly in partition.R)
-        names(u_df) = u_df_names
-        
-        
-        ## (2) fit the regression tree via rpart()
-        u_rpart = rpart(psi_u ~ ., u_df)
-        
-        ## (3) process the fitted tree
-        
-        # (3.1) obtain the (data-defined) support for each of the parameters
-        param_support = matrix(NA, D, 2) # store the parameter supports row-wise
-        
-        for (d in 1:D) {
-            param_d_min = min(u_df[,d])
-            param_d_max = max(u_df[,d])
-            
-            param_support[d,] = c(param_d_min, param_d_max)
-        }
-        
-        # paste code back here
-        # (3.2) obtain the partition --- moment of truth!!
-        u_partition = paramPartition(u_rpart, param_support)  # partition.R
-        
-        # organize all data into single data frame --> ready for approximation
-        param_out = u_star(u_rpart, u_df, u_partition, D)
-        
-        n_partitions = nrow(u_partition)
-        c_k = numeric(n_partitions)
-        zhat = numeric(n_partitions)
-        
-        for (k in 1:n_partitions) {
-            
-            # DONE: avoid explicit definition of each representative point
-            # u = c(param_out[k,]$u1_star, 
-            #       param_out[k,]$u2_star, 
-            #       param_out[k,]$u3_star)
-            
-            star_ind = grep("_star", names(param_out))
-            u = param_out[k, star_ind] %>% unlist %>% unname
-            
-            c_k[k] = exp(-psi_mvn(u, prior)) # (1 x 1)
-            
-            l_k = lambda_mvn_closed(u, prior)
-            
-            integral_d = numeric(D) # store each component of the D-dim integral 
-            
-            # nothing to refactor in this loop (i think?) since we're just iterating
-            # thru each of the integrals and computing an exponential term
-            for (d in 1:D) {
-                # col id will change for D > 2
-                # DONE: generalize this better so there's less obscure calculation
-                # col_id_lb = 5 + 2 * (d - 1)
-                # col_id_ub = col_id_lb + 1
-                
-                # updated 1/14: find column id of the first lower bound
-                col_id_lb = grep("u1_lb", names(param_out))
-                col_id_ub = col_id_lb + 1
-                
-                # d-th integral computed in closed form
-                integral_d[d] = - 1 / l_k[d] * 
-                    exp(- l_k[d] * (param_out[k, col_id_ub] - param_out[k, col_id_lb]))        
-                
-            }
-            
-            zhat[k] = prod(c_k[k], integral_d)
-        }
-        
-        
-        def_approx[t] = log(sum(zhat))
-        
-        if (is.nan(def_approx[t])) {
-            def_approx[t] = log(-sum(zhat))
-        }
-        
-        
-        
-    }
-    
-    return(def_approx)
-    
-    # return(0)
-    
-} # end of approx_lil()
-
-
-
 ## faster verison of the approximation algorithm above
 approx_lil_stan = function(N_approx, prior, post, D, u_df_full, J) {
     
@@ -426,41 +286,9 @@ approx_lil_stan = function(N_approx, prior, post, D, u_df_full, J) {
         #    print(paste("iter", t))
         #}
         
-        # print(paste("iter", t))
-        
-        # generate samples from the posterior probability to form the HME estimator
-        # J = 2000 # number of random draws used per estimate
-        
         row_id = J * (t - 1) + 1
         
-        # beta_post = u_beta[row_id:(row_id+J-1),]
-        # sigmasq_post = u_sigmasq[row_id:(row_id+J-1)]
-        
         u_df = u_df_full[row_id:(row_id+J-1),]
-        
-        # print(dim(beta_post))
-        # print(length(sigmasq_post))
-        
-        # store the posterior samples (row-wise) in a (J x D) matrix
-        # colnames: ( sigmasq_post, beta_post.X1, beta_post.X2, ... , beta_post.Xp )
-        # ** order of paramters matters, since helper functions assume a 
-        #    certain order when defined
-        #u_post = data.frame(beta_post = beta_post, sigmasq_post = sigmasq_post)
-        
-        #psi_u = apply(u_post, 1, psi_true_mvn, post = post) %>% unname() # (J x 1)
-        
-        # (1.2) construct u_df -- this will require some automation for colnames
-        #u_df_names = character(D + 1)
-        #for (d in 1:D) {
-        #    u_df_names[d] = paste("u", d, sep = '')
-        #}
-        #u_df_names[D + 1] = "psi_u"
-        
-        # populate u_df
-        # u_df = cbind(u_post, psi_u) # J x (D + 1)
-        
-        # rename columns (needed since these are referenced explicitly in partition.R)
-        # names(u_df) = u_df_names
         
         
         ## (2) fit the regression tree via rpart()
@@ -491,11 +319,6 @@ approx_lil_stan = function(N_approx, prior, post, D, u_df_full, J) {
         
         for (k in 1:n_partitions) {
             
-            # DONE: avoid explicit definition of each representative point
-            # u = c(param_out[k,]$u1_star, 
-            #       param_out[k,]$u2_star, 
-            #       param_out[k,]$u3_star)
-            
             star_ind = grep("_star", names(param_out))
             u = param_out[k, star_ind] %>% unlist %>% unname
             
@@ -508,13 +331,9 @@ approx_lil_stan = function(N_approx, prior, post, D, u_df_full, J) {
             # nothing to refactor in this loop (i think?) since we're just iterating
             # thru each of the integrals and computing an exponential term
             for (d in 1:D) {
-                # col id will change for D > 2
-                # DONE: generalize this better so there's less obscure calculation
-                # col_id_lb = 5 + 2 * (d - 1)
-                # col_id_ub = col_id_lb + 1
                 
                 # updated 1/14: find column id of the first lower bound
-                col_id_lb = grep("u1_lb", names(param_out))
+                col_id_lb = grep("u1_lb", names(param_out)) + 2 * (d - 1)
                 col_id_ub = col_id_lb + 1
                 
                 # d-th integral computed in closed form

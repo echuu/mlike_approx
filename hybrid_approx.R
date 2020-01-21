@@ -1,32 +1,17 @@
 
 
 
-# TODO: CHANGE THESE NAMES LATER
-
-psi_skew = function(u) {
-    
-    0.5 * t(u) %*% Sigma_inv %*% u - 
-        log(0.5 * (1 + erf(sum(alpha * u) / sqrt(2))))
-    
-}
-
-lambda =  function(u) {
-    grad(psi_skew, u)
-}
-
-
-## log(determinant) function
 log_det = function(xmat) {
     return(c(determinant(xmat, logarithm = T)$modulus))
 }
 
-# ------------------------------------------------------------------------------
 
 
-preprocess = function(post_samps, D) {
+
+preprocess = function(post_samps, D, prior) {
     
     
-    psi_u = apply(post_samps, 1, psi_skew) %>% unname() # (J x 1)
+    psi_u = apply(post_samps, 1, psi, prior = prior) %>% unname() # (J x 1)
     
     # (1.2) construct u_df -- this will require some automation for colnames
     u_df_names = character(D + 1)
@@ -37,8 +22,6 @@ preprocess = function(post_samps, D) {
     
     # populate u_df
     u_df = cbind(post_samps, psi_u) # J x (D + 1)
-    
-    # rename columns (needed since these are referenced explicitly in partition.R)
     names(u_df) = u_df_names
     
     
@@ -47,8 +30,9 @@ preprocess = function(post_samps, D) {
 }
 
 
-approx_lil = function(N_approx, D, u_df_full, J) {
 
+approx_lil = function(N_approx, D, u_df_full, J, prior) {
+    
     def_approx = numeric(N_approx)
     
     for (t in 1:N_approx) {
@@ -92,12 +76,12 @@ approx_lil = function(N_approx, D, u_df_full, J) {
             star_ind = grep("_star", names(param_out))
             u = param_out[k, star_ind] %>% unlist %>% unname
             
-            c_k[k] = exp(-psi_skew(u)) # (1 x 1)
+            c_k[k] = exp(-psi(u, prior)) # (1 x 1)
             
-            l_k = lambda(u)
+            l_k = lambda(u, prior)
             
             integral_d = numeric(D) # store each component of the D-dim integral 
-
+            
             for (d in 1:D) {
                 
                 # updated 1/14: find column id of the first lower bound
@@ -130,14 +114,4 @@ approx_lil = function(N_approx, D, u_df_full, J) {
     # return(0)
     
 } # end of approx_lil()
-
-
-
-
-
-
-
-
-
-
 

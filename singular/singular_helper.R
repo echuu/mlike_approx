@@ -1,11 +1,11 @@
 
 
+library("numDeriv")
 
 # psi() : negative log posterior
 psi = function(u, N) {
     
     return(N * u[1]^2 * u[2]^4)
-    
 }
 
 
@@ -50,26 +50,21 @@ preprocess = function(stan_fit, D, N) {
 approx_lil_stan = function(N_approx, D, N, u_df_full, J) {
     
     #### algorithm: main loop
-    N_iters = N_approx
+    # N_iters = N_approx
     
     # test_out = numeric()
-    def_approx = numeric(N_iters)  
+    def_approx = numeric(N_approx)  
     
-    for (t in 1:N_iters) {
+    for (t in 1:N_approx) {
         
-        # if (t %% 10 == 0) {
-        #     print(paste("iter", t))
-        # }
-        
-        # generate samples from the posterior probability to form the HME estimator
-        # J = 2000 # number of random draws used per estimate
         
         row_id = J * (t - 1) + 1
         
         u_df = u_df_full[row_id:(row_id+J-1),]
         
         ## (2) fit the regression tree via rpart()
-        u_rpart = rpart(psi_u ~ ., u_df)
+        u_rpart = rpart(psi_u ~ ., u_df, cp = 0.001)
+        # plot(u_rpart)
         
         ## (3) process the fitted tree
         
@@ -77,8 +72,10 @@ approx_lil_stan = function(N_approx, D, N, u_df_full, J) {
         param_support = matrix(NA, D, 2) # store the parameter supports row-wise
         
         for (d in 1:D) {
-            param_d_min = min(u_df[,d])
-            param_d_max = max(u_df[,d])
+            # param_d_min = min(u_df[,d])
+            # param_d_max = max(u_df[,d])
+            param_d_min = 0
+            param_d_max = 1
             
             param_support[d,] = c(param_d_min, param_d_max)
         }
@@ -104,12 +101,11 @@ approx_lil_stan = function(N_approx, D, N, u_df_full, J) {
             l_k = lambda(u, N)
             
             integral_d = numeric(D) # store each component of the D-dim integral 
-            
 
             for (d in 1:D) {
 
                 # updated 1/14: find column id of the first lower bound
-                col_id_lb = grep("u1_lb", names(param_out))
+                col_id_lb = grep("u1_lb", names(param_out)) + 2 * (d - 1)
                 col_id_ub = col_id_lb + 1
                 
                 # d-th integral computed in closed form
@@ -120,14 +116,14 @@ approx_lil_stan = function(N_approx, D, N, u_df_full, J) {
             }
             
             zhat[k] = prod(c_k[k], integral_d)
+            
         }
-        
         
         def_approx[t] = log(sum(zhat))
         
-        if (is.nan(def_approx[t])) {
-            def_approx[t] = log(-sum(zhat))
-        }
+        # if (is.nan(def_approx[t])) {
+        #     def_approx[t] = log(-sum(zhat))
+        # }
         
         
         

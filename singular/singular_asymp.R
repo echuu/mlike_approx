@@ -2,7 +2,7 @@
 
 library(rstan)
 library(rstudioapi) # running  RStan in parallel via Rstudio
-
+library("ggpmisc")
 
 # use stan to draw from the posterior distribution -----------------------------
 # setwd("C:/Users/ericc/mlike_approx/singular")
@@ -13,8 +13,8 @@ source("singular_helper.R")
 
 
 # STAN SETTINGS ----------------------------------------------------------------
-J         = 2000         # number of MC samples per approximation
-N_approx  = 50           # number of approximations
+J         = 1000         # number of MC samples per approximation
+N_approx  = 10           # number of approximations
 burn_in   = 2000         # number of burn in draws
 n_chains  = 4            # number of markov chains to run
 stan_seed = 123          # seed
@@ -30,7 +30,11 @@ N_vec = c(22026)   # pseudo sample size
 
 N_vec_log = seq(4, 10, 0.05)        # sample size that is uniform over log scale
 N_vec     = floor(exp(N_vec_log))   # sample size to use to generate data
+
+
+N_vec = floor(exp(logn))
 D = 2                               # dimension of parameter
+
 
 
 # store approximations corresponding to each sample size
@@ -69,11 +73,28 @@ for (i in 1:length(N_vec)) {
 
 approx_N
 
-write.csv(approx_N, "approx_N50_J2000_grid121.csv", row.names = F)
-test_read = read.csv("approx_N50_J2000_grid121.csv")
+# write.csv(approx_N, "approx_N50_J2000_grid121.csv", row.names = F)
+# test_read = read.csv("approx_N50_J2000_grid121.csv")
 
 
-colMeans(approx_N)
+log_z_n = colMeans(approx_N)
+log_n   = log(N_vec)
+
+lil_df = data.frame(log_z_n, log_n)
+
+formula1 = y ~ x
+
+ggplot(lil_df, aes(log_n, log_z_n)) + geom_point() + 
+    labs(title = "50 approximations (1000 MC samples each) for each N") + 
+    geom_smooth(method = lm, se = T, formula = formula1) +
+    stat_poly_eq(aes(label = paste(..eq.label.., sep = "~~~")), 
+                 label.x.npc = "right", label.y.npc = "top",
+                 eq.with.lhs = "logZ~`=`~",
+                 eq.x.rhs = "~logN",
+                 formula = formula1, parse = TRUE, size = 8) +
+    theme_bw(base_size = 16)
+
+lm(log_z_n ~ log_n, lil_df) # slope should be -0.25
 
 
 
