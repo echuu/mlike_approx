@@ -7,7 +7,6 @@ log_det = function(xmat) {
 
 
 
-
 preprocess = function(post_samps, D, prior) {
     
     

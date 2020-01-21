@@ -3,14 +3,18 @@
 library("numDeriv")
 
 # psi() : negative log posterior
-psi = function(u, N) {
+psi = function(u, prior) {
+    
+    N = prior$N
     
     return(N * u[1]^2 * u[2]^4)
 }
 
 
 # lambda() : gradient of psi
-lambda = function(u, N) {
+lambda = function(u, prior) {
+    
+    N = prior$N
     
     l_1 = 2 * N * u[1] * u[2]^4
     l_2 = 4 * N * u[1]^2 * u[2]^3
@@ -19,14 +23,10 @@ lambda = function(u, N) {
 }
 
 
-preprocess = function(stan_fit, D, N) {
+preprocess = function(post_samps, D, prior) {
     
-    u_samp = rstan::extract(stan_fit, pars = c("u"), permuted = TRUE)
-    
-    u_post = u_samp$u %>% data.frame() # (J * N_approx) x 2
-    
-    
-    psi_u = apply(u_post, 1, psi, N = N) %>% unname() # (J x 1)
+
+    psi_u = apply(post_samps, 1, psi, prior = prior) %>% unname() # (J x 1)
     
     # (1.2) construct u_df -- this will require some automation for colnames
     u_df_names = character(D + 1)
@@ -47,7 +47,7 @@ preprocess = function(stan_fit, D, N) {
 }
 
 
-approx_lil_stan = function(N_approx, D, N, u_df_full, J) {
+approx_lil_stan = function(N_approx, D, N, u_df_full, J, prior) {
     
     #### algorithm: main loop
     # N_iters = N_approx
@@ -63,7 +63,7 @@ approx_lil_stan = function(N_approx, D, N, u_df_full, J) {
         u_df = u_df_full[row_id:(row_id+J-1),]
         
         ## (2) fit the regression tree via rpart()
-        u_rpart = rpart(psi_u ~ ., u_df, cp = 0.001)
+        u_rpart = rpart(psi_u ~ ., u_df)
         # plot(u_rpart)
         
         ## (3) process the fitted tree
@@ -96,9 +96,9 @@ approx_lil_stan = function(N_approx, D, N, u_df_full, J) {
             star_ind = grep("_star", names(param_out))
             u = param_out[k, star_ind] %>% unlist %>% unname
             
-            c_k[k] = exp(-psi(u, N)) # (1 x 1)
+            c_k[k] = exp(-psi(u, prior)) # (1 x 1)
             
-            l_k = lambda(u, N)
+            l_k = lambda(u, prior)
             
             integral_d = numeric(D) # store each component of the D-dim integral 
 

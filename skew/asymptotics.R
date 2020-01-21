@@ -15,7 +15,7 @@ library(VGAM)
 
 
 # fixed settings ---------------------------------------------------------------
-D = 10
+D = 4
 alpha = rep(1, D) 
 mu_0 = rep(0, D)
 Omega = diag(1, D)
@@ -23,7 +23,7 @@ Omega = diag(1, D)
 # Sigma = D / N * Omega 
 # Sigma_inv = solve(Sigma)
 
-N_vec_log = seq(6, 11, 0.02)        # sample size that is uniform over log scale
+N_vec_log = seq(6, 13, 0.02)        # sample size that is uniform over log scale
 N_vec     = floor(exp(N_vec_log))   # sample size to use to generate data
 logZ_0    = numeric(length(N_vec))
 logZ      = numeric(length(N_vec))
@@ -95,7 +95,11 @@ ggplot(lil_df, aes(logn, logZ)) + geom_point() +
 
 # overlays ---------------------------------------------------------------------
 
-lil_df = data.frame(logZ_0 = logZ_0, logZ = logZ_med, logn = log(N_vec))
+lil_df = data.frame(logZ_0 = logZ_0, logZ = logZ, logZ_med = logZ_med, 
+                    logn = log(N_vec))
+
+lil_df = data.frame(logZ_0 = logZ_0, logZ = logZ, 
+                    logn = log(N_vec))
 
 lil_df = lil_df[is.finite(lil_df$logZ),]
 
@@ -103,7 +107,7 @@ lil_df_long = melt(lil_df, id.vars = "logn")
 
 ggplot(lil_df_long, aes(x = logn, y = value, 
                         color = as.factor(variable))) + geom_point() + 
-    geom_smooth(method = lm, se = T, formula = formula1) +
+    geom_smooth(method = lm, se = F, formula = formula1) +
     stat_poly_eq(aes(label = paste(..eq.label.., sep = "~~~")), 
                  label.x.npc = "right", label.y.npc = "top",
                  eq.with.lhs = "logZ~`=`~",

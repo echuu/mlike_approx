@@ -6,9 +6,13 @@ library("ggpmisc")
 
 # use stan to draw from the posterior distribution -----------------------------
 # setwd("C:/Users/ericc/mlike_approx/singular")
-source("C:/Users/ericc/mlike_approx/partition/partition.R")
+
 setwd("C:/Users/ericc/mlike_approx/singular")
 source("singular_helper.R")
+
+source("C:/Users/ericc/mlike_approx/partition/partition.R")
+source("C:/Users/ericc/mlike_approx/hybrid_approx.R")
+
 
 
 
@@ -22,6 +26,46 @@ stan_seed = 123          # seed
 J_iter = 1 / n_chains * N_approx * J + burn_in 
 # ------------------------------------------------------------------------------
 
+# GLOBAL MODEL SETTINGS --------------------------------------------------------
+D = 2                    # dimension of parameter
+
+# one run of the algorithm -----------------------------------------------------
+set.seed(1)
+N = 1000
+
+gamma_dat = list(N = N) # for STAN sampler
+prior     = list(N = N) # for evaluation of psi, lambda
+
+# (1) generate posterior samples -- should give us (J * N_approx) draws
+gamma_fit_N = stan(file    =  'gamma_sample.stan', 
+                   data    =  gamma_dat,
+                   iter    =  J_iter,
+                   warmup  =  burn_in,
+                   chains  =  n_chains,                  
+                   seed    =  stan_seed,
+                   control =  list(adapt_delta = 0.99),  
+                   refresh = 0)           
+
+u_samp = rstan::extract(gamma_fit_N, pars = c("u"), permuted = TRUE)
+u_post = u_samp$u %>% data.frame() # (J * N_approx) x 2
+
+# (2) evaluate posterior samples using psi(u)
+u_df_N = preprocess(u_post, D, prior)
+
+ggplot(u_df_N, aes(u1, u2)) + geom_point()
+
+# (3) run algorithm to obtain N_approx estimates of the LIL
+approx = approx_lil(N_approx, D, u_df_N, J, prior)
+
+approx
+
+mean(approx)
+
+# ------------------------------------------------------------------------------
+
+
+# run algorithm over grid of N -------------------------------------------------
+
 
 # values of N for which we will compute + approximate the LIL
 N_vec = seq(50, 5000, 10)
@@ -33,9 +77,10 @@ N_vec     = floor(exp(N_vec_log))   # sample size to use to generate data
 
 
 N_vec = floor(exp(logn))
-D = 2                               # dimension of parameter
 
 
+set.seed(1)
+N_vec = c(1000)   # pseudo sample size
 
 # store approximations corresponding to each sample size
 approx_N = matrix(NA, N_approx, length(N_vec))
@@ -47,9 +92,10 @@ for (i in 1:length(N_vec)) {
     
     # print(paste('iter = ', i, ' -- sampling data for N = ', N, sep = ''))
     
-    gamma_dat = list(N = N)
+    gamma_dat = list(N = N) # for STAN sampler
+    prior     = list(N = N) # for evaluation of psi, lambda
     
-    # should give us (J * N_approx) draws
+    # (1) generate posterior samples -- should give us (J * N_approx) draws
     gamma_fit_N = stan(file    =  'gamma_sample.stan', 
                        data    =  gamma_dat,
                        iter    =  J_iter,
@@ -57,9 +103,15 @@ for (i in 1:length(N_vec)) {
                        chains  =  n_chains,                  
                        seed    =  stan_seed,
                        control =  list(adapt_delta = 0.99),  
-                       refresh = 0)                          
+                       refresh = 0)           
     
-    u_df_N = preprocess(gamma_fit_N, D, N)
+    u_samp = rstan::extract(gamma_fit_N, pars = c("u"), permuted = TRUE)
+    u_post = u_samp$u %>% data.frame() # (J * N_approx) x 2
+    
+    # (2) evaluate posterior samples using psi(u)
+    u_df_N = preprocess(u_post, D, prior)
+    
+    # (3) run algorithm to obtain N_approx estimates of the LIL
     
     print(paste('iter = ', i, ' -- calculating LIL for N = ', N, 
                 ' (', N_approx, ' approximations)', sep = ''))
@@ -67,11 +119,13 @@ for (i in 1:length(N_vec)) {
     
     # N_approx, J settings indicate that J MC samples will use in each of the
     # N_approx estiamtes of the LIL -> return vector of length N_approx
-    approx_N[,i] = approx_lil_stan(N_approx, D, N, u_df_N, J)
+    approx_N[,i] = approx_lil(N_approx, D, u_df_N, J, prior)
     
 }
 
 approx_N
+
+colMeans(approx_N)
 
 # write.csv(approx_N, "approx_N50_J2000_grid121.csv", row.names = F)
 # test_read = read.csv("approx_N50_J2000_grid121.csv")
