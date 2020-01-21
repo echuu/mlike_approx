@@ -2,10 +2,18 @@
 library(rstan)
 library(rstudioapi) # running  RStan in parallel via Rstudio
 
-setwd("C:/Users/ericc/mlike_approx/mvn_ig")
+DELL_PATH = "C:/Users/chuu/mlike_approx"
+# LEN_PATH  = "C:/Users/ericc/mlike_approx"
+# path for lenovo
+# setwd(LEN_PATH)
 
-source("mvn_ig_helper.R")
-source("C:/Users/ericc/mlike_approx/partition/partition.R")
+# path for dell
+setwd(DELL_PATH)
+
+source("partition/partition.R")
+source("hybrid_approx.R")
+source("mvn_ig/mvn_ig_helper.R") # load this LAST to overwrite def preprocess()
+
 
 
 # STAN sampler settings --------------------------------------------------------
@@ -26,7 +34,6 @@ K_sims = 2               # num of simulations to run FOR EACH N in N_vec
 
 D_vec = c(3, 5, 7, 10)
 D_vec = c(3, 5)
-    
 LIL_d = vector("list", length = length(D_vec))    
 
 set.seed(123)
@@ -51,7 +58,7 @@ for (d_i in 1:length(D_vec)) {
     # --------------------------------------------------------------------------
     
     N_vec = c(50, 100, 150, 200, 300)
-    N_vec = c(200)
+    N_vec = c(200) # for testing -- comment this line to perform ext. analysis
     
     
     LIL_N = numeric(length(N_vec))      # store the LIL for each N
@@ -120,7 +127,7 @@ for (d_i in 1:length(D_vec)) {
                             a_n = a_n, b_n = b_n, 
                             mu_star = c(mu_star), V_star = V_star)
             
-            mvnig_fit = stan(file   = 'mvn_ig_sampler.stan', 
+            mvnig_fit = stan(file   = 'mvn_ig/mvn_ig_sampler.stan', 
                              data    = post_dat,
                              iter    = J_iter,
                              warmup  = burn_in,
@@ -128,11 +135,11 @@ for (d_i in 1:length(D_vec)) {
                              seed    = stan_seed,
                              refresh = 0) # should give us J * N_approx draws
             
-            
+            # use special preprocess b/c we call psi_true() 
             u_df = preprocess(mvnig_fit, D, post)
             
-            LIL_N_k_hat[k] = mean(approx_lil_stan(N_approx, prior, post, 
-                                                  D, u_df, J))
+            # LIL_N_k_hat[k] = mean(approx_lil(N_approx, prior, D, u_df, J))
+            LIL_N_k_hat[k] = mean(approx_lil(N_approx, D, u_df, J, prior))
 
         }
         
@@ -146,10 +153,22 @@ for (d_i in 1:length(D_vec)) {
     LIL_d[[d_i]] = rbind(LIL_N, LIL_N_hat)
 }
 
-LIL_N_k
-LIL_N_k_hat
+# LIL_N_k
+# LIL_N_k_hat
 
 LIL_d
+
+# output from old functions
+# > LIL_d
+# [[1]]
+# [,1]
+# LIL_N     -423.0917
+# LIL_N_hat -421.1374
+# 
+# [[2]]
+# [,1]
+# LIL_N     -451.0669
+# LIL_N_hat -444.3279
 
 
 
