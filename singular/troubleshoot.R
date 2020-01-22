@@ -112,6 +112,10 @@ u_post = u_samp$u %>% data.frame() # (J * N_approx) x 2
 # (2) evaluate posterior samples using psi(u)
 u_df_N = preprocess(u_post, D, prior)
 
+approx = approx_lil(N_approx, D, u_df_N, J, prior)
+mean(approx)
+
+
 u_df = u_df_N
 
 u_rpart = rpart(psi_u ~ ., u_df)
@@ -142,6 +146,9 @@ for (d in 1:D) {
     param_d_min = min(u_df[,d])
     param_d_max = max(u_df[,d])
     
+    param_d_min = 0
+    param_d_max = 1
+    
     param_support[d,] = c(param_d_min, param_d_max)
 }
 
@@ -156,6 +163,8 @@ c_k          = numeric(n_partitions) # constant term for k-th partition
 zhat         = numeric(n_partitions) # integral over k-th partition
 
 # (4) compute closed form integral over each partition
+lambda_mat = matrix(NA, n_partitions, D)
+
 for (k in 1:n_partitions) {
     
     # extract "representative point" of the k-th partition
@@ -167,6 +176,7 @@ for (k in 1:n_partitions) {
     
     # compute lambda_k : gradient of psi, evaluated at u_star
     l_k = lambda(u, prior)       # (D x 1) 
+    lambda_mat[k,] = l_k
     
     # store each component of the D-dim integral 
     integral_d = numeric(D)      # (D x 1)
@@ -178,17 +188,27 @@ for (k in 1:n_partitions) {
         col_id_ub = col_id_lb + 1
         
         # d-th integral computed in closed form
-        integral_d[d] = - 1 / l_k[d] * 
+        integral_d[d] = - 1 / l_k[d] * exp(l_k[d] * u[d])
             exp(- l_k[d] * (param_out[k, col_id_ub] - 
-                                param_out[k, col_id_lb]))        
+                            param_out[k, col_id_lb])) 
+        
+        # integral_d[d] = (param_out[k, col_id_ub] - param_out[k, col_id_lb])
+        
     } # end of loop computing each of 1-dim integrals
     
-    print(integral_d)
+    # print(integral_d)
     
     # compute the D-dim integral (product of D 1-dim integrals)
     zhat[k] = prod(c_k[k], integral_d)
     
+    # zhat[k] = prod(integral_d)
+    
 } # end of for loop over the K partitions
+
+
+log(sum(zhat))
+
+cbind(param_out[,1:4], zhat) %>% cbind(lambda_mat)
 
 # store the log integral \approx log marginal likelihood
 log(sum(zhat))
@@ -200,7 +220,6 @@ result = integral2(fun, 0, 1, 0, 1, reltol = 1e-50)
 log(result$Q) # -1.223014
 
 
-cbind(param_out[,1:4], zhat)
 
 
 # 2-d contour plot of the parameter space

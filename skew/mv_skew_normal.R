@@ -45,7 +45,7 @@ J = 5000
 N_approx = 10
 u_samps = rmsn(J, xi = mu_0, Omega = Sigma, alpha = alpha) %>% data.frame 
 u_df_full = preprocess(u_samps, D, prior)
-approx_skew = approx_lil(N_approx, D, u_df_full, J/N_approx, prior)
+approx_skew = approx_lil(N_approx, D, u_df_full, J / N_approx, prior)
 mean(approx_skew) # -3.085342
 
 u_tree = tree(psi_u ~ ., u_df_full)
@@ -91,6 +91,9 @@ c_k          = numeric(n_partitions) # constant term for k-th partition
 zhat         = numeric(n_partitions) # integral over k-th partition
 
 # (4) compute closed form integral over each partition
+
+lambda_mat = matrix(NA, n_partitions, D)
+
 for (k in 1:n_partitions) {
     
     # extract "representative point" of the k-th partition
@@ -102,6 +105,8 @@ for (k in 1:n_partitions) {
     
     # compute lambda_k : gradient of psi, evaluated at u_star
     l_k = lambda(u, prior)       # (D x 1) 
+    
+    lambda_mat[k,] = l_k
     
     # store each component of the D-dim integral 
     integral_d = numeric(D)      # (D x 1)
@@ -118,14 +123,14 @@ for (k in 1:n_partitions) {
                                 param_out[k, col_id_lb]))        
     } # end of loop computing each of 1-dim integrals
     
-    print(integral_d)
-    
     # compute the D-dim integral (product of D 1-dim integrals)
     zhat[k] = prod(c_k[k], integral_d)
     
 } # end of for loop over the K partitions
 
-cbind(param_out[,1:4], zhat)
+cbind(param_out[,1:4], zhat) %>% cbind(lambda_mat)
+
+
 
 
 # store the log integral \approx log marginal likelihood
