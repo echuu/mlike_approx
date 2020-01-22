@@ -106,12 +106,15 @@ approx_lil = function(N_approx, D, u_df_full, J, prior) {
             star_ind = grep("_star", names(param_out))
             u = param_out[k, star_ind] %>% unlist %>% unname
             
-            # evaluate e^c_k = e^{psi(u_star)}
-            c_k[k] = exp(-psi(u, prior)) # (1 x 1)
-            
             # compute lambda_k : gradient of psi, evaluated at u_star
             l_k = lambda(u, prior)       # (D x 1) 
             
+            # evaluate e^c_k = e^{psi(u_star)}
+            # c_k[k] = exp(-psi(u, prior)) # (1 x 1) - incorrect if NOT simple
+            
+            # compute e^{c_k}, the constant term in the integral for each k
+            c_k[k] = exp(-psi(u, prior) + sum(l_k * u)) 
+
             # store each component of the D-dim integral 
             integral_d = numeric(D)      # (D x 1)
             
@@ -123,8 +126,13 @@ approx_lil = function(N_approx, D, u_df_full, J, prior) {
                 
                 # d-th integral computed in closed form
                 integral_d[d] = - 1 / l_k[d] * 
-                    exp(- l_k[d] * (param_out[k, col_id_ub] - 
-                                        param_out[k, col_id_lb]))        
+                    (exp(- l_k[d] * param_out[k, col_id_ub]) - 
+                     exp(- l_k[d] * param_out[k, col_id_lb])) 
+                
+                # comment below to use the 2nd term in the taylor expansion
+                # integral_d[d] = (param_out[k, col_id_ub] - 
+                #                  param_out[k, col_id_lb])
+                
             } # end of loop computing each of 1-dim integrals
             
             # compute the D-dim integral (product of D 1-dim integrals)

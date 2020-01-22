@@ -9,16 +9,17 @@ library(sn)
 library(VGAM)
 
 
-DELL_PATH = "C:/Users/chuu/mlike_approx"
-# LEN_PATH  = "C:/Users/ericc/mlike_approx"
 # path for lenovo
+# LEN_PATH  = "C:/Users/ericc/mlike_approx"
 # setwd(LEN_PATH)
 
 # path for dell
+DELL_PATH = "C:/Users/chuu/mlike_approx"
 setwd(DELL_PATH)
 
+
 source("partition/partition.R")         # load partition extraction functions
-# source("hybrid_approx.R")               # load main algorithm functions
+source("hybrid_approx.R")               # load main algorithm functions
 
 source("skew/mv_skew_normal_helper.R")  # load psi(), lambda()
 

@@ -25,7 +25,7 @@ model {
   target += uniform_lpdf(u[1] | 0, 1) + uniform_lpdf(u[2] | 0, 1); // log prior
   //target += -N * square(u[1]) * square(square(u[2])); // log likelihood
   
-  target += -N * u[1]^2 * u[2]^4;
+  target += -N * square(u[1]) * square(square(u[2]));
   
 }
 

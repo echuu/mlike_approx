@@ -23,12 +23,12 @@ n = 100
 result = integral2(fun, 0, 1, 0, 1, reltol = 1e-50)
 log(result$Q) # -0.724
 
-n = 1000
+n = 5000
 result = integral2(fun, 0, 1, 0, 1, reltol = 1e-50)
 log(result$Q) # -1.223014
 
 
-N = 1000
+N = 5000
 D = 2                               # dimension of parameter
 
 gamma_dat = list(N = N)
@@ -74,14 +74,32 @@ text(sing_rpart, size = 0.5)
 
 
 
- # -----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
+library(rstan)
+library(rstudioapi) # running  RStan in parallel via Rstudio
+library("ggpmisc")
+
+# use stan to draw from the posterior distribution -----------------------------
+
+# path for lenovo
+# LEN_PATH  = "C:/Users/ericc/mlike_approx"
+# setwd(LEN_PATH)
+
+# path for dell
+DELL_PATH = "C:/Users/chuu/mlike_approx"
+setwd(DELL_PATH)
+
+source("partition/partition.R")         # load partition extraction functions
+source("hybrid_approx.R")               # load main algorithm functions
+
+source("singular/singular_helper.R")    # load psi(), lambda()
 
 # STAN SETTINGS ----------------------------------------------------------------
-J         = 1000         # number of MC samples per approximation
-N_approx  = 10           # number of approximations
-burn_in   = 2000         # number of burn in draws
-n_chains  = 4            # number of markov chains to run
-stan_seed = 123          # seed
+J         = 1000          # number of MC samples per approximation
+N_approx  = 100           # number of approximations
+burn_in   = 2000          # number of burn in draws
+n_chains  = 4             # number of markov chains to run
+stan_seed = 123           # seed
 
 J_iter = 1 / n_chains * N_approx * J + burn_in 
 # ------------------------------------------------------------------------------
@@ -92,6 +110,10 @@ D = 2                    # dimension of parameter
 # one run of the algorithm -----------------------------------------------------
 set.seed(1)
 N = 1000
+
+n = 1000
+result = integral2(fun, 0, 1, 0, 1, reltol = 1e-50)
+log(result$Q) # -1.223014 for n = 1000
 
 gamma_dat = list(N = N) # for STAN sampler
 prior     = list(N = N) # for evaluation of psi, lambda
@@ -111,7 +133,6 @@ u_post = u_samp$u %>% data.frame() # (J * N_approx) x 2
 
 # (2) evaluate posterior samples using psi(u)
 u_df_N = preprocess(u_post, D, prior)
-
 approx = approx_lil(N_approx, D, u_df_N, J, prior)
 mean(approx)
 
@@ -146,7 +167,7 @@ for (d in 1:D) {
     param_d_min = min(u_df[,d])
     param_d_max = max(u_df[,d])
     
-    param_d_min = 0
+    param_d_min = 0 # compact support
     param_d_max = 1
     
     param_support[d,] = c(param_d_min, param_d_max)
@@ -158,7 +179,7 @@ u_partition = paramPartition(u_rpart, param_support)  # partition.R
 # organize all data into single data frame --> ready for approximation
 param_out = u_star(u_rpart, u_df, u_partition, D)
 
-n_partitions = nrow(u_partition)     # numebr of partitions 
+n_partitions = nrow(u_partition)     # number of partitions 
 c_k          = numeric(n_partitions) # constant term for k-th partition
 zhat         = numeric(n_partitions) # integral over k-th partition
 
@@ -171,12 +192,13 @@ for (k in 1:n_partitions) {
     star_ind = grep("_star", names(param_out))
     u = param_out[k, star_ind] %>% unlist %>% unname
     
-    # evaluate e^c_k = e^{psi(u_star)}
-    c_k[k] = exp(-psi(u, prior)) # (1 x 1)
-    
     # compute lambda_k : gradient of psi, evaluated at u_star
     l_k = lambda(u, prior)       # (D x 1) 
     lambda_mat[k,] = l_k
+    
+    # evaluate e^c_k = e^{psi(u_star)}
+    # c_k[k] = exp(-psi(u, prior))                 # incorrect tyalor - (1 x 1)
+    c_k[k] = exp(-psi(u, prior) + sum(l_k * u))  # correct taylor   - (1 x 1)
     
     # store each component of the D-dim integral 
     integral_d = numeric(D)      # (D x 1)
@@ -188,15 +210,15 @@ for (k in 1:n_partitions) {
         col_id_ub = col_id_lb + 1
         
         # d-th integral computed in closed form
-        integral_d[d] = - 1 / l_k[d] * # exp(l_k[d] * u[d]) * 
-            exp(- l_k[d] * (param_out[k, col_id_ub] - 
-                            param_out[k, col_id_lb])) 
+        integral_d[d] = - 1 / l_k[d] * 
+            (exp(- l_k[d] * param_out[k, col_id_ub]) - 
+             exp(- l_k[d] * param_out[k, col_id_lb]))
         
-        integral_d[d] = (param_out[k, col_id_ub] - param_out[k, col_id_lb])
+        # integral_d[d] = (param_out[k, col_id_ub] - param_out[k, col_id_lb])
         
     } # end of loop computing each of 1-dim integrals
     
-    print(integral_d)
+    # print(integral_d)
     
     # compute the D-dim integral (product of D 1-dim integrals)
     zhat[k] = prod(c_k[k], integral_d)
@@ -205,7 +227,17 @@ for (k in 1:n_partitions) {
     
 } # end of for loop over the K partitions
 
-zhat
+# compute integral manually : t
+
+# ck = psi(u, prior) - sum(lambda(u, prior) * u)
+
+# exp(-ck) * (-1/l_k[1] * exp(-l_k[1] * (param_out[k, 6] - param_out[k, 5]))) * 
+#    (-1/l_k[2] * exp(-l_k[2] * (param_out[k, 8] - param_out[k, 7])))
+
+
+
+# c_k
+# zhat[k]
 log(sum(zhat))
 
 cbind(param_out[,1:4], zhat) %>% cbind(lambda_mat)
@@ -214,34 +246,6 @@ cbind(param_out[,1:4], zhat) %>% cbind(lambda_mat)
 log(sum(zhat))
 
 # ------------------------------------------------------------------------------
-
-n = 1000
-result = integral2(fun, 0, 1, 0, 1, reltol = 1e-50)
-log(result$Q) # -1.223014
-
-
-
-
-# 2-d contour plot of the parameter space
-ggplot(u_df_N, aes(u1, u2)) + geom_density_2d()
-
-ggplot(u_df_N, aes(u1, u2)) + geom_point()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
