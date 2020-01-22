@@ -6,12 +6,12 @@ library("ggpmisc")
 
 # use stan to draw from the posterior distribution -----------------------------
 
-DELL_PATH = "C:/Users/chuu/mlike_approx"
-# LEN_PATH  = "C:/Users/ericc/mlike_approx"
 # path for lenovo
-# setwd(LEN_PATH)
+LEN_PATH  = "C:/Users/ericc/mlike_approx"
+setwd(LEN_PATH)
 
 # path for dell
+DELL_PATH = "C:/Users/chuu/mlike_approx"
 setwd(DELL_PATH)
 
 source("partition/partition.R")         # load partition extraction functions

@@ -128,9 +128,9 @@ library(tree)
 
 u_tree = tree(psi_u ~ ., u_df_N)
 
-plot(u_tree)
-text(u_tree, cex = 0.8)
-partition.tree(u_tree, cex = 1, ordvars = c("u1", "u2"))
+# plot(u_tree)
+# text(u_tree, cex = 0.8)
+# partition.tree(u_tree, cex = 1, ordvars = c("u1", "u2"))
 
 plot(u_df_N[,1], u_df_N[,2], pch = 20, cex = 0.8, col = "cyan",
      xlab = 'u1', ylab = 'u2', main = '')
@@ -188,15 +188,15 @@ for (k in 1:n_partitions) {
         col_id_ub = col_id_lb + 1
         
         # d-th integral computed in closed form
-        integral_d[d] = - 1 / l_k[d] * exp(l_k[d] * u[d])
+        integral_d[d] = - 1 / l_k[d] * # exp(l_k[d] * u[d]) * 
             exp(- l_k[d] * (param_out[k, col_id_ub] - 
                             param_out[k, col_id_lb])) 
         
-        # integral_d[d] = (param_out[k, col_id_ub] - param_out[k, col_id_lb])
+        integral_d[d] = (param_out[k, col_id_ub] - param_out[k, col_id_lb])
         
     } # end of loop computing each of 1-dim integrals
     
-    # print(integral_d)
+    print(integral_d)
     
     # compute the D-dim integral (product of D 1-dim integrals)
     zhat[k] = prod(c_k[k], integral_d)
@@ -205,7 +205,7 @@ for (k in 1:n_partitions) {
     
 } # end of for loop over the K partitions
 
-
+zhat
 log(sum(zhat))
 
 cbind(param_out[,1:4], zhat) %>% cbind(lambda_mat)
