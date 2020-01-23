@@ -16,3 +16,8 @@ lambda = function(u, prior) {
     
 }
 
+grad_psi = function(u, prior) {
+    
+    prior$Sigma_inv %*% u %>% c()
+    
+}

@@ -2,13 +2,13 @@
 library(rstan)
 library(rstudioapi) # running  RStan in parallel via Rstudio
 
-DELL_PATH = "C:/Users/chuu/mlike_approx"
-# LEN_PATH  = "C:/Users/ericc/mlike_approx"
+# DELL_PATH = "C:/Users/chuu/mlike_approx"
+LEN_PATH  = "C:/Users/ericc/mlike_approx"
 # path for lenovo
-# setwd(LEN_PATH)
+setwd(LEN_PATH)
 
 # path for dell
-setwd(DELL_PATH)
+# setwd(DELL_PATH)
 
 source("partition/partition.R")
 source("hybrid_approx.R")
@@ -33,8 +33,8 @@ K_sims = 100               # num of simulations to run FOR EACH N in N_vec
 
 
 D_vec = c(3, 5, 7, 10)
-# D_vec = c(4)
-LIL_d = vector("list", length = length(D_vec))    
+# D_vec = c(3)
+L_d = vector("list", length = length(D_vec))    
 
 set.seed(123)
 for (d_i in 1:length(D_vec)) {
@@ -100,6 +100,10 @@ for (d_i in 1:length(D_vec)) {
                                       t(mu_beta) %*% V_beta_inv %*% mu_beta - 
                                       t(mu_star) %*% V_star_inv %*% mu_star))
             
+            # compute MLE estimates for mean, variance of the regression model
+            ybar = X %*% mu_star
+            sigmasq_mle = 1 / N * sum((y - ybar)^2)
+            
             # create prior, posterior objects
             prior = list(V_beta = V_beta, 
                          mu_beta = mu_beta, 
@@ -118,7 +122,9 @@ for (d_i in 1:length(D_vec)) {
             
             ## compute true log marginal likelihood ----------------------------
             
-            LIL_N_k[k] = lil(y, X, prior, post)
+            # subtract log max likelihood to stabilize approximation
+            LIL_N_k[k] = lil(y, X, prior, post) - 
+                sum(dnorm(y, ybar, sqrt(sigmasq_mle), log = T))
             
             # ------------------------------------------------------------------
             
@@ -138,8 +144,9 @@ for (d_i in 1:length(D_vec)) {
             # use special preprocess b/c we call psi_true() 
             u_df = preprocess(mvnig_fit, D, post)
             
-            # LIL_N_k_hat[k] = mean(approx_lil(N_approx, prior, D, u_df, J))
-            LIL_N_k_hat[k] = mean(approx_lil(N_approx, D, u_df, J, prior))
+            # subtract log max likelihood to stabilize approximation
+            LIL_N_k_hat[k] = mean(approx_lil(N_approx, D, u_df, J, prior)) - 
+                sum(dnorm(y, ybar, sqrt(sigmasq_mle), log = T))
 
         }
         
@@ -180,7 +187,7 @@ LIL_d
 # verifying that LIL vs log N regression has -D/2 slope
 
 # priors
-D       = 6                # dimension of paramter
+D       = 3                # dimension of paramter
 p       = D - 1            # dimension of beta
 mu_beta = rep(0, p)        # prior mean for beta
 V_beta  = diag(1, p)       # scaled precision matrix for betaV_beta
@@ -192,15 +199,14 @@ b_0     = 1 / 2            # scale param
 beta    = sample(-10:10, p, replace = T)   # coefficient vector (p x 1)
 sigmasq = 4                                # true variance (1 x 1) 
 
-
-
 I_p = diag(1, p)       # (p x p) identity matrix
 
 # values of N for which we will compute + approximate the LIL
 N_vec = seq(50, 5000, 100)
 N_vec = c(50, 60, 70, 100, 110, 125, 150, 200, 225, 250, 300)
+# N_vec = c(200)
 LIL_N = numeric(length(N_vec)) # store the LIL for each of the grid values of N
-K_sims = 200  # num of simulations to run FOR EACH N in N_vec
+K_sims = 100  # num of simulations to run FOR EACH N in N_vec
 
 set.seed(1)
 for (i in 1:length(N_vec)) {
@@ -281,13 +287,48 @@ plot(LIL_N ~ log_N, LIL_df)
 lm(LIL_N ~ log_N, LIL_df)
 
 
+# ------------------------------------------------------------------------------
+library(reshape2)
+
+N_vec = c(50, 60, 70, 100, 110, 125, 150, 200, 225, 250, 300)
 
 
+# D = 3
+LIL_N = c(-116.3446, -137.6999, -159.6706, -222.8907, -244.2451, -275.9732,
+          -329.4240, -433.5548, -488.2828, -542.3228, -648.5599)
+
+LIL_N_hat = c(-103.9668, -125.1452, -147.3270, -210.9323, -232.3533, -264.2786,
+              -317.4581, -421.9521, -476.5969, -530.7302, -637.8043)
 
 
+lil_df = data.frame(LIL_N = LIL_N, LIL_N_hat = LIL_N_hat, log_N = log(N_vec))
+
+lil_df_long = melt(lil_df, id.vars = "log_N")
+
+ggplot(lil_df_long, aes(log_N, value, col = variable)) + geom_point()
+
+# D = 5
+LIL_N = c(-131.1138, -153.8555, -175.8266, -240.4139, -261.4032, -294.8986, 
+          -348.9524, -455.3916, -508.6343, -560.8775, -667.1969)
+
+LIL_N_hat = c(-111.8813, -135.1093, -157.1889, -222.3254, -243.5304, -276.9260, 
+              -331.3026, -437.6792, -491.3586, -543.9151, -651.0929)
 
 
+# D = 7
+LIL_N = c(-135.8489, -158.0649, -181.5670, -247.1824, -267.3347, -300.0477,
+          -354.3124, -460.4378, -516.1904, -566.7185, -674.6706)
 
+LIL_N_hat = c(-110.1174, -132.1217, -156.2267, -222.1395, -242.8230, -275.8084,
+              -330.0965, -436.1873, -492.7829, -543.5327, -652.6138)
+
+
+# D = 10
+LIL_N = c(-147.2810, -170.2424, -193.1394, -260.4092, -282.9458, -315.8182,
+          -369.3659, -478.8867, -532.4860, -586.4090, -693.5570)
+
+LIL_N_hat = c(-109.8516, -133.9974, -157.3436, -225.7665, -249.0499, -281.6845,
+              -335.8194, -445.8283, -499.9098, -554.2056, -662.9794)
 
 
 

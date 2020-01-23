@@ -10,8 +10,8 @@ library("numDeriv")        # for grad() function - numerical differentiation
 # setwd(LEN_PATH)
 
 # path for dell
-DELL_PATH = "C:/Users/chuu/mlike_approx"
-setwd(DELL_PATH)
+# DELL_PATH = "C:/Users/chuu/mlike_approx"
+# setwd(DELL_PATH)
 
 source("partition/partition.R")         # load partition extraction functions
 source("hybrid_approx.R")               # load main algorithm functions
@@ -90,12 +90,13 @@ for (k in 1:n_partitions) {
     star_ind = grep("_star", names(param_out))
     u = param_out[k, star_ind] %>% unlist %>% unname
     
+    l_k = grad_psi(u, prior)       # (D x 1) 
+    
     # evaluate e^c_k = e^{psi(u_star)}
     c_k[k] = exp(-psi(u, prior)) # (1 x 1)
+    c_k[k] = exp(-psi(u, prior) + sum(l_k * u)) 
     
     # compute lambda_k : gradient of psi, evaluated at u_star
-    l_k = lambda(u, prior)       # (D x 1) 
-    
     lambda_mat[k,] = l_k
     
     # store each component of the D-dim integral 
@@ -107,10 +108,12 @@ for (k in 1:n_partitions) {
         col_id_lb = grep("u1_lb", names(param_out)) + 2 * (d - 1)
         col_id_ub = col_id_lb + 1
         
+        upper_kd = param_out[k, col_id_ub]
+        lower_kd = param_out[k, col_id_lb]
+        
         # d-th integral computed in closed form
         integral_d[d] = - 1 / l_k[d] * 
-            exp(- l_k[d] * (param_out[k, col_id_ub] - 
-                                param_out[k, col_id_lb]))
+            (exp(-l_k[d] * upper_kd) - exp(-l_k[d] * lower_kd)) 
         
         # area of the partition
         # integral_d[d] = (param_out[k, col_id_ub] - param_out[k, col_id_lb])
@@ -127,7 +130,9 @@ for (k in 1:n_partitions) {
 
 cbind(param_out[,1:4], zhat) %>% cbind(lambda_mat)
 
-sum(zhat)
+integral_d
+zhat
+log(sum(zhat))
 
 
 

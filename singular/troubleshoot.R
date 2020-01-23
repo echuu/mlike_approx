@@ -94,7 +94,7 @@ source("singular/singular_helper.R")    # load psi(), lambda()
 
 # STAN SETTINGS ----------------------------------------------------------------
 J         = 1000          # number of MC samples per approximation
-N_approx  = 100           # number of approximations
+N_approx  = 10           # number of approximations
 burn_in   = 2000          # number of burn in draws
 n_chains  = 4             # number of markov chains to run
 stan_seed = 123           # seed
@@ -109,7 +109,7 @@ D = 2                    # dimension of parameter
 set.seed(1)
 N = 1000
 
-n = 1000
+n = N
 result = integral2(fun, 0, 1, 0, 1, reltol = 1e-50)
 log(result$Q) # -1.223014 for n = 1000
 
@@ -183,6 +183,7 @@ zhat         = numeric(n_partitions) # integral over k-th partition
 
 # (4) compute closed form integral over each partition
 lambda_mat = matrix(NA, n_partitions, D)
+integral_mat = matrix(NA, n_partitions, D)
 
 for (k in 1:n_partitions) {
     
@@ -216,7 +217,7 @@ for (k in 1:n_partitions) {
         
     } # end of loop computing each of 1-dim integrals
     
-    # print(integral_d)
+    integral_mat[k,] = integral_d
     
     # compute the D-dim integral (product of D 1-dim integrals)
     zhat[k] = prod(c_k[k], integral_d)
@@ -225,17 +226,10 @@ for (k in 1:n_partitions) {
     
 } # end of for loop over the K partitions
 
-# compute integral manually : t
 
-# ck = psi(u, prior) - sum(lambda(u, prior) * u)
-
-# exp(-ck) * (-1/l_k[1] * exp(-l_k[1] * (param_out[k, 6] - param_out[k, 5]))) * 
-#    (-1/l_k[2] * exp(-l_k[2] * (param_out[k, 8] - param_out[k, 7])))
-
-
-
-# c_k
-# zhat[k]
+c_k
+integral_mat
+zhat
 log(sum(zhat))
 
 cbind(param_out[,1:4], zhat) %>% cbind(lambda_mat)

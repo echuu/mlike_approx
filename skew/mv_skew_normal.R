@@ -8,14 +8,15 @@ library('MCMCpack')        # for rinvgamma() function
 library(sn)
 library(VGAM)
 
+library(tree)
 
 # path for lenovo
-# LEN_PATH  = "C:/Users/ericc/mlike_approx"
-# setwd(LEN_PATH)
+LEN_PATH  = "C:/Users/ericc/mlike_approx"
+setwd(LEN_PATH)
 
 # path for dell
-DELL_PATH = "C:/Users/chuu/mlike_approx"
-setwd(DELL_PATH)
+# DELL_PATH = "C:/Users/chuu/mlike_approx"
+# setwd(DELL_PATH)
 
 
 source("partition/partition.R")         # load partition extraction functions
@@ -48,7 +49,6 @@ u_samps = rmsn(J, xi = mu_0, Omega = Sigma, alpha = alpha) %>% data.frame
 u_df_full = preprocess(u_samps, D, prior)
 approx_skew = approx_lil(N_approx, D, u_df_full, J / N_approx, prior)
 mean(approx_skew) # -3.085342
-
 
 
 
@@ -94,6 +94,7 @@ zhat         = numeric(n_partitions) # integral over k-th partition
 # (4) compute closed form integral over each partition
 
 lambda_mat = matrix(NA, n_partitions, D)
+integral_mat = matrix(NA, n_partitions, D)
 
 for (k in 1:n_partitions) {
     
@@ -101,12 +102,13 @@ for (k in 1:n_partitions) {
     star_ind = grep("_star", names(param_out))
     u = param_out[k, star_ind] %>% unlist %>% unname
     
-    # evaluate e^c_k = e^{psi(u_star)}
-    c_k[k] = exp(-psi(u, prior)) # (1 x 1)
-    c_k[k] = exp(-psi(u, prior) + sum(l_k * u)) 
     
     # compute lambda_k : gradient of psi, evaluated at u_star
     l_k = lambda(u, prior)       # (D x 1) 
+    
+    # evaluate e^c_k = e^{psi(u_star)}
+    # c_k[k] = exp(-psi(u, prior)) # (1 x 1)
+    c_k[k] = exp(-psi(u, prior) + sum(l_k * u)) 
     
     lambda_mat[k,] = l_k
     
@@ -124,9 +126,11 @@ for (k in 1:n_partitions) {
             (exp(- l_k[d] * param_out[k, col_id_ub]) - 
                  exp(- l_k[d] * param_out[k, col_id_lb])) 
         
-        # integral_d[d] = (param_out[k, col_id_ub] - param_out[k, col_id_lb])
+        integral_d[d] = (param_out[k, col_id_ub] - param_out[k, col_id_lb])
         
     } # end of loop computing each of 1-dim integrals
+    
+    integral_mat[k,] = integral_d
     
     # compute the D-dim integral (product of D 1-dim integrals)
     zhat[k] = prod(c_k[k], integral_d)

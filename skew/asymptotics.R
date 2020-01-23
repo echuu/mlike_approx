@@ -11,12 +11,12 @@ library(reshape2)          # for melt() function
 
 
 DELL_PATH = "C:/Users/chuu/mlike_approx"
-# LEN_PATH  = "C:/Users/ericc/mlike_approx"
+LEN_PATH  = "C:/Users/ericc/mlike_approx"
 # path for lenovo
-# setwd(LEN_PATH)
+setwd(LEN_PATH)
 
 # path for dell
-setwd(DELL_PATH)
+# setwd(DELL_PATH)
 
 source("partition/partition.R")         # load partition extraction functions
 source("hybrid_approx.R")               # load main algorithm functions

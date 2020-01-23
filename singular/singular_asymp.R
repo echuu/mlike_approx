@@ -7,12 +7,12 @@ library("ggpmisc")
 # use stan to draw from the posterior distribution -----------------------------
 
 # path for lenovo
-# LEN_PATH  = "C:/Users/ericc/mlike_approx"
-# setwd(LEN_PATH)
+LEN_PATH  = "C:/Users/ericc/mlike_approx"
+setwd(LEN_PATH)
 
 # path for dell
-DELL_PATH = "C:/Users/chuu/mlike_approx"
-setwd(DELL_PATH)
+# DELL_PATH = "C:/Users/chuu/mlike_approx"
+# setwd(DELL_PATH)
 
 source("partition/partition.R")         # load partition extraction functions
 source("hybrid_approx.R")               # load main algorithm functions
@@ -36,14 +36,11 @@ D = 2                    # dimension of parameter
 
 
 fun <- function(x, y) exp(-n*x^2*y^4)
-n = 1
-result = integral2(fun, 0, 1, 0, 1, reltol = 1e-50)
-log(result$Q) # -1.223014 for n = 1000
 
 
 # one run of the algorithm -----------------------------------------------------
 set.seed(1)
-N = 1
+N = 500
 
 gamma_dat = list(N = N) # for STAN sampler
 prior     = list(N = N) # for evaluation of psi, lambda
@@ -72,6 +69,12 @@ approx = approx_lil(N_approx, D, u_df_N, J, prior)
 approx
 
 mean(approx) # 9.044141 for D = 2, N = 1000
+
+# compute true value of logZ
+n = N
+result = integral2(fun, 0, 1, 0, 1, reltol = 1e-50)
+log(result$Q) # -1.223014 for n = 1000
+
 
 # ------------------------------------------------------------------------------
 
