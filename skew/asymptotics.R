@@ -25,7 +25,7 @@ source("skew/mv_skew_normal_helper.R")  # load psi(), lambda()
 
 
 # fixed settings ---------------------------------------------------------------
-D = 8
+D = 4
 alpha = rep(1, D) 
 mu_0 = rep(0, D)
 Omega = diag(1, D)

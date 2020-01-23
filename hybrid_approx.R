@@ -1,7 +1,16 @@
 
+## hybrid_approx.R
+
 library(dplyr)
 library(rpart)
-library(numDeriv)  # for grad() function - numerical differentiation
+
+## available functions in this file
+## 
+## (1) log_det()
+## (2) preprocess()
+## (3) approx_lil()
+##
+## -----------------------------------------------------------------------------
 
 
 
@@ -30,7 +39,7 @@ preprocess = function(post_samps, D, prior) {
     
     psi_u = apply(post_samps, 1, psi, prior = prior) %>% unname() # (J x 1)
     
-    # (1.2) construct u_df -- this will require some automation for colnames
+    # (1.2) name columns so that values can be extracted by partition.R
     u_df_names = character(D + 1)
     for (d in 1:D) {
         u_df_names[d] = paste("u", d, sep = '')
@@ -144,9 +153,9 @@ approx_lil = function(N_approx, D, u_df_full, J, prior) {
         def_approx[t] = log(sum(zhat))
         
         # check for underflow, flip sign if underflow (this usually works)
-        if (is.nan(def_approx[t])) {
-            def_approx[t] = log(-sum(zhat))
-        }
+        #if (is.nan(def_approx[t])) {
+        #    def_approx[t] = log(-sum(zhat))
+        #}
         
     } # end of N_approx outer loop
     

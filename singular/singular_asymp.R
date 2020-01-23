@@ -34,9 +34,16 @@ J_iter = 1 / n_chains * N_approx * J + burn_in
 # GLOBAL MODEL SETTINGS --------------------------------------------------------
 D = 2                    # dimension of parameter
 
+
+fun <- function(x, y) exp(-n*x^2*y^4)
+n = 1
+result = integral2(fun, 0, 1, 0, 1, reltol = 1e-50)
+log(result$Q) # -1.223014 for n = 1000
+
+
 # one run of the algorithm -----------------------------------------------------
 set.seed(1)
-N = 1000
+N = 1
 
 gamma_dat = list(N = N) # for STAN sampler
 prior     = list(N = N) # for evaluation of psi, lambda
@@ -74,16 +81,17 @@ mean(approx) # 9.044141 for D = 2, N = 1000
 
 # values of N for which we will compute + approximate the LIL
 
-N_vec_log = seq(4, 10, 0.05)       # sample size that is uniform over log scale
-N_vec     = floor(exp(N_vec_log))  # sample size to use to generate data
+N_vec_log = seq(1, 17, by = 0.1)             # sample size grid unif in log
+N_vec     = floor(exp(N_vec_log)) %>% unique # sample size to generate data
 
+# N_vec     = c(500, 1000)         # sample size to use to generate data
+print(length(N_vec))               # number of different sample sizes
 
-N_vec     = c(1000)                # sample size to use to generate data
-set.seed(1)
 
 # store approximations corresponding to each sample size
 approx_N = matrix(NA, N_approx, length(N_vec))
 
+set.seed(1)
 for (i in 1:length(N_vec)) {
     
     
@@ -112,7 +120,8 @@ for (i in 1:length(N_vec)) {
     
     # (3) run algorithm to obtain N_approx estimates of the LIL
     
-    print(paste('iter = ', i, ' -- calculating LIL for N = ', N, 
+    print(paste("iter = ", i, "/", length(N_vec),  
+                ' -- calculating logZ for N = ', N, 
                 ' (', N_approx, ' approximations)', sep = ''))
     
     
@@ -126,28 +135,64 @@ approx_N
 
 colMeans(approx_N)
 
-# write.csv(approx_N, "approx_N50_J2000_grid121.csv", row.names = F)
-# test_read = read.csv("approx_N50_J2000_grid121.csv")
+# J = 1000 MC samples per approximation, N_approx = 10 approximations for 
+# each sample size N -- grid below is needed to make use of the data
+# N_vec_log = seq(1, 17, by = 0.1)             # sample size grid unif in log
+# N_vec     = floor(exp(N_vec_log)) %>% unique # sample size to generate data
+# write.csv(approx_N, "singular_asymptotics.csv", row.names = F)
+# test_read = read.csv("singular_asymptotics.csv")
+
+# ------------------------------------------------------------------------------
+
+# numerical integration for the true log normalizing constant ------------------
+
+library(pracma)
+
+N_vec_log = seq(1, 17, by = 0.1)             # sample size grid unif in log
+N_vec     = floor(exp(N_vec_log)) %>% unique # sample size to generate data
+
+logZ_0 = rep(0,length(N_vec))
+
+print(length(logZ_0))
+
+i = 1;
+for (n in N_vec) {
+    result = integral2(fun, 0, 1, 0, 1, reltol = 1e-50)
+    logZ_0[i] = log(result$Q)
+    i = i + 1;
+}
+
+plot(logZ_0 ~ log(N_vec))
+lm(logZ_0 ~ log(N_vec))
 
 
-log_z_n = colMeans(approx_N)
-log_n   = log(N_vec)
+# ------------------------------------------------------------------------------
 
-lil_df = data.frame(log_z_n, log_n)
+# overlay the true, approximate plotted vs. log n
+
+logZ = colMeans(approx_N)  # approximation
+logn   = log(N_vec)
+
+lil_df = data.frame(logZ_0 = logZ_0, logZ = logZ, logn = log_n)
+lil_df_long = melt(lil_df, id.vars = "logn")
+
 
 formula1 = y ~ x
 
-ggplot(lil_df, aes(log_n, log_z_n)) + geom_point() + 
-    labs(title = "50 approximations (1000 MC samples each) for each N") + 
-    geom_smooth(method = lm, se = T, formula = formula1) +
+ggplot(lil_df_long, aes(x = logn, y = value, 
+                        color = as.factor(variable))) + geom_point(size = 0.7) + 
+    geom_smooth(method = lm, se = F, formula = formula1) +
+    labs(x = "log(n)", y = "log(Z)", 
+         title = "Approx (Blue), True Value via Numerical Integration (Red)") + 
     stat_poly_eq(aes(label = paste(..eq.label.., sep = "~~~")), 
                  label.x.npc = "right", label.y.npc = "top",
                  eq.with.lhs = "logZ~`=`~",
                  eq.x.rhs = "~logN",
                  formula = formula1, parse = TRUE, size = 8) +
-    theme_bw(base_size = 16)
+    theme_bw(base_size = 16) + 
+    theme(legend.position = "none")
 
-lm(log_z_n ~ log_n, lil_df) # slope should be -0.25
+lm(logZ ~ logn, lil_df) # slope should be -0.25
 
 
 

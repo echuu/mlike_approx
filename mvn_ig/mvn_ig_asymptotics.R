@@ -18,8 +18,8 @@ source("mvn_ig/mvn_ig_helper.R") # load this LAST to overwrite def preprocess()
 
 # STAN sampler settings --------------------------------------------------------
 
-J         = 100          # number of MC samples per approximation
-N_approx  = 10            # number of approximations
+J         = 500          # number of MC samples per approximation
+N_approx  = 10           # number of approximations
 burn_in   = 2000         # number of burn in draws
 n_chains  = 4            # number of markov chains to run
 stan_seed = 123          # seed
@@ -27,13 +27,13 @@ stan_seed = 123          # seed
 J_iter = 1 / n_chains * N_approx * J + burn_in 
 
 
-K_sims = 2               # num of simulations to run FOR EACH N in N_vec
+K_sims = 100               # num of simulations to run FOR EACH N in N_vec
 
 # ------------------------------------------------------------------------------
 
 
 D_vec = c(3, 5, 7, 10)
-D_vec = c(3, 5)
+# D_vec = c(4)
 LIL_d = vector("list", length = length(D_vec))    
 
 set.seed(123)
@@ -57,8 +57,8 @@ for (d_i in 1:length(D_vec)) {
     
     # --------------------------------------------------------------------------
     
-    N_vec = c(50, 100, 150, 200, 300)
-    N_vec = c(200) # for testing -- comment this line to perform ext. analysis
+    N_vec = c(50, 60, 70, 100, 110, 125, 150, 200, 225, 250, 300)
+    # N_vec = c(200) # for testing -- comment this line to perform ext. analysis
     
     
     LIL_N = numeric(length(N_vec))      # store the LIL for each N
@@ -198,6 +198,7 @@ I_p = diag(1, p)       # (p x p) identity matrix
 
 # values of N for which we will compute + approximate the LIL
 N_vec = seq(50, 5000, 100)
+N_vec = c(50, 60, 70, 100, 110, 125, 150, 200, 225, 250, 300)
 LIL_N = numeric(length(N_vec)) # store the LIL for each of the grid values of N
 K_sims = 200  # num of simulations to run FOR EACH N in N_vec
 

@@ -8,8 +8,6 @@ N = exp(logn)
 lML = rep(0,length(N))
 
 i = 1;
-n = 100
-n = 1000
 for (n in N){
     result = integral2(fun, 0, 1, 0, 1, reltol = 1e-50)
     lML[i] = log(result$Q)

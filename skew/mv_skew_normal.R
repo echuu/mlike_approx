@@ -26,7 +26,7 @@ source("skew/mv_skew_normal_helper.R")  # load psi(), lambda()
 
 # fixed settings ---------------------------------------------------------------
 D = 2
-N = 500 # pseudo-sample size
+N = 1000 # pseudo-sample size
 Omega = diag(1, D)
 Sigma = D / N * Omega 
 Sigma_inv = solve(Sigma)
@@ -42,19 +42,19 @@ D / 2 * log(2 * pi) + 0.5 * log_det(Sigma) + log(0.5)
 # ------------------------------------------------------------------------------
 
 set.seed(1)
-J = 5000
+J = 10000
 N_approx = 10
 u_samps = rmsn(J, xi = mu_0, Omega = Sigma, alpha = alpha) %>% data.frame 
 u_df_full = preprocess(u_samps, D, prior)
 approx_skew = approx_lil(N_approx, D, u_df_full, J / N_approx, prior)
 mean(approx_skew) # -3.085342
 
-u_tree = tree(psi_u ~ ., u_df_full)
+
 
 
 
 # step through of algorithm to see values of zhat ------------------------------
-
+u_tree = tree(psi_u ~ ., u_df_full)
 plot(u_tree)
 text(u_tree, cex = 0.8)
 
@@ -103,6 +103,7 @@ for (k in 1:n_partitions) {
     
     # evaluate e^c_k = e^{psi(u_star)}
     c_k[k] = exp(-psi(u, prior)) # (1 x 1)
+    c_k[k] = exp(-psi(u, prior) + sum(l_k * u)) 
     
     # compute lambda_k : gradient of psi, evaluated at u_star
     l_k = lambda(u, prior)       # (D x 1) 
@@ -120,8 +121,11 @@ for (k in 1:n_partitions) {
         
         # d-th integral computed in closed form
         integral_d[d] = - 1 / l_k[d] * 
-            exp(- l_k[d] * (param_out[k, col_id_ub] - 
-                                param_out[k, col_id_lb]))        
+            (exp(- l_k[d] * param_out[k, col_id_ub]) - 
+                 exp(- l_k[d] * param_out[k, col_id_lb])) 
+        
+        # integral_d[d] = (param_out[k, col_id_ub] - param_out[k, col_id_lb])
+        
     } # end of loop computing each of 1-dim integrals
     
     # compute the D-dim integral (product of D 1-dim integrals)
@@ -129,13 +133,18 @@ for (k in 1:n_partitions) {
     
 } # end of for loop over the K partitions
 
+
+# store the log integral \approx log marginal likelihood
+log(sum(zhat))
+
+D / 2 * log(2 * pi) + 0.5 * log_det(Sigma) + log(0.5) 
+
 cbind(param_out[,1:4], zhat) %>% cbind(lambda_mat)
 
 
 
 
-# store the log integral \approx log marginal likelihood
-log(sum(zhat))
+
 
 
 
