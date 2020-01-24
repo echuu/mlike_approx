@@ -34,7 +34,7 @@ K_sims = 100               # num of simulations to run FOR EACH N in N_vec
 
 
 D_vec = c(3, 5, 7, 10)
-# D_vec = c(3, 4)
+# D_vec = c(3)
 LIL_d = vector("list", length = length(D_vec))    
 
 set.seed(123)
@@ -59,7 +59,7 @@ for (d_i in 1:length(D_vec)) {
     # --------------------------------------------------------------------------
     
     N_vec = c(50, 60, 70, 100, 110, 125, 150, 200, 225, 250, 300)
-    N_vec = c(200) # for testing -- comment this line to perform ext. analysis
+    # N_vec = c(200) # for testing -- comment this line to perform ext. analysis
     
     
     LIL_N = numeric(length(N_vec))      # store the LIL for each N
@@ -139,11 +139,12 @@ for (d_i in 1:length(D_vec)) {
                              iter    = J_iter,
                              warmup  = burn_in,
                              chains  = n_chains,
-                             seed    = stan_seed,
                              refresh = 0) # should give us J * N_approx draws
             
             # use special preprocess b/c we call psi_true() 
             u_df = preprocess(mvnig_fit, D, post)
+            
+            u_df %>% head
             
             # subtract log max likelihood to stabilize approximation
             LIL_N_k_hat[k] = mean(approx_lil(N_approx, D, u_df, J, prior)) #- 
@@ -153,6 +154,8 @@ for (d_i in 1:length(D_vec)) {
         
         LIL_N[i] = mean(LIL_N_k)
         LIL_N_hat[i] = mean(LIL_N_k_hat)
+        
+        print(rbind(LIL_N, LIL_N_hat))
 
         
     } # end of main loop

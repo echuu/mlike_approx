@@ -17,6 +17,8 @@ extractPartition = function(u_tree, param_support = NULL) {
     partition_id = sort(unique(u_tree$where)) # row id of leaf node information
     psi_hat = round(u_tree$frame[partition_id,]$yval, 4)
     
+    psi_hat_sort = sort(psi_hat)
+    
     # n_params = length(u_tree$variable.importance)
     
     n_params = length(u_tree$ordered)
@@ -24,9 +26,9 @@ extractPartition = function(u_tree, param_support = NULL) {
     
     ## 1/23 -- added the following check
     # should include this check to make sure the values match up
-    if (sum(psi_hat_rules %in% psi_hat) != n_partitions) {
-        print("warning -- one or more partition rules lost when rounding")
-    }
+    # if (sum(psi_hat_rules %in% psi_hat) != n_partitions) {
+    #    print("warning -- one or more partition rules lost when rounding")
+    # }
     
     for(r in 1:nrow(rules)) {
         rules_str[r,] = str_c(rules_df[r,][rules_df[r,] != ""], collapse = ' ')
@@ -84,7 +86,7 @@ extractPartition = function(u_tree, param_support = NULL) {
     } # end of loop storing the parititon boundaries
     
     ## 1/23 -- updated the left-appended column
-    partition = cbind(psi_hat = psi_hat_rules, partition)
+    partition = cbind(psi_hat = psi_hat_sort, partition)
     
     # number of observations in each leaf node
     part_obs_tbl = table(u_tree$where) %>% data.frame
