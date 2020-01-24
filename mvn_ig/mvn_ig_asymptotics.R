@@ -155,7 +155,7 @@ for (d_i in 1:length(D_vec)) {
         LIL_N[i] = mean(LIL_N_k)
         LIL_N_hat[i] = mean(LIL_N_k_hat)
         
-        print(rbind(LIL_N, LIL_N_hat))
+        print(rbind(LIL_N[i], LIL_N_hat[i]))
 
         
     } # end of main loop

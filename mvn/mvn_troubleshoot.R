@@ -11,7 +11,7 @@ source("mvn/mvn_helper.R")       # load psi(), lambda()
 
 
 
-D  = 6
+D  = 2
 N  = 5000
 Sigma = diag(1, D)
 Sigma = D / N * diag(1, D)
@@ -83,8 +83,8 @@ for (k in 1:n_partitions) {
     u2_a = param_out[k, 7]  # lower bound of u2
     
     # (1) true value of the integral over the k-th partition
-    result = integral2(fun, u1_a, u1_b, u2_a, u2_b, reltol = 1e-50)
-    partition_integral[k] = result$Q
+    # result = integral2(fun, u1_a, u1_b, u2_a, u2_b, reltol = 1e-50)
+    # partition_integral[k] = result$Q
     
     # (2) compute integral via one term taylor approximation
     u_k_star = param_out[k, star_ind] %>% unlist %>% unname
@@ -116,9 +116,9 @@ for (k in 1:n_partitions) {
     
     taylor2_closed[k] = taylor1[k] * order1_closed[k]
     
-    # (3.2)
-    order1_numer[k]  = integral2(taylor_int, u1_a, u1_b, u2_a, u2_b, reltol = 1e-50)$Q
-    taylor2_numer[k] = taylor1[k] * order1_numer[k]
+    # # (3.2)
+    # order1_numer[k]  = integral2(taylor_int, u1_a, u1_b, u2_a, u2_b, reltol = 1e-50)$Q
+    # taylor2_numer[k] = taylor1[k] * order1_numer[k]
     
 }
 

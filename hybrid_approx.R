@@ -139,8 +139,8 @@ approx_lil = function(N_approx, D, u_df_full, J, prior) {
                      exp(- l_k[d] * param_out[k, col_id_lb])) 
                 
                 # comment below to use the 2nd term in the taylor expansion
-                # integral_d[d] = (param_out[k, col_id_ub] - 
-                #                  param_out[k, col_id_lb])
+                #integral_d[d] = (param_out[k, col_id_ub] - 
+                #                 param_out[k, col_id_lb])
                 
             } # end of loop computing each of 1-dim integrals
             

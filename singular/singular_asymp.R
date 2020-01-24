@@ -16,7 +16,7 @@ setwd(LEN_PATH)
 
 source("partition/partition.R")         # load partition extraction functions
 source("hybrid_approx.R")               # load main algorithm functions
-
+source("extractPartition.R")
 source("singular/singular_helper.R")    # load psi(), lambda()
 
 
@@ -35,6 +35,7 @@ J_iter = 1 / n_chains * N_approx * J + burn_in
 D = 2                    # dimension of parameter
 
 
+# integral that we are trying to evaluate
 fun <- function(x, y) exp(-n*x^2*y^4)
 
 
@@ -51,7 +52,6 @@ gamma_fit_N = stan(file    =  'singular/gamma_sample.stan',
                    iter    =  J_iter,
                    warmup  =  burn_in,
                    chains  =  n_chains,                  
-                   seed    =  stan_seed,
                    control =  list(adapt_delta = 0.99),  
                    refresh = 0)           
 
@@ -65,10 +65,7 @@ ggplot(u_df_N, aes(u1, u2)) + geom_point()
 
 # (3) run algorithm to obtain N_approx estimates of the LIL
 approx = approx_lil(N_approx, D, u_df_N, J, prior)
-
-approx
-
-mean(approx) # 9.044141 for D = 2, N = 1000
+mean(approx) # 
 
 # compute true value of logZ
 n = N
@@ -83,13 +80,11 @@ log(result$Q) # -1.223014 for n = 1000
 
 
 # values of N for which we will compute + approximate the LIL
-
 N_vec_log = seq(1, 17, by = 0.1)             # sample size grid unif in log
 N_vec     = floor(exp(N_vec_log)) %>% unique # sample size to generate data
 
-# N_vec     = c(500, 1000)         # sample size to use to generate data
+# N_vec     = c(24154953)         # sample size to use to generate data
 print(length(N_vec))               # number of different sample sizes
-
 
 # store approximations corresponding to each sample size
 approx_N = matrix(NA, N_approx, length(N_vec))
@@ -111,7 +106,6 @@ for (i in 1:length(N_vec)) {
                        iter    =  J_iter,
                        warmup  =  burn_in,
                        chains  =  n_chains,                  
-                       seed    =  stan_seed,
                        control =  list(adapt_delta = 0.99),  
                        refresh = 0)           
     
@@ -136,7 +130,14 @@ for (i in 1:length(N_vec)) {
 
 approx_N
 
+
 colMeans(approx_N)
+
+N_vec     = c(24154953)         # sample size to use to generate data
+n = N_vec[1]
+result = integral2(fun, 0, 1, 0, 1, reltol = 1e-50)
+log(result$Q) # -1.223014 for n = 1000
+
 
 # J = 1000 MC samples per approximation, N_approx = 10 approximations for 
 # each sample size N -- grid below is needed to make use of the data
@@ -172,11 +173,11 @@ lm(logZ_0 ~ log(N_vec))
 # ------------------------------------------------------------------------------
 
 # overlay the true, approximate plotted vs. log n
-
+library(reshape2)
 logZ = colMeans(approx_N)  # approximation
 logn   = log(N_vec)
 
-lil_df = data.frame(logZ_0 = logZ_0, logZ = logZ, logn = log_n)
+lil_df = data.frame(logZ_0 = logZ_0, logZ = logZ, logn = logn)
 lil_df_long = melt(lil_df, id.vars = "logn")
 
 

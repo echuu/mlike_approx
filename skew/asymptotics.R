@@ -10,7 +10,7 @@ library(VGAM)              #
 library(reshape2)          # for melt() function
 
 
-DELL_PATH = "C:/Users/chuu/mlike_approx"
+# DELL_PATH = "C:/Users/chuu/mlike_approx"
 LEN_PATH  = "C:/Users/ericc/mlike_approx"
 # path for lenovo
 setwd(LEN_PATH)
@@ -21,11 +21,11 @@ setwd(LEN_PATH)
 source("partition/partition.R")         # load partition extraction functions
 source("hybrid_approx.R")               # load main algorithm functions
 source("skew/mv_skew_normal_helper.R")  # load psi(), lambda()
-
+source("extractPartition.R")
 
 
 # fixed settings ---------------------------------------------------------------
-D = 4
+D = 3
 alpha = rep(1, D) 
 mu_0 = rep(0, D)
 Omega = diag(1, D)
@@ -110,6 +110,8 @@ ggplot(lil_df, aes(logn, logZ)) + geom_point() +
 lil_df = data.frame(logZ_0 = logZ_0, logZ = logZ, logn = log(N_vec))
 
 lil_df = lil_df[is.finite(lil_df$logZ),] # omit values that have overflowed
+
+lil_df %>% dim
 
 lil_df_long = melt(lil_df, id.vars = "logn")
 

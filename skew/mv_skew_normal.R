@@ -21,13 +21,14 @@ setwd(LEN_PATH)
 
 source("partition/partition.R")         # load partition extraction functions
 source("hybrid_approx.R")               # load main algorithm functions
+source("extractPartition.R")
 
 source("skew/mv_skew_normal_helper.R")  # load psi(), lambda()
 
 
 # fixed settings ---------------------------------------------------------------
 D = 2
-N = 1000 # pseudo-sample size
+N = 22000 # pseudo-sample size
 Omega = diag(1, D)
 Sigma = D / N * Omega 
 Sigma_inv = solve(Sigma)
@@ -43,8 +44,8 @@ D / 2 * log(2 * pi) + 0.5 * log_det(Sigma) + log(0.5)
 # ------------------------------------------------------------------------------
 
 set.seed(1)
-J = 10000
-N_approx = 10
+J = 5000
+N_approx = 1
 u_samps = rmsn(J, xi = mu_0, Omega = Sigma, alpha = alpha) %>% data.frame 
 u_df_full = preprocess(u_samps, D, prior)
 approx_skew = approx_lil(N_approx, D, u_df_full, J / N_approx, prior)
