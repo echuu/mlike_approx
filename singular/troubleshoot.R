@@ -73,19 +73,20 @@ text(sing_rpart, size = 0.5)
 
 
 # -----------------------------------------------------------------------------
-library(rstan)
-library(rstudioapi) # running  RStan in parallel via Rstudio
+library("rstan")
+library("rstudioapi") # running  RStan in parallel via Rstudio
 library("ggpmisc")
+library("pracma")
 
 # use stan to draw from the posterior distribution -----------------------------
 
 # path for lenovo
-# LEN_PATH  = "C:/Users/ericc/mlike_approx"
-# setwd(LEN_PATH)
+LEN_PATH  = "C:/Users/ericc/mlike_approx"
+setwd(LEN_PATH)
 
 # path for dell
-DELL_PATH = "C:/Users/chuu/mlike_approx"
-setwd(DELL_PATH)
+# DELL_PATH = "C:/Users/chuu/mlike_approx"
+# setwd(DELL_PATH)
 
 source("partition/partition.R")         # load partition extraction functions
 source("hybrid_approx.R")               # load main algorithm functions
@@ -108,7 +109,7 @@ D = 2                    # dimension of parameter
 # one run of the algorithm -----------------------------------------------------
 set.seed(1)
 N = 1000
-
+fun <- function(x, y) exp(-n*x^2*y^4)
 n = N
 result = integral2(fun, 0, 1, 0, 1, reltol = 1e-50)
 log(result$Q) # -1.223014 for n = 1000
@@ -165,8 +166,8 @@ for (d in 1:D) {
     param_d_min = min(u_df[,d])
     param_d_max = max(u_df[,d])
     
-    param_d_min = 0 # compact support
-    param_d_max = 1
+    # param_d_min = 0 # compact support
+    # param_d_max = 1
     
     param_support[d,] = c(param_d_min, param_d_max)
 }

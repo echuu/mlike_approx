@@ -85,6 +85,7 @@ u_star = function(rpart_obj, u_df_in, partition, n_params) {
                          psi_hat = rpart_obj$frame[partition_id,]$yval) %>% 
         data.frame()
     
+    # append the fitted value for each row on the right as an additional column
     u_df = merge(u_df, psi_hat_leaf, "leaf_id")
     
     #### (3) compute squared residuals for each of the observations

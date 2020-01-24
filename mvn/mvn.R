@@ -53,6 +53,8 @@ plot(u_df_full[,1], u_df_full[,2], pch = 20, cex = 0.8, col = "cyan",
 partition.tree(u_tree, add = TRUE, cex = 0.8, ordvars = c("u1", "u2"))
 
 
+# start code here for mvn_troubleshoot.R ---------------------------------------
+
 u_df = u_df_full
 
 u_rpart = rpart(psi_u ~ ., u_df)
@@ -72,7 +74,7 @@ for (d in 1:D) {
 }
 
 # (3.2) obtain the partition
-u_partition = paramPartition(u_rpart, param_support)  # partition.R
+u_partition = extractPartition(u_rpart, param_support)  # partition.R
 
 # organize all data into single data frame --> ready for approximation
 param_out = u_star(u_rpart, u_df, u_partition, D)
@@ -90,7 +92,7 @@ for (k in 1:n_partitions) {
     star_ind = grep("_star", names(param_out))
     u = param_out[k, star_ind] %>% unlist %>% unname
     
-    l_k = grad_psi(u, prior)       # (D x 1) 
+    l_k = lambda(u, prior)       # (D x 1) 
     
     # evaluate e^c_k = e^{psi(u_star)}
     c_k[k] = exp(-psi(u, prior)) # (1 x 1)
@@ -113,7 +115,7 @@ for (k in 1:n_partitions) {
         
         # d-th integral computed in closed form
         integral_d[d] = - 1 / l_k[d] * 
-            (exp(-l_k[d] * upper_kd) - exp(-l_k[d] * lower_kd)) 
+             (exp(-l_k[d] * upper_kd) - exp(-l_k[d] * lower_kd)) 
         
         # area of the partition
         # integral_d[d] = (param_out[k, col_id_ub] - param_out[k, col_id_lb])
@@ -128,11 +130,16 @@ for (k in 1:n_partitions) {
     
 } # end of for loop over the K partitions
 
-cbind(param_out[,1:4], zhat) %>% cbind(lambda_mat)
+log(sum(zhat))
 
+
+
+
+
+
+cbind(param_out[,1:4], zhat) %>% cbind(lambda_mat)
 integral_d
 zhat
-log(sum(zhat))
 
 
 

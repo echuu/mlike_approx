@@ -99,7 +99,7 @@ approx_lil = function(N_approx, D, u_df_full, J, prior) {
         }
         
         # (3.2) obtain the partition
-        u_partition = paramPartition(u_rpart, param_support)  # partition.R
+        u_partition = extractPartition(u_rpart, param_support)  # partition.R
         
         # organize all data into single data frame --> ready for approximation
         param_out = u_star(u_rpart, u_df, u_partition, D)
