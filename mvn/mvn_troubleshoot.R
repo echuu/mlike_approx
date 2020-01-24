@@ -5,14 +5,14 @@ LEN_PATH  = "C:/Users/ericc/mlike_approx"
 setwd(LEN_PATH)
 
 source("partition/partition.R")  # load partition extraction functions
-source("mvn/mvn_helper.R")       # load psi(), lambda()
+source("extractPartition.R")
 source("hybrid_approx.R")        # load main algorithm functions
 source("mvn/mvn_helper.R")       # load psi(), lambda()
 
 
 
-D  = 2
-N  = 500
+D  = 6
+N  = 5000
 Sigma = diag(1, D)
 Sigma = D / N * diag(1, D)
 Sigma_inv = solve(Sigma)
@@ -26,7 +26,6 @@ J = 5000
 N_approx = 1
 u_samps = rmvnorm(J, mean = rep(0, D), sigma = Sigma) %>% data.frame 
 u_df_full = preprocess(u_samps, D, prior)
-
 
 approx_skew = approx_lil(N_approx, D, u_df_full, J / N_approx, prior)
 mean(approx_skew)

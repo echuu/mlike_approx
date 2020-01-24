@@ -92,6 +92,7 @@ source("partition/partition.R")         # load partition extraction functions
 source("hybrid_approx.R")               # load main algorithm functions
 
 source("singular/singular_helper.R")    # load psi(), lambda()
+source("extractPartition.R")
 
 # STAN SETTINGS ----------------------------------------------------------------
 J         = 1000          # number of MC samples per approximation
@@ -108,7 +109,7 @@ D = 2                    # dimension of parameter
 
 # one run of the algorithm -----------------------------------------------------
 set.seed(1)
-N = 1000
+N = 500
 fun <- function(x, y) exp(-n*x^2*y^4)
 n = N
 result = integral2(fun, 0, 1, 0, 1, reltol = 1e-50)
@@ -173,7 +174,7 @@ for (d in 1:D) {
 }
 
 # (3.2) obtain the partition
-u_partition = paramPartition(u_rpart, param_support)  # partition.R
+u_partition = extractPartition(u_rpart, param_support)  # partition.R
 
 # organize all data into single data frame --> ready for approximation
 param_out = u_star(u_rpart, u_df, u_partition, D)
@@ -226,6 +227,13 @@ for (k in 1:n_partitions) {
     # zhat[k] = prod(integral_d)
     
 } # end of for loop over the K partitions
+
+
+
+log(sum(zhat))
+
+
+
 
 
 c_k

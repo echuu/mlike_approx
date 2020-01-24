@@ -2,15 +2,16 @@
 library(rstan)
 library(rstudioapi) # running  RStan in parallel via Rstudio
 
-# DELL_PATH = "C:/Users/chuu/mlike_approx"
-LEN_PATH  = "C:/Users/ericc/mlike_approx"
+DELL_PATH = "C:/Users/chuu/mlike_approx"
+# LEN_PATH  = "C:/Users/ericc/mlike_approx"
 # path for lenovo
-setwd(LEN_PATH)
+# setwd(LEN_PATH)
 
 # path for dell
-# setwd(DELL_PATH)
+setwd(DELL_PATH)
 
 source("partition/partition.R")
+source("extractPartition.R")
 source("hybrid_approx.R")
 source("mvn_ig/mvn_ig_helper.R") # load this LAST to overwrite def preprocess()
 
@@ -33,8 +34,8 @@ K_sims = 100               # num of simulations to run FOR EACH N in N_vec
 
 
 D_vec = c(3, 5, 7, 10)
-# D_vec = c(3)
-L_d = vector("list", length = length(D_vec))    
+# D_vec = c(3, 4)
+LIL_d = vector("list", length = length(D_vec))    
 
 set.seed(123)
 for (d_i in 1:length(D_vec)) {
@@ -58,7 +59,7 @@ for (d_i in 1:length(D_vec)) {
     # --------------------------------------------------------------------------
     
     N_vec = c(50, 60, 70, 100, 110, 125, 150, 200, 225, 250, 300)
-    # N_vec = c(200) # for testing -- comment this line to perform ext. analysis
+    N_vec = c(200) # for testing -- comment this line to perform ext. analysis
     
     
     LIL_N = numeric(length(N_vec))      # store the LIL for each N
@@ -123,8 +124,8 @@ for (d_i in 1:length(D_vec)) {
             ## compute true log marginal likelihood ----------------------------
             
             # subtract log max likelihood to stabilize approximation
-            LIL_N_k[k] = lil(y, X, prior, post) - 
-                sum(dnorm(y, ybar, sqrt(sigmasq_mle), log = T))
+            LIL_N_k[k] = lil(y, X, prior, post) #- 
+                #sum(dnorm(y, ybar, sqrt(sigmasq_mle), log = T))
             
             # ------------------------------------------------------------------
             
@@ -145,8 +146,8 @@ for (d_i in 1:length(D_vec)) {
             u_df = preprocess(mvnig_fit, D, post)
             
             # subtract log max likelihood to stabilize approximation
-            LIL_N_k_hat[k] = mean(approx_lil(N_approx, D, u_df, J, prior)) - 
-                sum(dnorm(y, ybar, sqrt(sigmasq_mle), log = T))
+            LIL_N_k_hat[k] = mean(approx_lil(N_approx, D, u_df, J, prior)) #- 
+                #sum(dnorm(y, ybar, sqrt(sigmasq_mle), log = T))
 
         }
         
