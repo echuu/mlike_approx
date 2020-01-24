@@ -23,7 +23,7 @@ source("singular/singular_helper.R")    # load psi(), lambda()
 
 # STAN SETTINGS ----------------------------------------------------------------
 J         = 1000         # number of MC samples per approximation
-N_approx  = 10           # number of approximations
+N_approx  = 1            # number of approximations
 burn_in   = 2000         # number of burn in draws
 n_chains  = 4            # number of markov chains to run
 stan_seed = 123          # seed
@@ -65,7 +65,7 @@ ggplot(u_df_N, aes(u1, u2)) + geom_point()
 
 # (3) run algorithm to obtain N_approx estimates of the LIL
 approx = approx_lil(N_approx, D, u_df_N, J, prior)
-mean(approx) # 
+mean(approx) # -1.014113
 
 # compute true value of logZ
 n = N

@@ -20,9 +20,10 @@ source("mvn/mvn_helper.R")  # load psi(), lambda()
 
 
 D  = 2
-N  = 500
-Sigma = D / N * diag(1, D)
-Sigma_inv = solve(Sigma)
+Omega = diag(1, D)
+# N  = 500
+Sigma = diag(1, D)
+Sigma_inv = solve(Omega)
 mu_0 = rep(0, D)
 
 prior = list(Sigma = Sigma, Sigma_inv = Sigma_inv, mu_0 = mu_0)
@@ -32,16 +33,15 @@ D / 2 * log(2 * pi) + 0.5 * log_det(Sigma) # -3.683584, for D = 2, N = 500
 
 set.seed(1)
 J = 5000
-N_approx = 10
+N_approx = 1
 u_samps = rmvnorm(J, mean = rep(0, D), sigma = Sigma) %>% data.frame 
 u_df_full = preprocess(u_samps, D, prior)
 approx_skew = approx_lil(N_approx, D, u_df_full, J / N_approx, prior)
 mean(approx_skew)
 
 
+# u_df_full = u_df_N
 u_tree = tree(psi_u ~ ., u_df_full)
-
-
 
 # step through of algorithm to see values of zhat ------------------------------
 
@@ -57,11 +57,11 @@ partition.tree(u_tree, add = TRUE, cex = 0.8, ordvars = c("u1", "u2"))
 
 u_df = u_df_full
 
+# u_df = u_df_N # for singular example
+
 u_rpart = rpart(psi_u ~ ., u_df)
 #plot(u_rpart)
 #text(u_rpart, cex = 0.7)
-
-
 
 # (3.1) obtain the (data-defined) support for each of the parameters
 param_support = matrix(NA, D, 2) # store the parameter supports row-wise
@@ -73,11 +73,20 @@ for (d in 1:D) {
     param_support[d,] = c(param_d_min, param_d_max)
 }
 
+u_tree = u_rpart
+
+u_df_in = u_df
+rpart_obj = u_rpart
+
+
 # (3.2) obtain the partition
 u_partition = extractPartition(u_rpart, param_support)  # partition.R
 
 # organize all data into single data frame --> ready for approximation
 param_out = u_star(u_rpart, u_df, u_partition, D)
+
+param_out_mod = u_star_med(u_rpart, u_df, u_partition, D)
+
 
 n_partitions = nrow(u_partition)     # numebr of partitions 
 c_k          = numeric(n_partitions) # constant term for k-th partition
@@ -130,7 +139,7 @@ for (k in 1:n_partitions) {
     
 } # end of for loop over the K partitions
 
-log(sum(zhat))
+log(sum(zhat)) # 3.311019 for old formulation of u_star
 
 
 
@@ -181,6 +190,79 @@ ggplot(lil_df, aes(logn, logZ_0)) + geom_point() +
                  eq.x.rhs = "~logN",
                  formula = formula1, parse = TRUE, size = 8) +
     theme_bw(base_size = 16)
+
+
+
+
+
+# ------------------------------------------------------------------------------
+
+
+# Sigma = D / N * Omega 
+# Sigma_inv = solve(Sigma)
+
+N_vec_log = seq(6, 10, 0.02)        # sample size that is uniform over log scale
+N_vec     = floor(exp(N_vec_log))   # sample size to use to generate data
+logZ_0    = numeric(length(N_vec))  # store true value of log normalizing const
+logZ      = numeric(length(N_vec))  # store approx of log normalizing const
+
+print(length(N_vec))                # number of different sample sizes
+
+
+for (i in 1:length(N_vec)) {
+    
+    N = N_vec[i]
+    Sigma = D / N * Omega 
+    Sigma_inv = solve(Sigma)
+    
+    mu_0 = rep(0, D)
+    
+    prior = list(Sigma = Sigma, Sigma_inv = Sigma_inv, mu_0 = mu_0)
+    
+    
+    # compute true log normalizing const for given D, N
+    logZ_0[i] = D / 2 * log(2 * pi) + 0.5 * log_det(Sigma)
+
+    
+    print(paste("iter = ", i, "/", length(N_vec), 
+                " -- Calculating LIL for D = ", D, ", N = ", N, sep = ''))
+    
+    
+    J = 1e4         # number of total MC samples
+    N_approx = 10   # number of approximations to form
+    
+    
+    u_samps = rmvnorm(J, mean = rep(0, D), sigma = Sigma) %>% data.frame 
+    u_df_full = preprocess(u_samps, D, prior = prior)
+    approx_mvn = approx_lil(N_approx, D, u_df_full, J/N_approx, prior)
+    
+    logZ[i] = mean(approx_mvn)
+    
+} # end of loop iterating over different sample sizes
+
+
+lil_df = data.frame(logZ_0 = logZ_0, logZ = logZ, logn = log(N_vec))
+
+lil_df = lil_df[is.finite(lil_df$logZ),] # omit values that have overflowed
+
+lil_df %>% dim
+
+lil_df_long = melt(lil_df, id.vars = "logn")
+
+formula1 = y ~ x
+
+ggplot(lil_df_long, aes(x = logn, y = value, 
+                        color = as.factor(variable))) + geom_point() + 
+    geom_smooth(method = lm, se = F, formula = formula1) +
+    stat_poly_eq(aes(label = paste(..eq.label.., sep = "~~~")), 
+                 label.x.npc = "right", label.y.npc = "top",
+                 eq.with.lhs = "logZ~`=`~",
+                 eq.x.rhs = "~logN",
+                 formula = formula1, parse = TRUE, size = 8) +
+    theme_bw(base_size = 16) + 
+    theme(legend.position = "none")
+
+
 
 
 

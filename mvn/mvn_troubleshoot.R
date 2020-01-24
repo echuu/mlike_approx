@@ -1,8 +1,8 @@
 
 
 # path for lenovo
-LEN_PATH  = "C:/Users/ericc/mlike_approx"
-setwd(LEN_PATH)
+# LEN_PATH  = "C:/Users/ericc/mlike_approx"
+# setwd(LEN_PATH)
 
 source("partition/partition.R")  # load partition extraction functions
 source("extractPartition.R")
@@ -10,11 +10,13 @@ source("hybrid_approx.R")        # load main algorithm functions
 source("mvn/mvn_helper.R")       # load psi(), lambda()
 
 
+DELL_PATH = "C:/Users/chuu/mlike_approx"
+setwd(DELL_PATH)
 
 D  = 2
-N  = 5000
+# N  = 500
 Sigma = diag(1, D)
-Sigma = D / N * diag(1, D)
+# Sigma = D / N * diag(1, D)
 Sigma_inv = solve(Sigma)
 # mu_0 = rep(0, D)
 
@@ -28,7 +30,7 @@ u_samps = rmvnorm(J, mean = rep(0, D), sigma = Sigma) %>% data.frame
 u_df_full = preprocess(u_samps, D, prior)
 
 approx_skew = approx_lil(N_approx, D, u_df_full, J / N_approx, prior)
-mean(approx_skew)
+mean(approx_skew) # code from mvn.R should match this
 
 # plot the tree
 library(tree)
@@ -83,11 +85,11 @@ for (k in 1:n_partitions) {
     u2_a = param_out[k, 7]  # lower bound of u2
     
     # (1) true value of the integral over the k-th partition
-    # result = integral2(fun, u1_a, u1_b, u2_a, u2_b, reltol = 1e-50)
-    # partition_integral[k] = result$Q
+    result = integral2(fun, u1_a, u1_b, u2_a, u2_b, reltol = 1e-50)
+    partition_integral[k] = result$Q
     
     # (2) compute integral via one term taylor approximation
-    u_k_star = param_out[k, star_ind] %>% unlist %>% unname
+    u_k_star = param_out_mod[k, star_ind] %>% unlist %>% unname
     
     # e_ck[k] = exp(-psi(u_k_star, prior))
     area_k[k] = (u1_b - u1_a) * (u2_b - u2_a)
@@ -117,13 +119,31 @@ for (k in 1:n_partitions) {
     taylor2_closed[k] = taylor1[k] * order1_closed[k]
     
     # # (3.2)
-    # order1_numer[k]  = integral2(taylor_int, u1_a, u1_b, u2_a, u2_b, reltol = 1e-50)$Q
-    # taylor2_numer[k] = taylor1[k] * order1_numer[k]
+    order1_numer[k]  = integral2(taylor_int, u1_a, u1_b, u2_a, u2_b, reltol = 1e-50)$Q
+    taylor2_numer[k] = taylor1[k] * order1_numer[k]
     
 }
 
-log(sum(taylor2_numer))
+log(sum(partition_integral))  # numerically calculated integrals over partition
+log(sum(taylor2_numer))       # both match for case when D = 2, N not used
 log(sum(taylor2_closed))
+
+
+log(sum(taylor1_integral)) # compare this approximation with truth -> BETTER ??
+D / 2 * log(2 * pi)
+
+# look at individual pieces of the partition to see which partition/integral
+# is throwing off the approximation
+
+
+# should compute closed integral over
+all_integrals = cbind(partition_integral, taylor1_integral) %>% 
+    cbind(taylor2_numer)
+
+(param_out %>% mutate(perc_mem = n_obs / sum(n_obs)))[,c(1:4,10)] %>% 
+    select(psi_hat, perc_mem) %>% cbind(all_integrals) %>% 
+    arrange(desc(perc_mem))
+    
 
 
 # verify order 1 approximation -- in progress

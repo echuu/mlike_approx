@@ -11,12 +11,12 @@ library(VGAM)
 library(tree)
 
 # path for lenovo
-LEN_PATH  = "C:/Users/ericc/mlike_approx"
-setwd(LEN_PATH)
+# LEN_PATH  = "C:/Users/ericc/mlike_approx"
+# setwd(LEN_PATH)
 
 # path for dell
-# DELL_PATH = "C:/Users/chuu/mlike_approx"
-# setwd(DELL_PATH)
+DELL_PATH = "C:/Users/chuu/mlike_approx"
+setwd(DELL_PATH)
 
 
 source("partition/partition.R")         # load partition extraction functions

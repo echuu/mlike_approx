@@ -96,8 +96,6 @@ u_star = function(rpart_obj, u_df_in, partition, n_params) {
     # check: residual for each of the nodes should match the deviance in 'frame'
     # u_df %>% group_by(leaf_id) %>% summarise(sum(dev_sq)) # matches!!!
     
-    # rownames(u_df) = NULL
-    
     ## at this point u_df looks like: ------------------------------------------
     #
     # | leaf_id |   u1   |   u2   | ... |   up  |  psi_u  |  psi_hat |  dev_sq
@@ -157,6 +155,11 @@ u_star = function(rpart_obj, u_df_in, partition, n_params) {
     ## merge with the boundary of each of the partitions
     u_df_full = merge(u_star_df, partition, by = 'leaf_id')
 
+    # append the number of observations for each leaf node to the right
+    # this is later used to determine the type of approximation to use
+    u_df_full = merge(u_df_full, part_obs_tbl, by = 'leaf_id')
+    
+    
     return(u_df_full)
 } # end u_star() function ------------------------------------------------------
 
@@ -261,6 +264,8 @@ paramPartition = function(u_tree, param_support = NULL) {
     partition_out = merge(psi_hat_leaf %>% 
                               mutate(psi_hat = round(psi_hat, 4)), 
                           partition, by = 'psi_hat')
+    
+
     
     return(partition_out)
     
