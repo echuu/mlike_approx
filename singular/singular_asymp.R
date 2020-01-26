@@ -19,7 +19,7 @@ source("hybrid_approx.R")               # load main algorithm functions
 source("extractPartition.R")
 source("singular/singular_helper.R")    # load psi(), lambda()
 
-
+x11()
 
 # STAN SETTINGS ----------------------------------------------------------------
 J         = 1000         # number of MC samples per approximation
@@ -75,6 +75,29 @@ log(result$Q) # -1.223014 for n = 1000
 
 # ------------------------------------------------------------------------------
 
+library(tree)
+u_tree = tree(psi_u ~ ., u_df_N)
+plot(u_tree)
+text(u_tree, cex = 0.8)
+
+plot(u_df_N[,1], u_df_N[,2], pch = 20, cex = 1, col = "cyan",
+     xlab = 'u1', ylab = 'u2', main = '')
+partition.tree(u_tree, add = TRUE, cex = 0.8, ordvars = c("u1", "u2"))
+
+
+singular_diag = approx_lil_diag(D, u_df_N, prior, fun) 
+
+singular_diag$logZ_numer
+singular_diag$logZ_taylor1
+singular_diag$lozZ_taylor2
+singular_diag$partition_info
+singular_diag$param_out
+singular_diag$verbose_partition
+
+
+plotPartition(u_df_N, singular_diag$param_out)
+
+partition_df = singular_diag$param_out
 
 # run algorithm over grid of N -------------------------------------------------
 
@@ -201,6 +224,23 @@ lm(logZ ~ logn, lil_df) # slope should be -0.25
 
 
 
+# ------------------------------------------------------------------------------
+
+# ggplot(u_df_N, aes(u1, u2)) + geom_point(col = 'red') + 
+#     scale_x_continuous(name="x") + 
+#     scale_y_continuous(name="y") +
+#     annotate('rect', xmin = singular_diag$param_out$u1_lb[1:2], 
+#              xmax = singular_diag$param_out$u1_ub[1:2], 
+#              ymin = singular_diag$param_out$u2_lb[1:2], 
+#              ymax = singular_diag$param_out$u2_ub[1:2], 
+#              fill = alpha("grey", 0.2))
+# 
+# ggplot(partition_df) + 
+#     geom_rect(aes(xmin = u1_lb, 
+#                   xmax = u1_ub, 
+#                   ymin = u2_lb, 
+#                   ymax = u2_ub), alpha = 0.5,
+#               fill = alpha("grey",0))
 
 
 

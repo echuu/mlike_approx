@@ -4,10 +4,11 @@
 
 library("mvtnorm")           # for draws from multivariate normal
 library("numDeriv")        # for grad() function - numerical differentiation
+library("tree")
 
-# LEN_PATH  = "C:/Users/ericc/mlike_approx"
 # path for lenovo
-# setwd(LEN_PATH)
+LEN_PATH  = "C:/Users/ericc/mlike_approx"
+setwd(LEN_PATH)
 
 # path for dell
 # DELL_PATH = "C:/Users/chuu/mlike_approx"
@@ -15,9 +16,11 @@ library("numDeriv")        # for grad() function - numerical differentiation
 
 source("partition/partition.R")         # load partition extraction functions
 source("hybrid_approx.R")               # load main algorithm functions
-source("mvn/mvn_helper.R")  # load psi(), lambda()
+source("mvn/mvn_helper.R")              # load psi(), lambda() function
+source('extractPartition.R')            # load extractPartition() function
 
 
+x11() # move graphics to separate window
 
 D  = 2
 Omega = diag(1, D)
@@ -25,9 +28,7 @@ Omega = diag(1, D)
 Sigma = diag(1, D)
 Sigma_inv = solve(Omega)
 mu_0 = rep(0, D)
-
 prior = list(Sigma = Sigma, Sigma_inv = Sigma_inv, mu_0 = mu_0)
-
 D / 2 * log(2 * pi) + 0.5 * log_det(Sigma) # -3.683584, for D = 2, N = 500
 
 
@@ -73,8 +74,9 @@ for (d in 1:D) {
     param_support[d,] = c(param_d_min, param_d_max)
 }
 
+# for stepping into u_star() code -- needs to be done to continue modifying
+# what is returned when creating the partition
 u_tree = u_rpart
-
 u_df_in = u_df
 rpart_obj = u_rpart
 
@@ -85,7 +87,7 @@ u_partition = extractPartition(u_rpart, param_support)  # partition.R
 # organize all data into single data frame --> ready for approximation
 param_out = u_star(u_rpart, u_df, u_partition, D)
 
-param_out_mod = u_star_med(u_rpart, u_df, u_partition, D)
+# param_out_mod = u_star_med(u_rpart, u_df, u_partition, D)
 
 
 n_partitions = nrow(u_partition)     # numebr of partitions 

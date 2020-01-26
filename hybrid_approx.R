@@ -10,11 +10,7 @@ library(rpart)
 ## (2) preprocess()
 ## (3) approx_lil()
 ##
-## -----------------------------------------------------------------------------
-
-
-
-## log_det() -------------------------------------------------------------------
+## ------------------------------------------------------------------------------------------------------------
 ## input :
 ##          xmat   : matrix
 ## output : 
@@ -54,6 +50,151 @@ preprocess = function(post_samps, D, prior) {
     return(u_df)
     
 } # end of preprocess() function
+
+
+
+# param_out is the return of u_star
+plotPartition = function(u_df, param_out) {
+    
+    plot(u_df[,1], u_df[,2], pch = 20, cex = 1, col = "cyan",
+         xlab = 'u1', ylab = 'u2', main = '')
+    rect(param_out$u1_lb, 
+         param_out$u2_lb, 
+         param_out$u1_ub, 
+         param_out$u2_ub)
+    
+    # add psi_hat labels for each partition
+    text(x = param_out$u1_lb + (param_out$u1_ub - param_out$u1_lb) / 2, 
+         y = param_out$u2_lb + (param_out$u2_ub - param_out$u2_lb) / 2,
+         labels = param_out$psi_hat,
+         cex = 1)
+    
+    # make the 'median' points red and large
+    points(x = param_out$u1_star, y = param_out$u2_star,
+           col = 'red', pch = 19, cex = 1.5)
+    
+}
+
+
+
+# perform a full-fledged approximation and returns a variety of numbers so that
+# we can examine the approximations for each of the partition
+approx_lil_diag = function(D, u_df_full, prior, psi_fun = NULL) {
+    
+    u_rpart = rpart(psi_u ~ ., u_df_full)
+    
+    param_support = matrix(NA, D, 2) # store the parameter supports row-wise
+    for (d in 1:D) {
+        param_d_min = min(u_df_full[,d])
+        param_d_max = max(u_df_full[,d])
+        param_support[d,] = c(param_d_min, param_d_max)
+    }
+    
+    u_partition = extractPartition(u_rpart, param_support) # extractPartition.R
+    param_out   = u_star(u_rpart, u_df_full, u_partition, D)
+    
+    K = nrow(u_partition) # number of partitions 
+    
+    # newly declared storage
+    partition_integral = numeric(K) # store the numerical integral for each A_k
+    area_k             = numeric(K) # store the area of each partition
+    
+    taylor1_approx = numeric(K)     # store approx that uses 1-term taylor
+    taylor2_approx = numeric(K)     # store approx taht uses 2-term taylor
+    
+    e_ck_1   = numeric(K)           # store first constant in taylor approx
+    e_ck_2   = numeric(K)           # store second constant in taylor approx
+    
+    
+    lambda_k = data.frame(matrix(NA, K, D)) # store gradient at u_k_star
+    names(lambda_k) = c("lambda1", "lambda2")
+    
+    taylor2_integral = numeric(K)   # store integral of e^(-lambda_k'u) over A_k
+    
+    
+    star_ind = grep("_star", names(param_out)) # columns of u_k_star for each k
+    
+    for (k in 1:K) {
+        
+        u1_b = param_out[k, 6]  # upper bound of u1
+        u1_a = param_out[k, 5]  # lower bound of u1
+        
+        u2_b = param_out[k, 8]  # upper bound of u2
+        u2_a = param_out[k, 7]  # lower bound of u2
+        
+        # (0) true value of the integral over the k-th partition
+        result = integral2(fun, u1_a, u1_b, u2_a, u2_b, reltol = 1e-50)
+        partition_integral[k] = result$Q
+        
+        # ----------------------------------------------------------------------
+        
+        # for each parttion, A_k, keep track of the following quantities: 
+        #     (1) one term taylor approximation
+        #         (1.1) e_ck_1 = e^(-psi(u_kstar))
+        #         (1.2) simple approx: e_ck_0 * (Area of A_k partition)
+        #     (2) two term taylor approximation
+        #         (2.1) lambda_k = gradient evaluated at u_k_star
+        #         (2.2) e_ck_2 = e^(lambda_k'u_k_star) = 2nd (constant) term
+        #         (2.3) taylor2_integral = integral of e^(-lambda_k'u) over A_k
+        #         (2.4) taylor2_approx = e_ck_1 * e_ck_2 * taylor2_integral
+        
+        # (1) compute integral via one term taylor approximation
+        u_k_star = param_out[k, star_ind] %>% unlist %>% unname
+        
+        # e_ck[k] = exp(-psi(u_k_star, prior))
+        area_k[k] = (u1_b - u1_a) * (u2_b - u2_a)
+        
+        e_ck_1[k] = exp(-psi(u_k_star, prior))
+        
+        taylor1_approx[k] = e_ck_1[k] * area_k[k]
+        
+        # (2) compute integral via two term taylor approximation
+        
+        lambda_k[k,] = lambda(u_k_star, prior)
+        lambda1  = lambda_k[k, 1]
+        lambda2  = lambda_k[k, 2]
+        
+        
+        # (2.2) e_ck_2 = e^(lambda_k'u_k_star) = 2nd (constant) term
+        e_ck_2[k] = exp(sum(lambda_k[k,] * u_k_star))
+        
+        # (2.3) taylor2_integral = integral of e^(-lambda_k'u) over A_k
+        # normally this is D-iteration loop that calculates each 1-d integral
+        taylor2_integral[k]  = - 1 / lambda1 * - 1 / lambda2 * 
+            (exp(-lambda1 * u1_b) - exp(-lambda1 * u1_a)) * 
+            (exp(-lambda2 * u2_b) - exp(-lambda2 * u2_a))
+        
+        taylor2_approx[k] = e_ck_1[k] * e_ck_2[k] * taylor2_integral[k]
+        
+    }
+    
+    
+    logZ_numer   = log(sum(partition_integral))
+    logZ_taylor1 = log(sum(taylor1_approx))
+    lozZ_taylor2 = log(sum(taylor2_approx))
+    
+    all_integrals = cbind(numer = partition_integral, 
+                          taylor1 = taylor1_approx) %>% 
+        cbind(taylor2 = taylor2_approx)
+    
+    diagnostics = all_integrals %>% cbind(lambda_k) %>% cbind(e_ck_2)
+    
+    partition_info = (param_out %>% mutate(perc_mem = n_obs / sum(n_obs))) %>% 
+        dplyr::select(perc_mem, psi_hat, u1_star, u2_star) %>% 
+        cbind(diagnostics) %>% arrange(desc(perc_mem)) %>% round(4)
+    
+    verbose_partition = (param_out %>% mutate(perc_mem = n_obs / sum(n_obs))) %>% 
+        cbind(diagnostics) %>% arrange(desc(perc_mem))
+    
+    
+    out = list(logZ_numer = logZ_numer,
+               logZ_taylor1 = logZ_taylor1, 
+               lozZ_taylor2 = lozZ_taylor2,
+               partition_info = partition_info,
+               param_out = param_out,
+               verbose_partition = verbose_partition)
+    
+} # end approx_lil_diag() function
 
 
 
@@ -140,7 +281,7 @@ approx_lil = function(N_approx, D, u_df_full, J, prior) {
                 
                 # comment below to use the 2nd term in the taylor expansion
                 # integral_d[d] = (param_out[k, col_id_ub] - 
-                #                 param_out[k, col_id_lb])
+                #                  param_out[k, col_id_lb])
                 
             } # end of loop computing each of 1-dim integrals
             
