@@ -46,6 +46,7 @@ diag_out$logZ_taylor1
 diag_out$lozZ_taylor2
 diag_out$partition_info
 
+plotPartition(u_df_full, diag_out$param_out)
 
 
 
