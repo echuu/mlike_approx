@@ -38,15 +38,32 @@ mean(approx_skew) # code from mvn.R should match this
 result = pracma::integral2(fun, -100, 100, -100, 100, reltol = 1e-50)
 log(result$Q) # 1.837877
 
+psi_fun = fun
 
-diag_out = approx_lil_diag(D, u_df_full, prior, fun)
+mvn_diag = approx_lil_diag(D, u_df_full, prior)
 
-diag_out$logZ_numer
-diag_out$logZ_taylor1
-diag_out$lozZ_taylor2
-diag_out$partition_info
+mvn_diag$logZ_numer
+mvn_diag$logZ_taylor1
+mvn_diag$lozZ_taylor2
+mvn_diag$partition_info
+mvn_diag$param_out
+mvn_diag$taylor2_integral
+mvn_diag$verbose_partition
 
-plotPartition(u_df_full, diag_out$param_out)
+partition_info = mvn_diag$partition_info %>% 
+    mutate(numer = round(numer, 4), taylor1 = round(taylor1, 4), 
+           lambda1 = round(lambda1, 5), lambda2 = round(lambda2, 5), 
+           taylor2 = round(taylor2, 4), e_ck_2 = round(e_ck_2, 4))
+
+
+partition_info
+
+write.csv(partition_info, "partition_info_mvn.csv", 
+          row.names = F)
+
+
+
+plotPartition(u_df_full, mvn_diag$param_out)
 
 
 

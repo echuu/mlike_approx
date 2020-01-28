@@ -79,7 +79,7 @@ plotPartition = function(u_df, param_out) {
 
 # perform a full-fledged approximation and returns a variety of numbers so that
 # we can examine the approximations for each of the partition
-approx_lil_diag = function(D, u_df_full, prior, psi_fun = NULL) {
+approx_lil_diag = function(D, u_df_full, prior) {
     
     u_rpart = rpart(psi_u ~ ., u_df_full)
     
@@ -116,6 +116,8 @@ approx_lil_diag = function(D, u_df_full, prior, psi_fun = NULL) {
     
     for (k in 1:K) {
         
+        # print(k)
+        
         u1_b = param_out[k, 6]  # upper bound of u1
         u1_a = param_out[k, 5]  # lower bound of u1
         
@@ -123,7 +125,8 @@ approx_lil_diag = function(D, u_df_full, prior, psi_fun = NULL) {
         u2_a = param_out[k, 7]  # lower bound of u2
         
         # (0) true value of the integral over the k-th partition
-        result = integral2(fun, u1_a, u1_b, u2_a, u2_b, reltol = 1e-50)
+        result = integral2(psi_fun, xmin = u1_a, xmax = u1_b, 
+                           ymin = u2_a, ymax = u2_b, reltol = 1e-50)
         partition_integral[k] = result$Q
         
         # ----------------------------------------------------------------------
@@ -177,11 +180,16 @@ approx_lil_diag = function(D, u_df_full, prior, psi_fun = NULL) {
                           taylor1 = taylor1_approx) %>% 
         cbind(taylor2 = taylor2_approx)
     
-    diagnostics = all_integrals %>% cbind(lambda_k) %>% cbind(e_ck_2)
+    diagnostics = all_integrals %>% cbind(lambda_k) %>% cbind(e_ck_2) %>% 
+        cbind(taylor2_int = taylor2_integral)
     
     partition_info = (param_out %>% mutate(perc_mem = n_obs / sum(n_obs))) %>% 
         dplyr::select(perc_mem, psi_hat, u1_star, u2_star) %>% 
         cbind(diagnostics) %>% arrange(desc(perc_mem)) %>% round(4)
+    
+    partition_info = (param_out %>% mutate(perc_mem = n_obs / sum(n_obs))) %>% 
+        dplyr::select(perc_mem, psi_hat) %>% 
+        cbind(diagnostics) %>% arrange(desc(perc_mem))
     
     verbose_partition = (param_out %>% mutate(perc_mem = n_obs / sum(n_obs))) %>% 
         cbind(diagnostics) %>% arrange(desc(perc_mem))
@@ -192,6 +200,7 @@ approx_lil_diag = function(D, u_df_full, prior, psi_fun = NULL) {
                lozZ_taylor2 = lozZ_taylor2,
                partition_info = partition_info,
                param_out = param_out,
+               taylor2_integral = taylor2_integral,
                verbose_partition = verbose_partition)
     
 } # end approx_lil_diag() function

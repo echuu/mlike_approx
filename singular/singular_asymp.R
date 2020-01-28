@@ -40,7 +40,7 @@ fun <- function(x, y) exp(-n*x^2*y^4)
 
 
 # one run of the algorithm -----------------------------------------------------
-set.seed(1)
+set.seed(123)
 N = 500
 
 gamma_dat = list(N = N) # for STAN sampler
@@ -75,29 +75,39 @@ log(result$Q) # -1.223014 for n = 1000
 
 # ------------------------------------------------------------------------------
 
-library(tree)
-u_tree = tree(psi_u ~ ., u_df_N)
-plot(u_tree)
-text(u_tree, cex = 0.8)
+# library(tree)
+# u_tree = tree(psi_u ~ ., u_df_N)
+# plot(u_tree)
+# text(u_tree, cex = 0.8)
+# 
+# plot(u_df_N[,1], u_df_N[,2], pch = 20, cex = 1, col = "cyan",
+#      xlab = 'u1', ylab = 'u2', main = '')
+# partition.tree(u_tree, add = TRUE, cex = 0.8, ordvars = c("u1", "u2"))
 
-plot(u_df_N[,1], u_df_N[,2], pch = 20, cex = 1, col = "cyan",
-     xlab = 'u1', ylab = 'u2', main = '')
-partition.tree(u_tree, add = TRUE, cex = 0.8, ordvars = c("u1", "u2"))
 
+psi_fun = fun
+singular_diag = approx_lil_diag(D, u_df_N, prior) 
 
-singular_diag = approx_lil_diag(D, u_df_N, prior, fun) 
 
 singular_diag$logZ_numer
 singular_diag$logZ_taylor1
 singular_diag$lozZ_taylor2
 singular_diag$partition_info
 singular_diag$param_out
+singular_diag$taylor2_integral
 singular_diag$verbose_partition
+
+partition_info = singular_diag$partition_info %>% 
+    mutate(numer = round(numer, 4), taylor1 = round(taylor1, 4), 
+           lambda1 = round(lambda1, 5), lambda2 = round(lambda2, 5), 
+          taylor2 = round(taylor2, 4), e_ck_2 = round(e_ck_2, 4))
+
+write.csv(partition_info, "partition_info_singular.csv", 
+          row.names = F)
 
 
 plotPartition(u_df_N, singular_diag$param_out)
 
-partition_df = singular_diag$param_out
 
 # run algorithm over grid of N -------------------------------------------------
 
