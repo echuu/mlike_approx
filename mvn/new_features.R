@@ -64,12 +64,33 @@ partition_info = mvn_diag$partition_info %>%
 
 partition_info
 
-write.csv(partition_info, "partition_info_mvn.csv", 
-          row.names = F)
+# write.csv(partition_info, "partition_info_mvn.csv", 
+#          row.names = F)
 
 plotPartition(u_df_full, mvn_diag$param_out)
 
 
+# ------------------------------------------------------------------------------
+
+# TODO: residual analysis for each partition, correct the median residual 
+#       to the MIN residual
+
+# (1) for each partition, compute the (sum of) residuals using both of the
+#     approximation schemes - constant approx, 1st order taylor. store these
+#     as columns in the 'partition_info' dataframe. next, these will be used
+#     to determine which of the two approximations to use (AB suspects that
+#     because of the formulation of constant approximation, the constant approx
+#     will always beat out the 1st order taylor)
+
+# (2) in current implementation, we use the point whose residual is MEDIAN, but
+#     this doesn't make much intuitive sense - instead, use point whose
+#     residual is MINIMUM
+
+# (3) build model-based tree with the following specification 
+#     y ~ u1, u2, ... , uD | u1, u2, ... , uD
+
+# (4) run the algorithm for the MCMC model - recall, D = 2 since this is 
+#     dimension of u, but there are 20 parameters in the mixture density
 
 
 
