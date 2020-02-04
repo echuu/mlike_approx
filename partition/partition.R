@@ -131,6 +131,7 @@ u_star = function(rpart_obj, u_df_in, partition, n_params) {
         # extract row corresponding to the median
         med_row = floor(n_obs / 2)
         part_k_med = sorted_partition[med_row,]
+        part_k_med = sorted_partition[1,]
         
         # extract the 'representative point' of partition k -- this will be a 
         # p-dim vector

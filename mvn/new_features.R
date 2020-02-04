@@ -173,13 +173,15 @@ taylor_contribution = mvn_diag$verbose_partition %>%
 
 hybrid_approx = log(sum(const_contribution, taylor_contribution)) # 2.113237
 
+hybrid_approx
+
 #### end of additional algorithm code ------------------------------------------
 
 # compare with constant approximation and taylor approximation
 
-mvn_diag$logZ_taylor1 # 2.102216
+mvn_diag$logZ_taylor1 # 1.963725
 
-mvn_diag$lozZ_taylor2 # 3.311019
+mvn_diag$lozZ_taylor2 # 2.928286
 
 
 # (2) in current implementation, we use the point whose residual is MEDIAN, but
