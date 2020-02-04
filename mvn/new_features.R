@@ -1,6 +1,10 @@
 
+
+DELL_PATH = "C:/Users/chuu/mlike_approx"
+setwd(DELL_PATH)
+
 source("partition/partition.R")  # load partition extraction functions
-source("extractPartition.R")
+source("extractPartition.R")     # extractPartition() function
 source("hybrid_approx.R")        # load main algorithm functions
 source("mvn/mvn_helper.R")       # load psi(), lambda()
 
@@ -11,8 +15,7 @@ library(pracma)
 
 fun = function(x, y) exp(-1/2 * (x^2 + y^2))
 
-# DELL_PATH = "C:/Users/chuu/mlike_approx"
-# setwd(DELL_PATH)
+
 
 # model settings ---------------------------------------------------------------
 
@@ -52,10 +55,8 @@ mvn_diag$logZ_numer
 mvn_diag$logZ_taylor1
 mvn_diag$lozZ_taylor2
 mvn_diag$partition_info
-mvn_diag$param_out
 mvn_diag$taylor2_integral
 mvn_diag$verbose_partition
-
 
 partition_info = mvn_diag$partition_info %>% 
     mutate(numer = round(numer, 4), taylor1 = round(taylor1, 4), 
@@ -81,6 +82,105 @@ plotPartition(u_df_full, mvn_diag$param_out)
 #     to determine which of the two approximations to use (AB suspects that
 #     because of the formulation of constant approximation, the constant approx
 #     will always beat out the 1st order taylor)
+
+
+#### the code below will go into a NEW function that separate from the main
+#### algorithm -- for now, it will be used as a post-process approximation
+#### method to improve the algorithm 
+#### eventually, this should be implemented within the algorithm, but for
+#### illustrative purposes, we still want BOTH constant and taylor
+#### approximations so we can see how this new way of approximations performs
+
+# extract the rpart object that's used in the main algorithm
+mvn_rpart = mvn_diag$u_rpart
+param_out = mvn_diag$param_out
+
+star_ind = grep("_star", names(param_out)) # columns of u_k_star for each k
+
+# appends the leaf id for each observation as a column
+u_df = u_df_full %>% mutate(leaf_id = mvn_rpart$where, 
+                            const_approx = 0,  const_resid = 0, 
+                            taylor_approx = 0, taylor_resid = 0)
+
+partition_id = mvn_rpart$where %>% unique
+n_partitions = length(table(u_df$leaf_id))
+for (i in 1:n_partitions) {
+    
+    k = partition_id[i]
+    
+    u_k_star = param_out %>% filter(leaf_id == k) %>% select(star_ind) %>% 
+        unname %>% unlist
+    
+    # compute constant approximation for psi
+    u_df[u_df$leaf_id == k,]$const_approx = psi(u_k_star, prior) %>% c()
+    
+    # compute order 1 taylor approximation for psi
+    # 
+    diff_k = sweep(u_df %>% filter(leaf_id == k) %>% select(u1, u2), 2, 
+                   FUN = '+', -u_k_star)             
+                                        
+    u_df[u_df$leaf_id == k,]$taylor_approx = c(psi(u_k_star, prior)) + 
+        as.matrix(diff_k) %*% lambda(u_k_star, prior)
+    
+    u_df = u_df %>% mutate(const_resid  = psi_u - const_approx,
+                           taylor_resid = psi_u - taylor_approx)
+    
+}
+
+error_df = data.frame(leaf_id = partition_id, 
+                      const_sq_error = 0, taylor_sq_error = 0)
+
+for (i in 1:n_partitions) {
+    
+    k = partition_id[i]
+    
+    # const_sq_error
+    sse_const  = sum(u_df[u_df$leaf_id == k,]$const_resid^2)
+    sse_taylor = sum(u_df[u_df$leaf_id == k,]$taylor_resid^2)
+    
+    # for each partition, calulcate sum of residuals for const and taylor approx
+    error_df = error_df %>% 
+        mutate(const_sq_error = replace(const_sq_error, partition_id == k, 
+                                        sse_const),
+               taylor_sq_error = replace(taylor_sq_error, partition_id == k,
+                                         sse_taylor))
+}
+
+
+partition_approx = mvn_diag$verbose_partition %>% 
+    select(leaf_id, numer, taylor1, taylor2)
+
+partition_approx = merge(partition_approx, error_df, by = "leaf_id")
+
+# extract leaf id for which we use the taylor approximation
+taylor_index = error_df %>% filter(taylor_sq_error < const_sq_error) %>% 
+    select(leaf_id) %>% unlist %>% unname
+
+# extract leaf id for which we use the constant approximation
+const_index = error_df %>% filter(taylor_sq_error >= const_sq_error) %>% 
+    select(leaf_id) %>% unlist %>% unname
+
+
+mvn_diag$partition_info %>% select(numer) %>% sum %>% log
+
+const_contribution = mvn_diag$verbose_partition %>% 
+    filter(leaf_id %in% const_index) %>% 
+    select(taylor1)
+
+taylor_contribution = mvn_diag$verbose_partition %>% 
+    filter(leaf_id %in% taylor_index) %>% 
+    select(taylor2)
+
+hybrid_approx = log(sum(const_contribution, taylor_contribution)) # 2.113237
+
+#### end of additional algorithm code ------------------------------------------
+
+# compare with constant approximation and taylor approximation
+
+mvn_diag$logZ_taylor1 # 2.102216
+
+mvn_diag$lozZ_taylor2 # 3.311019
+
 
 # (2) in current implementation, we use the point whose residual is MEDIAN, but
 #     this doesn't make much intuitive sense - instead, use point whose

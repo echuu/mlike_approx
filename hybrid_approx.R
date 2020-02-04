@@ -201,9 +201,22 @@ approx_lil_diag = function(D, u_df_full, prior) {
                partition_info = partition_info,
                param_out = param_out,
                taylor2_integral = taylor2_integral,
-               verbose_partition = verbose_partition)
+               verbose_partition = verbose_partition,
+               u_rpart = u_rpart)
     
 } # end approx_lil_diag() function
+
+
+psi_residual = function(u_df, u_rpart) {
+    
+    # (1.1) determine which partition each observation is grouped in
+    u_df = u_df_in %>% mutate(leaf_id = rpart_obj$where)
+    
+    
+    
+}
+
+
 
 
 
