@@ -152,9 +152,14 @@ extractPartition = function(u_tree, param_support = NULL) {
     rules_str = data.frame(x = matrix(0, nrow(rules_df))) # n_partitions x 1
     
     partition_id = sort(unique(u_tree$where)) # row id of leaf node information
-    psi_hat = round(u_tree$frame[partition_id,]$yval, 4)
     
-    psi_hat_sort = sort(psi_hat) # sort these to match the order of the rules
+    # this is now in the order of the rules_df_full, rules_df dataframes
+    psi_hat_id = cbind(leaf_id = partition_id, 
+                       psi_hat = u_tree$frame[partition_id, 5]) %>% 
+        data.frame() %>% arrange(psi_hat)
+    
+    # psi_hat = round(u_tree$frame[partition_id,]$yval, 6)
+    # psi_hat_sort = sort(psi_hat) # sort these to match the order of the rules
     
     n_params = length(u_tree$ordered)
     n_partitions = nrow(rules_str)
@@ -207,24 +212,24 @@ extractPartition = function(u_tree, param_support = NULL) {
             partition = updatePartition(partition, r, col_id, bdry)
             
         } # end of update step for each of the parameters
-        
+ 
     } # end of loop storing the parititon boundaries
     
-    ## 1/23 -- updated the left-appended column
-    partition = cbind(psi_hat = psi_hat_sort, partition)
+    ## 1/23 -- updated the lef       t-appended column
+    partition_out = cbind(psi_hat_id, partition)
     
     # number of observations in each leaf node
-    part_obs_tbl = table(u_tree$where) %>% data.frame
-    names(part_obs_tbl) = c("leaf_id", "n_obs")
+    # part_obs_tbl = table(u_tree$where) %>% data.frame
+    # names(part_obs_tbl) = c("leaf_id", "n_obs")
     
     #### (2) obtain predicted value for each of the observations
-    psi_hat_leaf = cbind(leaf_id = partition_id,
-                         psi_hat = u_tree$frame[partition_id,]$yval) %>% 
-        data.frame()
+    # psi_hat_leaf = cbind(leaf_id = partition_id,
+    #                     psi_hat = u_tree$frame[partition_id,]$yval) %>% 
+    #    data.frame()
     
-    partition_out = merge(psi_hat_leaf %>% 
-                              mutate(psi_hat = round(psi_hat, 4)), 
-                          partition, by = 'psi_hat')
+    #partition_out = merge(psi_hat_leaf %>% 
+    #                          mutate(psi_hat = round(psi_hat, 4)), 
+    #                      partition, by = 'psi_hat')
     
     return(partition_out)
     

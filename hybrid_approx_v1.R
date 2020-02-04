@@ -14,9 +14,13 @@ hybrid_mlik = function(N_approx, D, u_df_full, J, prior) {
         #     print(paste("iter", t))
         # }
         
+        # print(t)
+        
         ## (1) subset out rows in u_df_full to be used in the t-th approximation
         row_id = J * (t - 1) + 1
         u_df = u_df_full[row_id:(row_id+J-1),]
+        
+        # u_df = u_df_N[row_id:(row_id+J-1),]
         
         ## (2) fit the regression tree via rpart()
         u_rpart = rpart(psi_u ~ ., u_df)
@@ -147,9 +151,9 @@ hybrid_mlik = function(N_approx, D, u_df_full, J, prior) {
         partition_id = u_rpart$where %>% unique
         n_partitions = length(table(u_df$leaf_id))
         
-        for (i in 1:K) {
-            
-            k = partition_id[i]
+        for (j in 1:K) {
+            # print(j)
+            k = partition_id[j]
             
             u_k_star = param_out %>% filter(leaf_id == k) %>% select(star_ind) %>% 
                 unname %>% unlist

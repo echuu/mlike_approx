@@ -146,10 +146,7 @@ approx_hybrid = matrix(NA, N_approx, length(N_vec))
 set.seed(1)
 for (i in 1:length(N_vec)) {
     
-    
     N = N_vec[i]   # pseudo-sample size
-    
-    # print(paste('iter = ', i, ' -- sampling data for N = ', N, sep = ''))
     
     gamma_dat = list(N = N) # for STAN sampler
     prior     = list(N = N) # for evaluation of psi, lambda
@@ -175,15 +172,10 @@ for (i in 1:length(N_vec)) {
                 ' -- calculating logZ for N = ', N, 
                 ' (', N_approx, ' approximations)', sep = ''))
     
-    
-    # N_approx, J settings indicate that J MC samples will use in each of the
-    # N_approx estiamtes of the LIL -> return vector of length N_approx
-    # approx_N[,i] = approx_lil(N_approx, D, u_df_N, J, prior)
-    
     approx_out = hybrid_mlik(N_approx, D, u_df_N, J, prior) 
     
     approx_taylor[,i] = approx_out$taylor_vec
-    approx_hybrid[,i] = approx_out$taylor_vec
+    approx_hybrid[,i] = approx_out$hybrid_vec
     
 }
 
@@ -234,11 +226,18 @@ lm(logZ_0 ~ log(N_vec))
 
 # overlay the true, approximate plotted vs. log n
 library(reshape2)
-logZ = colMeans(approx_N)  # approximation
+logZ_taylor = colMeans(approx_taylor)  # 
+logZ_hybrid = colMeans(approx_hybrid)  #
 logn   = log(N_vec)
 
-lil_df = data.frame(logZ_0 = logZ_0, logZ = logZ, logn = logn)
+lil_df = data.frame(logZ_0 = logZ_0, logZ_taylor = logZ_taylor, 
+                    logZ_hybrid = logZ_hybrid, logn = logn)
+
+lil_df = lil_df[complete.cases(lil_df),]
+
 lil_df_long = melt(lil_df, id.vars = "logn")
+
+
 
 
 formula1 = y ~ x
