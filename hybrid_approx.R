@@ -175,7 +175,7 @@ approx_lil_diag = function(D, u_df_full, prior) {
     
     logZ_numer   = log(sum(partition_integral))
     logZ_taylor1 = log(sum(taylor1_approx))
-    lozZ_taylor2 = log(sum(taylor2_approx))
+    logZ_taylor2 = log(sum(taylor2_approx))
     
     all_integrals = cbind(numer = partition_integral, 
                           taylor1 = taylor1_approx) %>% 
@@ -287,9 +287,10 @@ approx_lil_diag = function(D, u_df_full, prior) {
     
     out = list(logZ_numer   = logZ_numer,               # numerical approx
                logZ_taylor1 = logZ_taylor1,             # constant approx
-               lozZ_taylor2 = lozZ_taylor2,             # taylor approx
+               logZ_taylor2 = logZ_taylor2,             # taylor approx
                hybrid       = hybrid_approx,            # hybrid approx
                verbose_partition = verbose_partition,   # detailed computation
+               param_out    = param_out,                 
                u_rpart = u_rpart,                       # fitted rpart
                partition_approx = partition_approx,     # compare approx + resid
                n_taylor = dim(taylor_contribution)[1],  # num of taylor approx
@@ -298,6 +299,22 @@ approx_lil_diag = function(D, u_df_full, prior) {
     
 } # end approx_lil_diag() function
 
+
+
+extractSupport = function(u_df, D) {
+    
+    # (3.1) obtain the (data-defined) support for each of the parameters
+    param_support = matrix(NA, D, 2) # store the parameter supports row-wise
+    
+    for (d in 1:D) {
+        param_d_min = min(u_df[,d])
+        param_d_max = max(u_df[,d])
+        
+        param_support[d,] = c(param_d_min, param_d_max)
+    }
+    
+    return(param_support)
+}
 
 
 

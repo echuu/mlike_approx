@@ -23,7 +23,7 @@ x11()
 
 # STAN SETTINGS ----------------------------------------------------------------
 J         = 1000         # number of MC samples per approximation
-N_approx  = 1            # number of approximations
+N_approx  = 10           # number of approximations
 burn_in   = 2000         # number of burn in draws
 n_chains  = 4            # number of markov chains to run
 stan_seed = 123          # seed
@@ -41,7 +41,7 @@ fun <- function(x, y) exp(-n*x^2*y^4)
 
 # one run of the algorithm -----------------------------------------------------
 set.seed(123)
-N = 500
+N = 1000
 
 gamma_dat = list(N = N) # for STAN sampler
 prior     = list(N = N) # for evaluation of psi, lambda
@@ -61,6 +61,7 @@ u_post = u_samp$u %>% data.frame() # (J * N_approx) x 2
 # (2) evaluate posterior samples using psi(u)
 u_df_N = preprocess(u_post, D, prior)
 
+x11()
 ggplot(u_df_N, aes(u1, u2)) + geom_point()
 
 # (3) run algorithm to obtain N_approx estimates of the LIL
@@ -92,9 +93,6 @@ singular_diag = approx_lil_diag(D, u_df_N, prior)
 singular_diag$logZ_numer
 singular_diag$logZ_taylor1
 singular_diag$lozZ_taylor2
-singular_diag$partition_info
-singular_diag$param_out
-singular_diag$taylor2_integral
 singular_diag$verbose_partition
 
 partition_info = singular_diag$partition_info %>% 
@@ -106,7 +104,29 @@ write.csv(partition_info, "partition_info_singular.csv",
           row.names = F)
 
 
-plotPartition(u_df_N, singular_diag$param_out)
+plotPartition(u_df_N, singular_diag$verbose_partition)
+
+
+# new stuff --------------------------------------------------------------------
+singular_diag$logZ_numer
+singular_diag$logZ_taylor1
+singular_diag$lozZ_taylor2
+singular_diag$hybrid
+
+singular_diag$partition_approx
+singular_diag$verbose_partition
+singular_diag$param_out
+
+singular_diag$n_const
+singular_diag$n_taylor
+
+
+test = hybrid_mlik(N_approx, D, u_df_N, J, prior)
+test$hybrid_vec %>% mean
+test$taylor_vec %>% mean
+
+
+# ------------------------------------------------------------------------------
 
 
 # run algorithm over grid of N -------------------------------------------------
@@ -120,7 +140,8 @@ N_vec     = floor(exp(N_vec_log)) %>% unique # sample size to generate data
 print(length(N_vec))               # number of different sample sizes
 
 # store approximations corresponding to each sample size
-approx_N = matrix(NA, N_approx, length(N_vec))
+approx_taylor = matrix(NA, N_approx, length(N_vec))
+approx_hybrid = matrix(NA, N_approx, length(N_vec))
 
 set.seed(1)
 for (i in 1:length(N_vec)) {
@@ -157,14 +178,20 @@ for (i in 1:length(N_vec)) {
     
     # N_approx, J settings indicate that J MC samples will use in each of the
     # N_approx estiamtes of the LIL -> return vector of length N_approx
-    approx_N[,i] = approx_lil(N_approx, D, u_df_N, J, prior)
+    # approx_N[,i] = approx_lil(N_approx, D, u_df_N, J, prior)
+    
+    approx_out = hybrid_mlik(N_approx, D, u_df_N, J, prior) 
+    
+    approx_taylor[,i] = approx_out$taylor_vec
+    approx_hybrid[,i] = approx_out$taylor_vec
     
 }
 
 approx_N
 
 
-colMeans(approx_N)
+colMeans(approx_taylor)
+colMeans(approx_hybrid)
 
 N_vec     = c(24154953)         # sample size to use to generate data
 n = N_vec[1]
