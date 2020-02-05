@@ -9,7 +9,8 @@ psi = function(u, prior) {
 }
 
 
-# lambda() : gradient of psi
+# lambda() : gradient of psi -- replace this definition w/ closed
+# form definition to speed up the code
 lambda = function(u, prior) {
     
     grad(psi, u, prior = prior)

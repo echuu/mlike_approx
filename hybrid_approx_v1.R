@@ -237,7 +237,8 @@ hybrid_mlik = function(N_approx, D, u_df_full, J, prior) {
     return(list(hybrid_vec = hybrid_vec, taylor_vec = taylor_vec,
                 const_vec = const_vec, 
                 n_taylor = dim(taylor_contribution)[1],
-                n_const = dim(const_contribution)[1]))
+                n_const = dim(const_contribution)[1],
+                verbose_partition = verbose_partition))
     # return(approx_vec)
     
 } # end hybrid_mlik() function

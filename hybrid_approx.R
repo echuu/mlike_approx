@@ -66,12 +66,12 @@ plotPartition = function(u_df, param_out) {
     # add psi_hat labels for each partition
     text(x = param_out$u1_lb + (param_out$u1_ub - param_out$u1_lb) / 2, 
          y = param_out$u2_lb + (param_out$u2_ub - param_out$u2_lb) / 2,
-         labels = param_out$psi_hat,
-         cex = 1)
+         labels = round(param_out$psi_hat, 5),
+         cex = 0.8)
     
     # make the 'median' points red and large
     points(x = param_out$u1_star, y = param_out$u2_star,
-           col = 'red', pch = 19, cex = 1.5)
+           col = 'red', pch = 19, cex = 1.2)
     
 }
 
