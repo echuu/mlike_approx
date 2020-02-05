@@ -33,11 +33,11 @@ source('extractPartition.R')            # load extractPartition() function
 
 # model settings ---------------------------------------------------------------
 
-D  = 2
+D  = 4
 Omega = diag(1, D)
-# N  = 500
-Sigma = diag(1, D)
-Sigma_inv = solve(Omega)
+N  = 403
+Sigma = D / N * Omega 
+Sigma_inv = solve(Sigma)
 mu_0 = rep(0, D)
 prior = list(Sigma = Sigma, Sigma_inv = Sigma_inv, mu_0 = mu_0)
 
@@ -46,16 +46,35 @@ D / 2 * log(2 * pi) + 0.5 * log_det(Sigma) # -3.683584, for D = 2, N = 500
 
 # ------------------------------------------------------------------------------
 
-
 # (1) demonstrate use of the algorithm for a given D, N ------------------------
 
 set.seed(1)
-J = 5000
-N_approx = 1
+J = 1e4
+N_approx = 10
 u_samps = rmvnorm(J, mean = rep(0, D), sigma = Sigma) %>% data.frame 
 u_df_full = preprocess(u_samps, D, prior)
 approx_skew = approx_lil(N_approx, D, u_df_full, J / N_approx, prior)
 mean(approx_skew)
+
+
+## testing hybrid_mlik() function
+
+J = 1e4
+N_approx = 10
+set.seed(1)
+u_samps = rmvnorm(J, mean = rep(0, D), sigma = Sigma) %>% data.frame 
+u_df_full = preprocess(u_samps, D, prior)
+
+# x11()
+# plot(u_df_full$u1, u_df_full$u2)
+
+test = hybrid_mlik(N_approx, D, u_df_full, J / N_approx, prior)
+test$hybrid_vec %>% mean
+test$taylor_vec %>% mean
+test$const_vec  %>% mean
+
+test$n_taylor
+test$n_const
 
 # ------------------------------------------------------------------------------
 
@@ -64,16 +83,22 @@ mean(approx_skew)
 N_vec_log = seq(6, 10, 0.02)        # sample size that is uniform over log scale
 N_vec     = floor(exp(N_vec_log))   # sample size to use to generate data
 logZ_0    = numeric(length(N_vec))  # store true value of log normalizing const
-logZ      = numeric(length(N_vec))  # store approx of log normalizing const
 
 print(length(N_vec))                # number of different sample sizes
 
+
+approx_taylor = matrix(NA, N_approx, length(N_vec))
+approx_hybrid = matrix(NA, N_approx, length(N_vec))
+approx_const  = matrix(NA, N_approx, length(N_vec))
+
+J = 1e4         # number of total MC samples
+N_approx = 10   # number of approximations to form
 
 for (i in 1:length(N_vec)) {
     
     N = N_vec[i]
     Sigma = D / N * Omega 
-    Sigma_inv = solve(Sigma)
+    Sigma_inv = N / D * (Omega)
     
     mu_0 = rep(0, D)
     
@@ -87,22 +112,74 @@ for (i in 1:length(N_vec)) {
     print(paste("iter = ", i, "/", length(N_vec), 
                 " -- Calculating LIL for D = ", D, ", N = ", N, sep = ''))
     
-    
-    J = 1e4         # number of total MC samples
-    N_approx = 10   # number of approximations to form
-    
-    
+    # set.seed(1)
     u_samps = rmvnorm(J, mean = rep(0, D), sigma = Sigma) %>% data.frame 
     u_df_full = preprocess(u_samps, D, prior = prior)
-    approx_mvn = approx_lil(N_approx, D, u_df_full, J/N_approx, prior)
     
-    logZ[i] = mean(approx_mvn)
+    # plot(u_df_full$u1, u_df_full$u2)
+    
+    approx_out = hybrid_mlik(N_approx, D, u_df_full, J / N_approx, prior) 
+    
+    approx_taylor[,i] = approx_out$taylor_vec
+    approx_hybrid[,i] = approx_out$hybrid_vec
+    approx_const[,i]  = approx_out$const_vec
     
 } # end of loop iterating over different sample sizes
 
 
 
 # plot the results so we can compute the slope of logZ ~ logN ------------------
+
+library(reshape2)
+
+logZ_taylor = colMeans(approx_taylor)  # 
+logZ_hybrid = colMeans(approx_hybrid)  #
+logZ_const  = colMeans(approx_const)   #
+logn        = log(N_vec)
+
+lil_df = data.frame(logZ_0 = logZ_0, logZ_taylor = logZ_taylor, 
+                    logZ_hybrid = logZ_hybrid, logZ_const = logZ_const, 
+                    logn = logn)
+
+# lil_df = lil_df[complete.cases(lil_df),]
+
+lil_df_long = melt(lil_df, id.vars = "logn")
+
+
+formula1 = y ~ x
+
+x11()
+
+ggplot(lil_df_long, aes(x = logn, y = value, 
+                        color = as.factor(variable))) + geom_point(size = 0.7) + 
+    geom_smooth(method = lm, se = F, formula = formula1) +
+    labs(x = "log(n)", y = "log(Z)", 
+         title = "True (Red), Hybrid (Blue), Taylor (Green), Constant (Purple)") + 
+    stat_poly_eq(aes(label = paste(..eq.label.., sep = "~~~")), 
+                 label.x.npc = "right", label.y.npc = "top",
+                 eq.with.lhs = "logZ~`=`~",
+                 eq.x.rhs = "~logN",
+                 formula = formula1, parse = TRUE, size = 8) +
+    theme_bw(base_size = 16) + 
+    theme(legend.position = "none")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# ------------------------------------------------------------------------------
 
 lil_df = data.frame(logZ_0 = logZ_0, logZ = logZ, logn = log(N_vec))
 

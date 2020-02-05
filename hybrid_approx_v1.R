@@ -6,6 +6,7 @@ hybrid_mlik = function(N_approx, D, u_df_full, J, prior) {
     
     hybrid_vec = numeric(N_approx)
     taylor_vec = numeric(N_approx)
+    const_vec  = numeric(N_approx)
     
     # compute approximation to LIL N_approx times
     for (t in 1:N_approx) {
@@ -228,11 +229,15 @@ hybrid_mlik = function(N_approx, D, u_df_full, J, prior) {
         
         hybrid_vec[t] = hybrid_approx
         taylor_vec[t] = logZ_taylor2
+        const_vec[t]  = logZ_taylor1
            
     } # end of outer for loop
     
     
-    return(list(hybrid_vec = hybrid_vec, taylor_vec = taylor_vec))
+    return(list(hybrid_vec = hybrid_vec, taylor_vec = taylor_vec,
+                const_vec = const_vec, 
+                n_taylor = dim(taylor_contribution)[1],
+                n_const = dim(const_contribution)[1]))
     # return(approx_vec)
     
 } # end hybrid_mlik() function

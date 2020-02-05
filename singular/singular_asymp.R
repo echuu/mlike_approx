@@ -70,6 +70,7 @@ mean(approx) # -1.014113
 
 # compute true value of logZ
 n = N
+library(pracma)
 result = integral2(fun, 0, 1, 0, 1, reltol = 1e-50)
 log(result$Q) # -1.223014 for n = 1000
 
@@ -124,7 +125,7 @@ singular_diag$n_taylor
 test = hybrid_mlik(N_approx, D, u_df_N, J, prior)
 test$hybrid_vec %>% mean
 test$taylor_vec %>% mean
-
+test$const_vec  %>% mean
 
 # ------------------------------------------------------------------------------
 
@@ -178,8 +179,6 @@ for (i in 1:length(N_vec)) {
     approx_hybrid[,i] = approx_out$hybrid_vec
     
 }
-
-approx_N
 
 
 colMeans(approx_taylor)
@@ -246,7 +245,7 @@ ggplot(lil_df_long, aes(x = logn, y = value,
                         color = as.factor(variable))) + geom_point(size = 0.7) + 
     geom_smooth(method = lm, se = F, formula = formula1) +
     labs(x = "log(n)", y = "log(Z)", 
-         title = "Approx (Blue), True Value via Numerical Integration (Red)") + 
+         title = "True (Red), Hybrid (Blue), Taylor (Green)") + 
     stat_poly_eq(aes(label = paste(..eq.label.., sep = "~~~")), 
                  label.x.npc = "right", label.y.npc = "top",
                  eq.with.lhs = "logZ~`=`~",
