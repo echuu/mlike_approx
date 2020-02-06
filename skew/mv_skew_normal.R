@@ -11,12 +11,12 @@ library(VGAM)
 library(tree)
 
 # path for lenovo
-# LEN_PATH  = "C:/Users/ericc/mlike_approx"
-# setwd(LEN_PATH)
+LEN_PATH  = "C:/Users/ericc/mlike_approx"
+setwd(LEN_PATH)
 
 # path for dell
-DELL_PATH = "C:/Users/chuu/mlike_approx"
-setwd(DELL_PATH)
+# DELL_PATH = "C:/Users/chuu/mlike_approx"
+# setwd(DELL_PATH)
 
 
 source("partition/partition.R")         # load partition extraction functions
@@ -44,12 +44,33 @@ D / 2 * log(2 * pi) + 0.5 * log_det(Sigma) + log(0.5)
 # ------------------------------------------------------------------------------
 
 set.seed(1)
-J = 5000
-N_approx = 1
+J = 8000
+N_approx = 50
 u_samps = rmsn(J, xi = mu_0, Omega = Sigma, alpha = alpha) %>% data.frame 
 u_df_full = preprocess(u_samps, D, prior)
 approx_skew = approx_lil(N_approx, D, u_df_full, J / N_approx, prior)
-mean(approx_skew) # -3.085342
+mean(approx_skew) # -3.260216
+
+
+# this routine won't work for D > 2 since u1, u2 are hard-coded
+source("hybrid_approx_v1.R")
+test = hybrid_mlik(N_approx, D, u_df_full, J, prior)
+test$const_vec  %>% mean
+test$taylor_vec %>% mean
+test$hybrid_vec %>% mean
+
+
+# test generalized version of hybrid_mlik -- hml() function
+hml_approx = hml(N_approx, D, u_df_full, J / N_approx, prior)
+
+hml_approx$const_vec  %>% mean    # verify constant approximation
+hml_approx$taylor_vec %>% mean    # verify taylor approximation
+hml_approx$hybrid_vec %>% mean    # verify hybrid approximation
+
+hml_approx$verbose_partition
+
+x11()
+plotPartition(u_df_full, hml_approx$partition)
 
 
 
@@ -87,6 +108,12 @@ u_partition = paramPartition(u_rpart, param_support)  # partition.R
 
 # organize all data into single data frame --> ready for approximation
 param_out = u_star(u_rpart, u_df, u_partition, D)
+
+
+(param_out %>% 
+        mutate(perc_mem = n_obs / sum(n_obs))) %>% 
+    cbind(diagnostics) %>% arrange(desc(perc_mem))
+
 
 n_partitions = nrow(u_partition)     # numebr of partitions 
 c_k          = numeric(n_partitions) # constant term for k-th partition

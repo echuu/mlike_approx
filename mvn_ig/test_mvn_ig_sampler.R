@@ -17,8 +17,8 @@ setwd("C:/Users/ericc/mlike_approx/singular/test")
 
 # sample from posterior via stan -----------------------------------------------
 
-J         = 100          # number of MC samples per approximation
-N_approx  = 20           # number of approximations
+J         = 500          # number of MC samples per approximation
+N_approx  = 1           # number of approximations
 burn_in   = 2000         # number of burn in draws
 n_chains  = 4            # number of markov chains to run
 stan_seed = 123          # seed

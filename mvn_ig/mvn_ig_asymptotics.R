@@ -2,13 +2,13 @@
 library(rstan)
 library(rstudioapi) # running  RStan in parallel via Rstudio
 
-DELL_PATH = "C:/Users/chuu/mlike_approx"
-# LEN_PATH  = "C:/Users/ericc/mlike_approx"
+# DELL_PATH = "C:/Users/chuu/mlike_approx"
+LEN_PATH  = "C:/Users/ericc/mlike_approx"
 # path for lenovo
-# setwd(LEN_PATH)
+setwd(LEN_PATH)
 
 # path for dell
-setwd(DELL_PATH)
+# setwd(DELL_PATH)
 
 source("partition/partition.R")
 source("extractPartition.R")
@@ -20,7 +20,7 @@ source("mvn_ig/mvn_ig_helper.R") # load this LAST to overwrite def preprocess()
 # STAN sampler settings --------------------------------------------------------
 
 J         = 500          # number of MC samples per approximation
-N_approx  = 10           # number of approximations
+N_approx  = 5           # number of approximations
 burn_in   = 2000         # number of burn in draws
 n_chains  = 4            # number of markov chains to run
 stan_seed = 123          # seed
@@ -28,14 +28,20 @@ stan_seed = 123          # seed
 J_iter = 1 / n_chains * N_approx * J + burn_in 
 
 
-K_sims = 100               # num of simulations to run FOR EACH N in N_vec
+K_sims = 1               # num of simulations to run FOR EACH N in N_vec
 
 # ------------------------------------------------------------------------------
 
 
-D_vec = c(3, 5, 7, 10)
-# D_vec = c(3)
+# D_vec = c(3, 5, 7, 10)
+D_vec = c(3)
 LIL_d = vector("list", length = length(D_vec))    
+
+
+LIL_const  = matrix(NA, N_approx, length(N_vec))
+LIL_hybrid = matrix(NA, N_approx, length(N_vec))
+LIL_taylor  = matrix(NA, N_approx, length(N_vec))
+
 
 set.seed(123)
 for (d_i in 1:length(D_vec)) {
@@ -58,8 +64,8 @@ for (d_i in 1:length(D_vec)) {
     
     # --------------------------------------------------------------------------
     
-    N_vec = c(50, 60, 70, 100, 110, 125, 150, 200, 225, 250, 300)
-    # N_vec = c(200) # for testing -- comment this line to perform ext. analysis
+    # N_vec = c(50, 60, 70, 100, 110, 125, 150, 200, 225, 250, 300)
+    N_vec = c(500) # for testing -- comment this line to perform ext. analysis
     
     
     LIL_N = numeric(length(N_vec))      # store the LIL for each N
@@ -149,8 +155,20 @@ for (d_i in 1:length(D_vec)) {
             # subtract log max likelihood to stabilize approximation
             LIL_N_k_hat[k] = mean(approx_lil(N_approx, D, u_df, J, prior)) #- 
                 #sum(dnorm(y, ybar, sqrt(sigmasq_mle), log = T))
+            
+            hml_approx = hml(N_approx, D, u_df, J, prior) 
+            
+            LIL_const[,k]  = hml_approx$const_vec
+            LIL_taylor[,k] = hml_approx$taylor_vec
+            LIL_hybrid[,k] = hml_approx$hybrid_vec
+            
+            hml_approx$const_vec
+            hml_approx$taylor_vec
+            
+            hml_approx$taylor_vec_lse
+            
 
-        }
+        } # end of K_sims loop
         
         LIL_N[i] = mean(LIL_N_k)
         LIL_N_hat[i] = mean(LIL_N_k_hat)
@@ -168,6 +186,11 @@ for (d_i in 1:length(D_vec)) {
 # LIL_N_k_hat
 
 LIL_d
+
+hml_approx$n_taylor
+hml_approx$n_const
+hml_approx$error
+
 
 # output from old functions
 # > LIL_d

@@ -1,10 +1,11 @@
 
-
+library(numDeriv)
 
 # psi() : negative log posterior
 psi = function(u, prior) {
     
     0.5 * t(u) %*% prior$Sigma_inv %*% u
+    
     
 }
 
@@ -13,7 +14,8 @@ psi = function(u, prior) {
 # form definition to speed up the code
 lambda = function(u, prior) {
     
-    grad(psi, u, prior = prior)
+    # grad(psi, u, prior = prior)
+    prior$Sigma_inv %*% u %>% c()
     
 }
 

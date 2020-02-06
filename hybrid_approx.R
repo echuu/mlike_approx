@@ -273,11 +273,11 @@ approx_lil_diag = function(D, u_df_full, prior) {
     
     # check if either contribution is empty
     if (dim(taylor_contribution)[1] == 0) {
-        hybrid_approx = log(sum(const_contribution)) # 2.113237
+        hybrid_approx = log(sum(const_contribution)) 
     } else if (dim(const_contribution)[1] == 0) {
-        hybrid_approx = log(sum(taylor_contribution)) # 2.113237
+        hybrid_approx = log(sum(taylor_contribution))
     } else {
-        hybrid_approx = log(sum(const_contribution, taylor_contribution)) # 2.113237
+        hybrid_approx = log(sum(const_contribution, taylor_contribution)) 
     }
     
     # hybrid_approx
@@ -318,6 +318,20 @@ extractSupport = function(u_df, D) {
 
 
 
+# log_sum_exp():
+# calculates expressions of the form log(sum(exp(x)))
+log_sum_exp = function(x) { 
+    offset = max(x)                         # scale by max to prevent overflow
+    s = log(sum(exp(x - offset))) + offset
+    i = which(!is.finite(s))                # check for any overflow
+    if (length(i) > 0) {                    # replace inf values with max
+        s[i] = offset 
+    }
+    
+    return(s)
+} # end of log_sum_exp()
+
+
 ## approx_lil() ----------------------------------------------------------------
 ## input :
 ##          N_approx   : # of approximations to form
@@ -329,6 +343,320 @@ extractSupport = function(u_df, D) {
 ## output : 
 ##          def_approx : (N_approx x 1) vector of approximations of LIL
 ##
+hml = function(N_approx, D, u_df_full, J, prior) {
+    
+    const_vec  = numeric(N_approx) # store constant approximation
+    taylor_vec = numeric(N_approx) # store taylor approximation
+    hybrid_vec = numeric(N_approx) # store hybrid approximation
+    
+    # log-sum-exp version of approximation -- should match taylor_Vec
+    taylor_vec_lse = numeric(N_approx) 
+        
+    # compute approximation to LIL N_approx times
+    for (t in 1:N_approx) {
+        
+        # if (t %% 10 == 0) {
+        #     print(paste("iter", t))
+        # }
+        
+        ## (1) subset out rows in u_df_full to be used in the t-th approximation
+        row_id = J * (t - 1) + 1
+        u_df = u_df_full[row_id:(row_id+J-1),]
+        
+        ## (2) fit the regression tree via rpart()
+        u_rpart = rpart(psi_u ~ ., u_df)
+        
+        ## (3) process the fitted tree
+        
+        # (3.1) obtain the (data-defined) support for each of the parameters
+        param_support = matrix(NA, D, 2) # store the parameter supports row-wise
+        
+        for (d in 1:D) {
+            param_d_min = min(u_df[,d])
+            param_d_max = max(u_df[,d])
+            
+            param_support[d,] = c(param_d_min, param_d_max)
+        }
+        
+        # (3.2) obtain the partition
+        u_partition = extractPartition(u_rpart, param_support)  # partition.R
+        
+        # organize all data into single data frame --> ready for approximation
+        param_out = u_star(u_rpart, u_df, u_partition, D)
+        
+        n_partitions = nrow(u_partition)     # number of partitions 
+        # c_k        = numeric(n_partitions) # constant term for k-th partition
+        # zhat       = numeric(n_partitions) # integral over k-th partition
+        
+        
+        # ----------------------------------------------------------------------
+        ## many of the declarations should be commented out in final version
+        ## of this algorithm to prevent this function from taking forever 
+        ## to run - also, unless N_approx = 1, all but the last approximation's
+        ## related quantities will be returned -- so make adjustments
+        ## accordingly, i.e., have a debug mode
+        
+        
+        K = nrow(u_partition)
+        
+        
+        # new declarations here: additional storage for all 3 approximations
+        area_k         = rep(1, K)      # store the area of each partition
+        
+        const_approx   = numeric(K)     # store approx that uses 1-term taylor
+        taylor_approx  = numeric(K)     # store approx that uses 2-term taylor
+        hybrid_approx  = numeric(K)     # store approx that uses both
+        
+        e_ck_1   = numeric(K)           # store first constant in taylor approx
+        e_ck_2   = numeric(K)           # store second constant in taylor approx
+        
+        # declare terms that will be used in the log-sum-exp trick
+        ck_1 = numeric(K)
+        ck_2 = numeric(K)
+        
+        taylor_approx_lse = numeric(K)
+        
+        
+        lambda_k = data.frame(matrix(NA, K, D)) # store gradient at u_k_star
+        # names(lambda_k) = c("lambda1", "lambda2")
+        names(lambda_k) = paste("lambda", 1:D, sep = '')
+        
+        # store integral of e^(-lambda_k'u) over A_k
+        # taylor2_integral = numeric(K) # not currently using
+        
+        
+        # star_ind will be a vector of indices -- subsetting these out of 
+        # param_out will give u_k = (u_k1, u_k2, ... , u_kD)
+        star_ind = grep("_star", names(param_out)) 
+        
+        # ----------------------------------------------------------------------
+        
+        # (4) compute closed form integral over each partition
+        for (k in 1:n_partitions) {
+            
+            # extract "representative point" of the k-th partition
+            u = param_out[k, star_ind] %>% unlist %>% unname
+            
+            # compute lambda_k : gradient of psi, evaluated at u_star
+            l_k = lambda(u, prior)       # (D x 1) 
+            lambda_k[k,] = l_k
+            
+            ## code added 2/5 --------------------------------------------------
+            
+            # constant terms in the taylor expansion, this is factored outside
+            # of the D-dim integral, so it's outside of the following for loop
+            e_ck_1[k] = exp(-psi(u, prior))
+            e_ck_2[k] = exp(sum(l_k * u))
+            
+            
+            # compute the following for log-sum-exp trick
+            ck_1[k] = -psi(u, prior)
+            ck_2[k] = sum(l_k * u)
+            
+            ck_3 = numeric(D)
+            
+            # ------------------------------------------------------------------
+            
+            
+            # store each component of the D-dim integral 
+            integral_d = numeric(D) # (D x 1)
+            
+            for (d in 1:D) {
+                
+                # find column id of the first lower bound
+                col_id_lb = grep("u1_lb", names(param_out)) + 2 * (d - 1)
+                col_id_ub = col_id_lb + 1
+                
+                # limits of integration, length of the interval for param d
+                upper = param_out[k, col_id_ub]
+                lower = param_out[k, col_id_lb]
+                
+                
+                # update/compute the constant approximation
+                area_k[k] = area_k[k] * (upper - lower) # D-dim hypercube
+                
+                # d-th integral computed in closed form
+                integral_d[d] = - 1 / l_k[d] * 
+                    (exp(- l_k[d] * upper) - exp(- l_k[d] * lower)) 
+                
+                
+                # if (l_k[d] > 0) {
+                #     ck_3[d] = -log(l_k[d]) + log(exp(-l_k[d] * upper) + 
+                #                                      exp(-l_k[d] * lower))
+                # } else {
+                #     ck_3[d] = -log(-l_k[d]) + log(exp(-l_k[d] * upper) - 
+                #                                      exp(-l_k[d] * lower))
+                # }
+                
+                ck_3[d] = log(- 1 / l_k[d] * 
+                                  (exp(- l_k[d] * upper) - 
+                                       exp(- l_k[d] * lower)) )
+                
+                
+                
+            } # end of loop computing each of 1-dim integrals
+            
+            
+            # compute constant approximation
+            const_approx[k] = e_ck_1[k] * area_k[k]
+            
+            # compute the D-dim integral (product of D 1-dim integrals)
+            # zhat[k] = prod(c_k[k], integral_d)
+            taylor_approx[k] = e_ck_1[k] * e_ck_2[k] * prod(integral_d)
+            
+            taylor_approx_lse[k] = ck_1[k] + ck_2[k] + sum(ck_3)
+            
+            
+        } # end of for loop over the K partitions
+        
+        # update approximations
+        const_vec[t]  = log(sum(const_approx))
+        taylor_vec[t] = log(sum(taylor_approx))
+        
+        taylor_vec_lse[t] = log_sum_exp(taylor_approx_lse)
+        
+        ## stack columns so that we can look more deeply into the integrals over
+        ## each partition
+        all_integrals = cbind(const  = const_approx, 
+                              taylor = taylor_approx) 
+        
+        # in order to form the dataframes below, need to store lambda_k matrix        
+        diagnostics = all_integrals %>% cbind(lambda_k) %>% cbind(e_ck_2) 
+        
+        # diagnostics = all_integrals %>% cbind(lambda_k) %>% cbind(e_ck_2) %>%
+        #     cbind(taylor2_int = taylor2_integral)
+        
+        # return(diagnostics)
+        
+        verbose_partition = (param_out %>% 
+                                 mutate(perc_mem = n_obs / sum(n_obs))) %>% 
+            cbind(diagnostics) %>% arrange(desc(perc_mem))
+        
+        u_df = u_df %>% mutate(leaf_id = u_rpart$where, 
+                               const_approx = 0,  const_resid = 0, 
+                               taylor_approx = 0, taylor_resid = 0)
+        
+        partition_id = u_rpart$where %>% unique
+
+        
+        # for each partition, compute the sum of squared residuals, 
+        # (psi(u) - psi_tilde(u))^2
+        
+        for (j in 1:K) {
+
+            k = partition_id[j]
+            
+            u_k_star = param_out %>% filter(leaf_id == k) %>% 
+                select(star_ind) %>% unname %>% unlist
+            
+            #### compute constant approximation for psi
+            # note: we actually already do this when computing e_ck_1, so 
+            # eventually, we can just take log(e_ck_1) to recover this term
+            u_df[u_df$leaf_id == k,]$const_approx = psi(u_k_star, prior) %>% c()
+            
+            #### compute order 1 taylor approximation for psi
+            # TODO: generalize selection of u1, u2, ... , uD
+            # diff_k = sweep(u_df %>% filter(leaf_id == k) %>% select(u1, u2), 2, 
+            #                FUN = '+', -u_k_star)
+            # 
+            
+            diff_k = sweep(u_df %>% filter(leaf_id == k) %>% select(c(1:D)), 2, 
+                           FUN = '+', -u_k_star)
+            
+            u_df[u_df$leaf_id == k,]$taylor_approx = c(psi(u_k_star, prior)) + 
+                as.matrix(diff_k) %*% lambda(u_k_star, prior)
+            
+            # compute difference between psi_u and corresponding approximation
+            u_df = u_df %>% mutate(const_resid  = psi_u - const_approx,
+                                   taylor_resid = psi_u - taylor_approx)
+            
+        } # end of for loop computing residuals
+        
+        error_df = data.frame(leaf_id = partition_id, 
+                              const_sq_error = 0, taylor_sq_error = 0)
+        
+        for (i in 1:K) {
+            
+            k = partition_id[i]
+            
+            # const_sq_error
+            sse_const  = sum(u_df[u_df$leaf_id == k,]$const_resid^2)
+            sse_taylor = sum(u_df[u_df$leaf_id == k,]$taylor_resid^2)
+            
+            # for each partition, calulcate sum of residuals for const, taylor
+            error_df = error_df %>% 
+                mutate(const_sq_error = replace(const_sq_error, 
+                                                partition_id == k, 
+                                                sse_const),
+                       taylor_sq_error = replace(taylor_sq_error, 
+                                                 partition_id == k,
+                                                 sse_taylor))
+            
+        } # end of loop computing SQUARED residuals
+        
+        
+        #### for each partition, determine which approximation to use
+        
+        # visualize the approximations side by side with associated SSE
+        partition_approx = verbose_partition %>% 
+            select(leaf_id, const, taylor)
+        
+        partition_approx = merge(partition_approx, error_df, by = "leaf_id")
+        
+        # extract leaf id for which we use the taylor approximation
+        taylor_index = error_df %>% filter(taylor_sq_error < const_sq_error) %>% 
+            select(leaf_id) %>% unlist %>% unname
+        
+        # extract leaf id for which we use the constant approximation
+        const_index = error_df %>% filter(taylor_sq_error >= const_sq_error) %>% 
+            select(leaf_id) %>% unlist %>% unname
+        
+        # select the rows that correspond to the partitions for which we use 
+        # constant approximation
+        const_contribution = verbose_partition %>% 
+            filter(leaf_id %in% const_index) %>% 
+            select(const)
+        
+        # select the rows that correspond to the partitions for which we use 
+        # taylor approximation
+        taylor_contribution = verbose_partition %>% 
+            filter(leaf_id %in% taylor_index) %>% 
+            select(taylor)
+        
+        # merge contributions to form the final approximation
+        if (dim(taylor_contribution)[1] == 0) {
+            hybrid_approx = log(sum(const_contribution)) 
+        } else if (dim(const_contribution)[1] == 0) {
+            hybrid_approx = log(sum(taylor_contribution)) 
+        } else {
+            hybrid_approx = log(sum(const_contribution, taylor_contribution)) 
+        }
+        
+        hybrid_vec[t] = hybrid_approx
+        
+    } # end of N_approx outer loop
+    
+    return(list(const_vec  = const_vec, 
+                taylor_vec = taylor_vec, 
+                hybrid_vec = hybrid_vec,
+                taylor_vec_lse = taylor_vec_lse,
+                verbose_partition = verbose_partition,
+                partition = param_out,
+                n_taylor = dim(taylor_contribution)[1],
+                n_const = dim(const_contribution)[1],
+                error = partition_approx,
+                taylor_approx = taylor_approx,
+                taylor_approx_lse = taylor_approx_lse))
+    
+} # end of approx_lil() function
+
+
+
+
+
+
+
+
 approx_lil = function(N_approx, D, u_df_full, J, prior) {
     
     def_approx = numeric(N_approx)
@@ -384,7 +712,7 @@ approx_lil = function(N_approx, D, u_df_full, J, prior) {
             
             # compute e^{c_k}, the constant term in the integral for each k
             c_k[k] = exp(-psi(u, prior) + sum(l_k * u)) 
-
+            
             # store each component of the D-dim integral 
             integral_d = numeric(D)      # (D x 1)
             
@@ -397,7 +725,7 @@ approx_lil = function(N_approx, D, u_df_full, J, prior) {
                 # d-th integral computed in closed form
                 integral_d[d] = - 1 / l_k[d] * 
                     (exp(- l_k[d] * param_out[k, col_id_ub]) - 
-                     exp(- l_k[d] * param_out[k, col_id_lb])) 
+                         exp(- l_k[d] * param_out[k, col_id_lb])) 
                 
                 # comment below to use the 2nd term in the taylor expansion
                 # integral_d[d] = (param_out[k, col_id_ub] - 
@@ -413,7 +741,7 @@ approx_lil = function(N_approx, D, u_df_full, J, prior) {
         # store the log integral \approx log marginal likelihood
         def_approx[t] = log(sum(zhat))
         
-        # check for underflow, flip sign if underflow (this usually works)
+        #check for underflow, flip sign if underflow (this usually works)
         #if (is.nan(def_approx[t])) {
         #    def_approx[t] = log(-sum(zhat))
         #}
@@ -423,4 +751,6 @@ approx_lil = function(N_approx, D, u_df_full, J, prior) {
     return(def_approx)
     
 } # end of approx_lil() function
+
+
 

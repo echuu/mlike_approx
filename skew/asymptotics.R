@@ -25,7 +25,7 @@ source("extractPartition.R")
 
 
 # fixed settings ---------------------------------------------------------------
-D = 3
+D = 4
 alpha = rep(1, D) 
 mu_0 = rep(0, D)
 Omega = diag(1, D)
@@ -36,10 +36,13 @@ Omega = diag(1, D)
 N_vec_log = seq(6, 10, 0.02)        # sample size that is uniform over log scale
 N_vec     = floor(exp(N_vec_log))   # sample size to use to generate data
 logZ_0    = numeric(length(N_vec))  # store true value of log normalizing const
-logZ      = numeric(length(N_vec))  # store approx of log normalizing const
 
 print(length(N_vec))                # number of different sample sizes
 
+
+approx_taylor = matrix(NA, N_approx, length(N_vec))
+approx_hybrid = matrix(NA, N_approx, length(N_vec))
+approx_const  = matrix(NA, N_approx, length(N_vec))
 
 for (i in 1:length(N_vec)) {
     
@@ -59,12 +62,18 @@ for (i in 1:length(N_vec)) {
     
     
     J = 1e4         # number of total MC samples
-    N_approx = 10   # number of approximations to form
+    N_approx = 50   # number of approximations to form
     u_samps = rmsn(J, xi = mu_0, Omega = Sigma, alpha = alpha) %>% data.frame 
     u_df_full = preprocess(u_samps, D, prior = prior)
-    approx_skew = approx_lil(N_approx, D, u_df_full, J/N_approx, prior)
     
-    logZ[i] = mean(approx_skew)
+    # approx_skew = approx_lil(N_approx, D, u_df_full, J/N_approx, prior)
+    
+    hml_skew = hml(N_approx, D, u_df_full, J / N_approx, prior)
+    
+    approx_taylor[,i] = hml_skew$taylor_vec
+    approx_hybrid[,i] = hml_skew$hybrid_vec
+    approx_const[,i]  = hml_skew$const_vec
+    
     
 } # end of loop iterating over different sample sizes
 
@@ -87,22 +96,39 @@ ggplot(lil_df, aes(logn, logZ_0)) + geom_point() +
 
 # approx LIL -------------------------------------------------------------------
 
-lil_df = data.frame(logZ = logZ, logn = log(N_vec))
+library(reshape2)
 
-lil_df_finite = lil_df[is.finite(lil_df$logZ),]
+logZ_taylor = colMeans(approx_taylor)  # 
+logZ_hybrid = colMeans(approx_hybrid)  #
+logZ_const  = colMeans(approx_const)   #
+logn        = log(N_vec)
 
-lil_df_finite %>% dim
+lil_df = data.frame(logZ_0 = logZ_0, logZ_taylor = logZ_taylor, 
+                    logZ_hybrid = logZ_hybrid, logZ_const = logZ_const, 
+                    logn = logn)
+
+lil_df_long = melt(lil_df, id.vars = "logn")
+
 
 formula1 = y ~ x
-ggplot(lil_df, aes(logn, logZ)) + geom_point() + 
-    labs(title = "") + 
-    geom_smooth(method = lm, se = T, formula = formula1) +
+
+x11()
+
+ggplot(lil_df_long, aes(x = logn, y = value, 
+                        color = as.factor(variable))) + geom_point(size = 0.7) + 
+    geom_smooth(method = lm, se = F, formula = formula1) +
+    labs(x = "log(n)", y = "log(Z)", 
+         title = "Skew Normal (D = 2), True (Red), Hybrid (Blue),
+         Taylor (Green), Constant (Purple)") + 
     stat_poly_eq(aes(label = paste(..eq.label.., sep = "~~~")), 
                  label.x.npc = "right", label.y.npc = "top",
                  eq.with.lhs = "logZ~`=`~",
                  eq.x.rhs = "~logN",
                  formula = formula1, parse = TRUE, size = 8) +
-    theme_bw(base_size = 16)
+    theme_bw(base_size = 16) + 
+    theme(legend.position = "none")
+
+
 
 
 # overlays of both logZ, approx logZ -------------------------------------------

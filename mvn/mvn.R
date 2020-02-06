@@ -33,7 +33,7 @@ source('extractPartition.R')            # load extractPartition() function
 
 # model settings ---------------------------------------------------------------
 
-D  = 4
+D  = 2
 Omega = diag(1, D)
 N  = 403
 Sigma = D / N * Omega 
@@ -50,7 +50,7 @@ D / 2 * log(2 * pi) + 0.5 * log_det(Sigma) # -3.683584, for D = 2, N = 500
 
 set.seed(1)
 J = 1e4
-N_approx = 10
+N_approx = 1
 u_samps = rmvnorm(J, mean = rep(0, D), sigma = Sigma) %>% data.frame 
 u_df_full = preprocess(u_samps, D, prior)
 approx_skew = approx_lil(N_approx, D, u_df_full, J / N_approx, prior)
@@ -59,22 +59,55 @@ mean(approx_skew)
 
 ## testing hybrid_mlik() function
 
-J = 1e4
-N_approx = 10
-set.seed(1)
-u_samps = rmvnorm(J, mean = rep(0, D), sigma = Sigma) %>% data.frame 
-u_df_full = preprocess(u_samps, D, prior)
+# J = 1e4
+# N_approx = 10
+# set.seed(1)
+# u_samps = rmvnorm(J, mean = rep(0, D), sigma = Sigma) %>% data.frame 
+# u_df_full = preprocess(u_samps, D, prior)
 
 # x11()
 # plot(u_df_full$u1, u_df_full$u2)
 
-test = hybrid_mlik(N_approx, D, u_df_full, J / N_approx, prior)
-test$hybrid_vec %>% mean
-test$taylor_vec %>% mean
-test$const_vec  %>% mean
+# test = hybrid_mlik(N_approx, D, u_df_full, J / N_approx, prior)
+# test$const_vec  %>% mean
+# test$taylor_vec %>% mean
+# test$hybrid_vec %>% mean
+# 
+# test$n_taylor
+# test$n_const
+# 
+# test$verbose_partition
 
-test$n_taylor
-test$n_const
+
+# test generalized version of hybrid_mlik -- hml() function
+hml_approx = hml(N_approx, D, u_df_full, J / N_approx, prior)
+
+# verify constant approximation
+hml_approx$const_vec
+
+# verify taylor approximation
+hml_approx$taylor_vec
+
+# verify hybrid approximation
+hml_approx$hybrid_vec
+
+hml_approx$taylor_vec_lse
+
+hml_approx$taylor_approx
+
+exp(hml_approx$taylor_approx_lse)
+
+cbind(hml_approx$taylor_approx,
+      exp(hml_approx$taylor_approx_lse))
+
+
+# for more careful analysis
+hml_approx$verbose_partition
+hml_approx$n_taylor
+hml_approx$n_const
+
+# verify for D > 2
+
 
 # ------------------------------------------------------------------------------
 

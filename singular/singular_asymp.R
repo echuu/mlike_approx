@@ -23,7 +23,7 @@ x11()
 
 # STAN SETTINGS ----------------------------------------------------------------
 J         = 1000         # number of MC samples per approximation
-N_approx  = 10           # number of approximations
+N_approx  = 1            # number of approximations
 burn_in   = 2000         # number of burn in draws
 n_chains  = 4            # number of markov chains to run
 stan_seed = 123          # seed
@@ -122,12 +122,28 @@ singular_diag$n_const
 singular_diag$n_taylor
 
 
+source("hybrid_approx_v1.R")
 test = hybrid_mlik(N_approx, D, u_df_N, J, prior)
-test$hybrid_vec %>% mean
-test$taylor_vec %>% mean
 test$const_vec  %>% mean
+test$taylor_vec %>% mean
+test$hybrid_vec %>% mean
 
 # ------------------------------------------------------------------------------
+
+# test generalized version of hybrid_mlik -- hml() function
+hml_approx = hml(N_approx, D, u_df_N, J / N_approx, prior)
+
+# verify constant approximation
+hml_approx$const_vec
+
+# verify taylor approximation
+hml_approx$taylor_vec
+
+# verify hybrid approximation
+hml_approx$hybrid_vec
+
+
+
 
 
 # run algorithm over grid of N -------------------------------------------------
