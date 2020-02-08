@@ -65,7 +65,7 @@ for (d_i in 1:length(D_vec)) {
     # --------------------------------------------------------------------------
     
     # N_vec = c(50, 60, 70, 100, 110, 125, 150, 200, 225, 250, 300)
-    N_vec = c(500) # for testing -- comment this line to perform ext. analysis
+    N_vec = c(200) # for testing -- comment this line to perform ext. analysis
     
     
     LIL_N = numeric(length(N_vec))      # store the LIL for each N
@@ -164,8 +164,17 @@ for (d_i in 1:length(D_vec)) {
             
             hml_approx$const_vec
             hml_approx$taylor_vec
+            hml_approx$hybrid_vec
             
+            rbind(hml_approx$const_vec,  hml_approx$const_vec_lse)
+            rbind(hml_approx$taylor_vec, hml_approx$taylor_vec_lse)
+            rbind(hml_approx$hybrid_vec, hml_approx$hybrid_vec_lse) # TODO
+            
+            hml_approx$const_vec_lse
             hml_approx$taylor_vec_lse
+            hml_approx$hybrid_vec_lse # TODO
+            
+            
             
 
         } # end of K_sims loop
