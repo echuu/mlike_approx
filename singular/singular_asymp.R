@@ -143,6 +143,10 @@ hml_approx$taylor_vec
 hml_approx$hybrid_vec
 
 
+rbind(hml_approx$const_vec,  hml_approx$const_vec_lse)
+rbind(hml_approx$taylor_vec, hml_approx$taylor_vec_lse)
+rbind(hml_approx$hybrid_vec, hml_approx$hybrid_vec_lse) # TODO
+
 
 
 

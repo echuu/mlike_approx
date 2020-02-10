@@ -20,7 +20,7 @@ source("mvn_ig/mvn_ig_helper.R") # load this LAST to overwrite def preprocess()
 # STAN sampler settings --------------------------------------------------------
 
 J         = 500          # number of MC samples per approximation
-N_approx  = 5           # number of approximations
+N_approx  = 1            # number of approximations
 burn_in   = 2000         # number of burn in draws
 n_chains  = 4            # number of markov chains to run
 stan_seed = 123          # seed
@@ -162,19 +162,13 @@ for (d_i in 1:length(D_vec)) {
             LIL_taylor[,k] = hml_approx$taylor_vec
             LIL_hybrid[,k] = hml_approx$hybrid_vec
             
-            hml_approx$const_vec
-            hml_approx$taylor_vec
-            hml_approx$hybrid_vec
+            # comment out later 
+            hml_approx$const_vec   # -429.8105
+            hml_approx$taylor_vec  # -427.3445
+            hml_approx$hybrid_vec  # -427.3445
             
-            rbind(hml_approx$const_vec,  hml_approx$const_vec_lse)
-            rbind(hml_approx$taylor_vec, hml_approx$taylor_vec_lse)
-            rbind(hml_approx$hybrid_vec, hml_approx$hybrid_vec_lse) # TODO
-            
-            hml_approx$const_vec_lse
-            hml_approx$taylor_vec_lse
-            hml_approx$hybrid_vec_lse # TODO
-            
-            
+            hml_approx$n_taylor
+            hml_approx$n_const
             
 
         } # end of K_sims loop
@@ -196,9 +190,6 @@ for (d_i in 1:length(D_vec)) {
 
 LIL_d
 
-hml_approx$n_taylor
-hml_approx$n_const
-hml_approx$error
 
 
 # output from old functions
