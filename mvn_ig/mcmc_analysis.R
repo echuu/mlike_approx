@@ -3,6 +3,8 @@
 library(rstan)
 library(rstudioapi) # running  RStan in parallel via Rstudio
 
+rstan_options(auto_write = TRUE)
+
 # DELL_PATH = "C:/Users/chuu/mlike_approx"
 LEN_PATH  = "C:/Users/ericc/mlike_approx"
 # path for lenovo
@@ -29,18 +31,19 @@ K_sims    = 20           # num of simulations to run FOR EACH N in N_vec
 
 # ------------------------------------------------------------------------------
 
-J_samps = c(40, 100, 160, 200, 240, 300, 500, 1000, 2000, 5000)
-D_vec   = c(3, 5, 8, 10, 15, 20, 25, 30, 40, 50)
+# J_samps = c(40, 100, 200, 500, 1000)
+D_vec   = c(3, 5, 8, 10, 15, 20, 30, 40, 50)
 
-# J_samps = c(40, 100)
-# D_vec = 3
+# D_vec   = c(3)
+J_samps = c(40)
 
 N = 200 # fix this value for now
 
 
 LIL_const_list  = vector("list", length = length(D_vec))    
 LIL_taylor_list = vector("list", length = length(D_vec))    
-LIL_hybrid_list = vector("list", length = length(D_vec))    
+LIL_hybrid_list = vector("list", length = length(D_vec))
+LIL_hme_list    = vector("list", length = length(D_vec))    
 LIL_N_list      = vector("list", length = length(D_vec))
 
 
@@ -63,6 +66,7 @@ for (d in 1:length(D_vec)) {
     LIL_const  = matrix(NA, K_sims, length(J_samps))
     LIL_hybrid = matrix(NA, K_sims, length(J_samps))
     LIL_taylor = matrix(NA, K_sims, length(J_samps))
+    LIL_hme    = matrix(NA, K_sims, length(J_samps))
     LIL_N_k    = matrix(NA, K_sims, length(J_samps))
     
     for (i in 1:length(J_samps)) {
@@ -128,7 +132,7 @@ for (d in 1:length(D_vec)) {
                             a_n = a_n, b_n = b_n, 
                             mu_star = c(mu_star), V_star = V_star)
             
-            mvnig_fit = stan(file   = 'mvn_ig/mvn_ig_sampler.stan', 
+            mvnig_fit = stan(file    = 'mvn_ig/mvn_ig_sampler.stan', 
                              data    = post_dat,
                              iter    = J_iter,
                              warmup  = burn_in,
@@ -136,16 +140,32 @@ for (d in 1:length(D_vec)) {
                              refresh = 0) # should give us J * N_approx draws
             
             ## evaluate psi(U)
-            u_df = preprocess(mvnig_fit, D, post)
+            u_df = preprocess(mvnig_fit, D, post, prior)
             
             ## compute approximation (3 different ways)
-            
             hml_approx = hml(N_approx, D, u_df, J, prior) 
             
             # Note: only 1 approximation per method per simulation computed
             LIL_const[k,i]  = hml_approx$const_vec    
             LIL_taylor[k,i] = hml_approx$taylor_vec
             LIL_hybrid[k,i] = hml_approx$hybrid_vec
+            
+            # compute other approximations here
+            
+            ## move this into a separate function later
+            lik_j = numeric(J)
+            for (j in 1:J) {
+                
+                beta_samp    = unname(unlist(u_df[j, 1:p]))     
+                sigmasq_samp = unname(unlist(u_df[j, p+1]))     
+                
+                lik_j[j] = 1 /  prod(dnorm(y, X %*% beta_samp, 
+                                           sqrt(sigmasq_samp)))
+                
+            }
+            
+            # harmonic mean estimator
+            LIL_hme[k,i] = log(J) - log(sum(lik_j))
             
         }
         
@@ -154,13 +174,18 @@ for (d in 1:length(D_vec)) {
     LIL_const_list[[d]]  = LIL_const
     LIL_taylor_list[[d]] = LIL_taylor
     LIL_hybrid_list[[d]] = LIL_hybrid
+    LIL_hme_list[[d]]    = LIL_hme
     LIL_N_list[[d]]      = LIL_N_k
     
-    print(do.call(rbind, list(colMeans(LIL_N_k),  
-                              colMeans(LIL_const),  
-                              colMeans(LIL_taylor),  
-                              colMeans(LIL_hybrid))))
-
+    J_df = data.frame(do.call(rbind, list(colMeans(LIL_N_k),  
+                                          colMeans(LIL_const),  
+                                          colMeans(LIL_taylor),  
+                                          colMeans(LIL_hybrid),
+                                          colMeans(LIL_hme))))
+    names(J_df) = paste(rep('J = '), J_samps, sep = '')
+    row.names(J_df) = c("LIL", "const", "taylor", "hybrid", "hme")
+    print(J_df)
+    
 } # end of D_vec loop
 
 
@@ -176,12 +201,20 @@ LIL_hybrid_list
 LIL_N_list
 
 require(rlist)
-list.save(LIL_const_list,  'const.rds')
-list.save(LIL_taylor_list, 'taylor.rds')
-list.save(LIL_hybrid_list, 'hybrid.rds')
-list.save(LIL_N_list,      'true.rds')
+# list.save(LIL_const_list,  'const.rds')
+# list.save(LIL_taylor_list, 'taylor.rds')
+# list.save(LIL_hybrid_list, 'hybrid.rds')
+# list.save(LIL_N_list,      'true.rds')
 
-test_read = list.load('taylor.rds')
+list.save(LIL_const_list,  'D50_J40/const.rds')
+list.save(LIL_taylor_list, 'D50_J40/taylor.rds')
+list.save(LIL_hybrid_list, 'D50_J40/hybrid.rds')
+list.save(LIL_hme_list,    'D50_J40/hme.rds')
+list.save(LIL_N_list,      'D50_J40/true.rds')
+
+
+
+true_LIL = list.load('true.rds')
 
 
 colMeans(LIL_N_k)
@@ -213,11 +246,69 @@ for (i in 1:length(D_vec)) {
 
 
 
+# ------------------------------------------------------------------------------
+
+# HME estimator
+
+# compute LIL using harmonic mean estimator
+LIL_hme = vector("list", length = length(D_vec))  
+
+J = 40 # number of random draws used per estimate
+B = 20 # number of batch estimators
+
+
+# compute the estimate for the i-th batch
+lil_hat = numeric(B) # store the log integrated likelihood for each batch
+logml_hat = numeric(B)
+set.seed(1)
+for (b in 1:B) {
+    
+    # (0) sample from mu | sigma_sq, y
+    mu_post = rnorm(J, m_n, sqrt(sigma_sq / w_n)) # (D x 1)
+    
+    # (1) sample from sigma_sq | y
+    sigma_sq_post = MCMCpack::rinvgamma(J, shape = r_n / 2, scale = s_n / 2)
+    
+    # (2) compute the harmonic mean estimator
+    lik_j = numeric(J)
+    for (j in 1:J) {
+        # (2.1) compute the likelihood under the j-th posterior parameters
+        lik_j[j] = 1 /  prod(dnorm(y, mu_post[j], sqrt(sigma_sq_post[j])))
+    }
+    
+    # form the b-th HM estimator for the log integrated likelihood
+    # lil_hat[b] = 1 / (1 / J * sum(lik_j))
+    
+    logml_hat[b] = log(J) - log(sum(lik_j))
+    
+}
+
+hme_df = data.frame(mcmc = 1:B, hme = log(lil_hat), logml_hat = logml_hat, 
+                    lil = LIL)
+hme_df
 
 
 
+lik_j = numeric(J)
+for (j in 1:J) {
+    
+    beta    = unname(unlist(u_df[j, 1:p]))     
+    sigmasq = unname(unlist(u_df[j, p+1]))     
+    
+    lik_j[j] = 1 /  prod(dnorm(y, X %*% beta, sqrt(sigmasq)))
+    
+}
+
+# harmonic mean estimator
+log(J) - log(sum(lik_j))
 
 
+# "D = 50: iter = 1/1 -- J = 40 MCMC samples (20 sims)"
+# J = 40
+# LIL    -650.3031
+# const  -643.4865
+# taylor -552.6806
+# hybrid -643.4865
 
 
 
