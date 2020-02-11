@@ -131,7 +131,7 @@ test$hybrid_vec %>% mean
 # ------------------------------------------------------------------------------
 
 # test generalized version of hybrid_mlik -- hml() function
-hml_approx = hml(N_approx, D, u_df_N, J / N_approx, prior)
+hml_approx = hml(N_approx, D, u_df_N, J, prior)
 
 # verify constant approximation
 hml_approx$const_vec

@@ -114,10 +114,14 @@ psi = function(u, prior) {
     beta    = unname(unlist(u[1:d]))     # (p x 1) -- 1/13 : additional unname()
     sigmasq = unname(unlist(u[d+1]))     # (1 x 1) -- 1/13 : 
     
-    loglik = dmvnorm(c(y), mean = X %*% beta, sigma = sigmasq * I_N, log = T)
+    
+    # y_mu  = X %*% beta
+    # y_var = sigmasq * I_N 
+    
+    # loglik = dmvnorm(c(y), mean = y_mu, sigma = y_var, log = T)
     
     # matches with:
-    # sum(dnorm(y, mean = X %*% beta, sd = sigmasq, log = T))
+    loglik = sum(dnorm(y, mean = X %*% beta, sd = sqrt(sigmasq), log = T))
     
     # print(loglik)
     
@@ -173,7 +177,7 @@ lambda = function(u, prior) {
 }
 
 
-preprocess = function(stan_fit, D, post) {
+preprocess = function(stan_fit, D, post, prior) {
     
     u_samp = rstan::extract(stan_fit, pars = c("beta", "sigmasq"), 
                             permuted = TRUE)
@@ -183,7 +187,9 @@ preprocess = function(stan_fit, D, post) {
     
     u_post = data.frame(beta_post = u_beta, sigmasq_post = u_sigmasq)
     
-    psi_u = apply(u_post, 1, psi_true_mvn, post = post) %>% unname() # (J x 1)
+    #### 2/10 update --- switch over to the psi that we should actually be using 
+    # psi_u = apply(u_post, 1, psi_true_mvn, post = post) %>% unname() # (J x 1)
+    psi_u = apply(u_post, 1, psi, prior = prior) %>% unname() # (J x 1)
     
     # (1.2) construct u_df -- this will require some automation for colnames
     u_df_names = character(D + 1)
@@ -204,104 +210,6 @@ preprocess = function(stan_fit, D, post) {
 }
 
 
-## faster verison of the approximation algorithm above
-# approx_lil_stan = function(N_approx, prior, D, u_df_full, J) {
-#     
-#     # mu_star = post$mu_star
-#     # V_star  = post$V_star
-#     # a_n = post$a_n
-#     # b_n = post$b_n
-#     
-#     # p = D - 1
-#     
-#     #### algorithm: main loop
-#     # N_iters = N_approx
-#     
-#     # test_out = numeric()
-#     def_approx = numeric(N_approx)   # storage for default approximations (no r.p.)
-#     
-#     for (t in 1:N_approx) {
-#         
-#         # if (t %% 100 == 0) {
-#         #    print(paste("iter", t))
-#         #}
-#         
-#         row_id = J * (t - 1) + 1
-#         
-#         u_df = u_df_full[row_id:(row_id+J-1),]
-#         
-#         
-#         ## (2) fit the regression tree via rpart()
-#         u_rpart = rpart(psi_u ~ ., u_df)
-#         
-#         ## (3) process the fitted tree
-#         
-#         # (3.1) obtain the (data-defined) support for each of the parameters
-#         param_support = matrix(NA, D, 2) # store the parameter supports row-wise
-#         
-#         for (d in 1:D) {
-#             param_d_min = min(u_df[,d])
-#             param_d_max = max(u_df[,d])
-#             
-#             param_support[d,] = c(param_d_min, param_d_max)
-#         }
-#         
-#         # paste code back here
-#         # (3.2) obtain the partition --- moment of truth!!
-#         u_partition = paramPartition(u_rpart, param_support)  # partition.R
-#         
-#         # organize all data into single data frame --> ready for approximation
-#         param_out = u_star(u_rpart, u_df, u_partition, D)
-#         
-#         n_partitions = nrow(u_partition)
-#         c_k = numeric(n_partitions)
-#         zhat = numeric(n_partitions)
-#         
-#         for (k in 1:n_partitions) {
-#             
-#             star_ind = grep("_star", names(param_out))
-#             u = param_out[k, star_ind] %>% unlist %>% unname
-#             
-#             c_k[k] = exp(-psi(u, prior)) # (1 x 1)
-#             
-#             l_k = lambda(u, prior)
-#             
-#             integral_d = numeric(D) # store each component of the D-dim integral 
-#             
-#             # nothing to refactor in this loop (i think?) since we're just iterating
-#             # thru each of the integrals and computing an exponential term
-#             for (d in 1:D) {
-#                 
-#                 # updated 1/14: find column id of the first lower bound
-#                 col_id_lb = grep("u1_lb", names(param_out)) + 2 * (d - 1)
-#                 col_id_ub = col_id_lb + 1
-#                 
-#                 # d-th integral computed in closed form
-#                 integral_d[d] = - 1 / l_k[d] * 
-#                     exp(- l_k[d] * (param_out[k, col_id_ub] -
-#                                         param_out[k, col_id_lb]))        
-#                 
-#             }
-#             
-#             zhat[k] = prod(c_k[k], integral_d)
-#         }
-#         
-#         
-#         def_approx[t] = log(sum(zhat))
-#         
-#         if (is.nan(def_approx[t])) {
-#             def_approx[t] = log(-sum(zhat))
-#         }
-#         
-#         
-#         
-#     }
-#     
-#     return(def_approx)
-#     
-#     # return(0)
-#     
-# } # end of approx_lil()
 
 
 
