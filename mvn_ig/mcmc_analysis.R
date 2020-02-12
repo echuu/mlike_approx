@@ -19,6 +19,9 @@ source("hybrid_approx.R")
 source("mvn_ig/mvn_ig_helper.R") # load this LAST to overwrite def preprocess()
 
 
+# before loading the hme() function, user must have provided a definition for
+# likelihood function
+source("misc.R") # load the hme() function
 
 # sampler settings -------------------------------------------------------------
 
@@ -34,7 +37,7 @@ K_sims    = 20           # num of simulations to run FOR EACH N in N_vec
 # J_samps = c(40, 100, 200, 500, 1000)
 D_vec   = c(3, 5, 8, 10, 15, 20, 30, 40, 50)
 
-# D_vec   = c(3)
+D_vec   = c(3)
 J_samps = c(40)
 
 N = 200 # fix this value for now
@@ -151,21 +154,8 @@ for (d in 1:length(D_vec)) {
             LIL_hybrid[k,i] = hml_approx$hybrid_vec
             
             # compute other approximations here
+            LIL_hme[k,i] = hme(u_df, prior, J, D, N)
             
-            ## move this into a separate function later
-            lik_j = numeric(J)
-            for (j in 1:J) {
-                
-                beta_samp    = unname(unlist(u_df[j, 1:p]))     
-                sigmasq_samp = unname(unlist(u_df[j, p+1]))     
-                
-                lik_j[j] = 1 /  prod(dnorm(y, X %*% beta_samp, 
-                                           sqrt(sigmasq_samp)))
-                
-            }
-            
-            # harmonic mean estimator
-            LIL_hme[k,i] = log(J) - log(sum(lik_j))
             
         }
         
@@ -249,60 +239,6 @@ for (i in 1:length(D_vec)) {
 # ------------------------------------------------------------------------------
 
 # HME estimator
-
-# compute LIL using harmonic mean estimator
-LIL_hme = vector("list", length = length(D_vec))  
-
-J = 40 # number of random draws used per estimate
-B = 20 # number of batch estimators
-
-
-# compute the estimate for the i-th batch
-lil_hat = numeric(B) # store the log integrated likelihood for each batch
-logml_hat = numeric(B)
-set.seed(1)
-for (b in 1:B) {
-    
-    # (0) sample from mu | sigma_sq, y
-    mu_post = rnorm(J, m_n, sqrt(sigma_sq / w_n)) # (D x 1)
-    
-    # (1) sample from sigma_sq | y
-    sigma_sq_post = MCMCpack::rinvgamma(J, shape = r_n / 2, scale = s_n / 2)
-    
-    # (2) compute the harmonic mean estimator
-    lik_j = numeric(J)
-    for (j in 1:J) {
-        # (2.1) compute the likelihood under the j-th posterior parameters
-        lik_j[j] = 1 /  prod(dnorm(y, mu_post[j], sqrt(sigma_sq_post[j])))
-    }
-    
-    # form the b-th HM estimator for the log integrated likelihood
-    # lil_hat[b] = 1 / (1 / J * sum(lik_j))
-    
-    logml_hat[b] = log(J) - log(sum(lik_j))
-    
-}
-
-hme_df = data.frame(mcmc = 1:B, hme = log(lil_hat), logml_hat = logml_hat, 
-                    lil = LIL)
-hme_df
-
-
-
-lik_j = numeric(J)
-for (j in 1:J) {
-    
-    beta    = unname(unlist(u_df[j, 1:p]))     
-    sigmasq = unname(unlist(u_df[j, p+1]))     
-    
-    lik_j[j] = 1 /  prod(dnorm(y, X %*% beta, sqrt(sigmasq)))
-    
-}
-
-# harmonic mean estimator
-log(J) - log(sum(lik_j))
-
-
 # "D = 50: iter = 1/1 -- J = 40 MCMC samples (20 sims)"
 # J = 40
 # LIL    -650.3031
