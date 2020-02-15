@@ -75,6 +75,20 @@ ggplot(hme_df, aes(x = mcmc, y = hme)) + geom_point() +
 # corrected arithmetic mean estimator ------------------------------------------
 
 
+
+log_s_theta = function(mu, sigmasq, m, w, a, b) {
+    
+    out = a * log(b) - d / 2 * log(2 * pi) - 0.5 * log_det(V_beta) - lgamma(a) -
+        (a + d / 2 + 1) * log(sigmasq) - 
+        1 / sigmasq * (b + 0.5 * t(beta - mu_beta) %*% V_beta_inv %*% 
+                           (beta - mu_beta))
+    
+    
+}
+
+
+
+
 # store log marginal likelihood estimators for B batches
 
 lil_came = numeric(B) # CAME estimator
@@ -102,6 +116,9 @@ for (b in 1:B) {
     # compute 1/s(theta) -- (K x 1) vector of evaluated densities
     s_theta = dnorm(mu_s, m_n, sqrt(sigma_sq / w_n)) * 
         MCMCpack::dinvgamma(sigmasq_s, shape = r_n / 2, scale = s_n / 2)
+    
+    s_tilde = log_mvnig(c(mu_s, s))
+    
     
     # compute prior density
     p_theta = dnorm(mu_s, m_0, sqrt(sigma_sq / w_0)) * 

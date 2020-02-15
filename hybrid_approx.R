@@ -309,7 +309,7 @@ hml = function(N_approx, D, u_df_full, J, prior) {
             k = partition_id[j]
             
             u_k_star = param_out %>% filter(leaf_id == k) %>% 
-                select(star_ind) %>% unname %>% unlist
+                dplyr::select(star_ind) %>% unname %>% unlist
             
             #### compute constant approximation for psi
             # note: we actually already do this when computing e_ck_1, so 
@@ -320,7 +320,8 @@ hml = function(N_approx, D, u_df_full, J, prior) {
             
             # assumes u1,...,uD are the first D columns of u_df -- make sure
             # this structure is maintained, maybe provide a check ? 
-            diff_k = sweep(u_df %>% filter(leaf_id == k) %>% select(c(1:D)), 2, 
+            diff_k = sweep(u_df %>% filter(leaf_id == k) %>% 
+                               dplyr::select(c(1:D)), 2, 
                            FUN = '+', -u_k_star)
             
             # methodology notes: 
@@ -370,29 +371,29 @@ hml = function(N_approx, D, u_df_full, J, prior) {
         
         # visualize the approximations side by side with associated SSE
         partition_approx = verbose_partition %>% 
-            select(leaf_id, const, taylor)
+            dplyr::select(leaf_id, const, taylor)
         
         partition_approx = merge(partition_approx, error_df, by = "leaf_id")
         
         # extract leaf id for which we use the taylor approximation
         taylor_index = error_df %>% filter(taylor_sq_error < const_sq_error) %>% 
-            select(leaf_id) %>% unlist %>% unname
+            dplyr::select(leaf_id) %>% unlist %>% unname
         
         # extract leaf id for which we use the constant approximation
         const_index = error_df %>% filter(taylor_sq_error >= const_sq_error) %>% 
-            select(leaf_id) %>% unlist %>% unname
+            dplyr::select(leaf_id) %>% unlist %>% unname
         
         # select the rows that correspond to the partitions for which we use 
         # constant approximation
         const_contribution = verbose_partition %>% 
             filter(leaf_id %in% const_index) %>% 
-            select(const) %>% unlist %>% unname
+            dplyr::select(const) %>% unlist %>% unname
         
         # select the rows that correspond to the partitions for which we use 
         # taylor approximation
         taylor_contribution = verbose_partition %>% 
             filter(leaf_id %in% taylor_index) %>% 
-            select(taylor) %>% unlist %>% unname
+            dplyr::select(taylor) %>% unlist %>% unname
         
         # merge contributions to form the final approximation
         if (length(taylor_contribution)[1] == 0) {
