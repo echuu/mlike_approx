@@ -2,6 +2,7 @@
 
 library(rstan)
 library(rstudioapi) # running  RStan in parallel via Rstudio
+library(reshape2)
 
 rstan_options(auto_write = TRUE)
 
@@ -35,7 +36,7 @@ B = 20
 
 # compute the TRUE log marginal likelihood (fixed for all the B batches) -------
 
-D       = 3                               # dimension of parameter space
+D       = 70                              # dimension of parameter space
 p       = D - 1                           # dimension of beta
 mu_beta = rep(0, p)                       # prior mean for beta
 V_beta  = diag(1, p)                      # scaled precision matrix for beta
@@ -92,12 +93,12 @@ post_dat = list(p = p,
                 a_n = a_n, b_n = b_n, 
                 mu_star = c(mu_star), V_star = V_star)
 
-mvnig_fit = stan(file    = 'mvn_ig/mvn_ig_sampler.stan', 
-                 data    = post_dat,
-                 iter    = J_iter,
-                 warmup  = burn_in,
-                 chains  = n_chains,
-                 refresh = 0) # should give us J * N_approx draws
+# mvnig_fit = stan(file    = 'mvn_ig/mvn_ig_sampler.stan', 
+#                  data    = post_dat,
+#                  iter    = J_iter,
+#                  warmup  = burn_in,
+#                  chains  = n_chains,
+#                  refresh = 0) # should give us J * N_approx draws
 
 # true value of the log marginal likelihood:
 LIL_mvnig = lil(y, X, prior, post) # -429.3378
@@ -111,8 +112,31 @@ lil_hme  = numeric(B) # store the log integrated likelihood for each batch
 lil_hml  = numeric(B) # store the log integrated likelihood for each batch
 # lil_hme_0 = numeric(B)
 
+
+# number of samples that the corrected arithmetic mean sampler draws from 
+# the importance distribution
+s_samps = J * B
+s_iter = 1 / n_chains * N_approx * s_samps + burn_in 
+
+mvnig_fit = stan(file    = 'mvn_ig/mvn_ig_sampler.stan', 
+                 data    = post_dat,
+                 iter    = s_iter, ### here
+                 warmup  = burn_in,
+                 chains  = n_chains,
+                 refresh = 0) # should give us J * N_approx draws
+
+u_importance = rstan::extract(mvnig_fit, pars = c("beta", "sigmasq"), 
+                              permuted = TRUE)
+
+beta_all    = u_importance$beta %>% data.frame()
+sigmasq_all = u_importance$sigmasq 
+
+
+
 set.seed(1)
 for (b in 1:B) {
+    
+    print(paste("iter: ", b, "/", B, sep = ""))
     
     # # (0) sample from mu | sigma_sq, y
     # mu_post = rnorm(J, m_n, sqrt(sigma_sq / w_n)) # (D x 1)
@@ -124,6 +148,9 @@ for (b in 1:B) {
     
     # NOTE: the following initialization must be declared EVERY TIME otherwise
     # the samples extracted will be exactly the same
+    
+    # TODO: move this outside later and just sample J * B samples all at once
+    # and use the same indexing we use below
     mvnig_fit = stan(file    = 'mvn_ig/mvn_ig_sampler.stan', 
                      data    = post_dat,
                      iter    = J_iter,
@@ -154,18 +181,20 @@ for (b in 1:B) {
     # mu_s      = rnorm(K, m_n, sqrt(sigma_sq / w_n))
     # sigmasq_s = MCMCpack::rinvgamma(K, shape = r_n / 2, scale = s_n / 2)
     # 
-    mvnig_fit = stan(file    = 'mvn_ig/mvn_ig_sampler.stan', 
-                     data    = post_dat,
-                     iter    = J_iter,
-                     warmup  = burn_in,
-                     chains  = n_chains,
-                     refresh = 0) # should give us J * N_approx draws
+    # mvnig_fit = stan(file    = 'mvn_ig/mvn_ig_sampler.stan', 
+    #                  data    = post_dat,
+    #                  iter    = s_iter, ### here
+    #                  warmup  = burn_in,
+    #                  chains  = n_chains,
+    #                  refresh = 0) # should give us J * N_approx draws
+    # 
+    # u_importance = rstan::extract(mvnig_fit, pars = c("beta", "sigmasq"), 
+    #                               permuted = TRUE)
     
-    u_importance = rstan::extract(mvnig_fit, pars = c("beta", "sigmasq"), 
-                                  permuted = TRUE)
-    
-    beta_imp    = u_importance$beta %>% data.frame()
-    sigmasq_imp = u_importance$sigmasq 
+    start = ((b - 1) * J + 1)
+    end = start + J - 1
+    beta_imp    = beta_all[start:end,]
+    sigmasq_imp = sigmasq_all[start:end]
     
     s_theta = numeric(J)
     lik_j = numeric(J)
@@ -222,13 +251,20 @@ for (b in 1:B) {
     
 } # end of simulation outer loop
 
-hme_df = data.frame(mcmc = 1:B, hml = lil_hml, hme = lil_hme, came = lil_came, 
-                    lil = LIL_mvnig)
 
+hme_df = data.frame(mcmc = 1:B, hml = lil_hml, hme = lil_hme, came = lil_came)
 
+# mean average error (AE, true - estimated)
+mean(LIL_mvnig - lil_came)
+mean(LIL_mvnig - lil_hml)
+
+# root mean squared error (RMSE)
+sqrt(mean((LIL_mvnig - lil_came)^2))
+sqrt(mean((LIL_mvnig - lil_hml)^2))
 
 hme_df_long = melt(hme_df, id.vars = "mcmc")
 
+x11()
 ggplot(hme_df_long, aes(x = mcmc, y = value, col = variable)) + geom_point() +
     geom_hline(aes(yintercept = LIL_mvnig), linetype = 'dashed', size = 0.9)
 
