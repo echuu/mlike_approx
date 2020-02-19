@@ -4,6 +4,7 @@ library(rstanarm)
 library(ggplot2)
 library(bayesplot)
 library(dplyr)
+library(gtools)    # for inv.logit() function
 
 options(mc.cores = parallel::detectCores()) 
 
@@ -36,6 +37,9 @@ df = data.frame(y, X)
 tau = 0.5
 prior = list(y = y, X = X, D = D, N = N, tau = tau)
 
+# number of MCMC samples
+J = 4000
+
 ## TODO: figure out how to specify the number of posterior samples used
 bglm_fit = stan_glm(y ~ . -1, data = df, 
                     prior = normal(location = 0, scale = 1/sqrt(tau)),
@@ -43,11 +47,23 @@ bglm_fit = stan_glm(y ~ . -1, data = df,
                     refresh = 0)
 summary(bglm_fit)
 
-u_samps = bglm_fit %>% as.matrix # extract posterior samples
+u_samps = bglm_fit %>% as.data.frame() # extract posterior samples
 
 psi_u = apply(u_samps, 1, psi, prior = prior)
 u_df = preprocess(u_samps, D, prior)
 
+hml_approx = hml(1, D, u_df, J, prior) 
+
+hml_approx$const_vec
+hml_approx$taylor_vec
+hml_approx$hybrid_vec
+
+hml_approx$partition
+
+
+# LIL_const[,k]  = hml_approx$const_vec
+# LIL_taylor[,k] = hml_approx$taylor_vec
+# LIL_hybrid[,k] = hml_approx$hybrid_vec
 
 
 

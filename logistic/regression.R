@@ -5,6 +5,7 @@ library(rstan)
 library(rstanarm)
 library(ggplot2)
 library(bayesplot)
+library(dplyr)
 
 options(mc.cores = parallel::detectCores()) 
 
@@ -58,14 +59,15 @@ beta = rep(4.5, p)
 Y = X %*% beta + Eps;
 dat = data.frame(Y = Y, X = X)
 fit_lin <- stan_glm(Y ~ X, data = dat, family = gaussian())
-
+summary(fit_li)n
 post_samps = as.data.frame(fit_lin)
 
 
 
 # bayesian logistic regression model -------------------------------------------
+
 set.seed(1)
-N = 200
+N = 300
 D = 3
 X = matrix(rnorm(N * D), nrow = N)
 beta = sample(c(-5:5), D, replace = TRUE) # (-1, 5, 2) for D = 3
@@ -81,9 +83,15 @@ summary(glm_fit)
 
 # fit bayesian version with N(0, tau^(-1) I_D) prior on beta
 
+bglm_fit = stan_glm(y ~ . -1, data = df, 
+                    prior = normal(location = 0, scale = 4),
+                    family = binomial(link = 'logit'))
+summary(bglm_fit)
+
+as.data.frame(bglm_fit) %>% head
 
 
-
+stan_trace(bglm_fit, pars=c("X1","X2","X3"))
 
 
 

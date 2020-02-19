@@ -1,6 +1,11 @@
 
 library(rstan)
 library(rstudioapi) # running  RStan in parallel via Rstudio
+options(mc.cores = parallel::detectCores()) 
+
+# save compiled stan program to hard disk so that don't need to recompile
+rstan_options(auto_write = TRUE)
+
 
 # DELL_PATH = "C:/Users/chuu/mlike_approx"
 LEN_PATH  = "C:/Users/ericc/mlike_approx"
@@ -15,7 +20,10 @@ source("extractPartition.R")
 source("hybrid_approx.R")
 source("mvn_ig/mvn_ig_helper.R") # load this LAST to overwrite def preprocess()
 
-
+# install.packages("tibble")
+# install.packages("dplyr")
+# library(tibble)
+# library(dplyr)
 
 # STAN sampler settings --------------------------------------------------------
 
@@ -47,6 +55,11 @@ LIL_taylor  = matrix(NA, N_approx, length(N_vec))
 
 
 set.seed(123)
+
+d_i = 1
+i = 1
+k = 1
+
 for (d_i in 1:length(D_vec)) {
     
     D = D_vec[d_i]
