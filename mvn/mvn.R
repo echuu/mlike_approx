@@ -200,18 +200,6 @@ ggplot(lil_df_long, aes(x = logn, y = value,
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
 # ------------------------------------------------------------------------------
 
 lil_df = data.frame(logZ_0 = logZ_0, logZ = logZ, logn = log(N_vec))

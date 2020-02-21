@@ -67,5 +67,11 @@ hml_approx$partition
 
 
 
+# https://stats.stackexchange.com/questions/209810/computation-of-the-marginal-likelihood-from-mcmc-samples
 
+# https://arxiv.org/pdf/0907.5123.pdf
+
+# https://warwick.ac.uk/fac/sci/statistics/crism/workshops/estimatingconstants
+
+# https://www.cse.iitk.ac.in/users/piyush/courses/tpmi_winter19/tpmi_w19_lec7_slides_print.pdf
 
