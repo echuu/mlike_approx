@@ -122,8 +122,11 @@ u_star = function(rpart_obj, u_df_in, partition, n_params) {
         n_obs = part_obs_tbl$n_obs[k]
         
         # subset out observations in partition k, sort on dev_sq column
-        sorted_partition = u_df %>% dplyr::filter(leaf_id == partition_id[k]) %>% 
+        sorted_partition = u_df %>% dplyr::filter(leaf_id == partition_id[k]) %>%
             arrange(dev_sq)
+        
+        # sorted_partition = u_df %>% dplyr::filter(leaf_id == partition_id[k]) %>%
+        #     arrange(psi_u)
         
         # (4.2) for each partition: save the row whose squared residual value is 
         # the median; this point is that partitions's "representative point"

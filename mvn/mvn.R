@@ -57,26 +57,6 @@ approx_skew = approx_lil(N_approx, D, u_df_full, J / N_approx, prior)
 mean(approx_skew)
 
 
-## testing hybrid_mlik() function
-
-# J = 1e4
-# N_approx = 10
-# set.seed(1)
-# u_samps = rmvnorm(J, mean = rep(0, D), sigma = Sigma) %>% data.frame 
-# u_df_full = preprocess(u_samps, D, prior)
-
-# x11()
-# plot(u_df_full$u1, u_df_full$u2)
-
-# test = hybrid_mlik(N_approx, D, u_df_full, J / N_approx, prior)
-# test$const_vec  %>% mean
-# test$taylor_vec %>% mean
-# test$hybrid_vec %>% mean
-# 
-# test$n_taylor
-# test$n_const
-# 
-# test$verbose_partition
 
 
 # test generalized version of hybrid_mlik -- hml() function

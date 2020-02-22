@@ -29,14 +29,14 @@ K_sims    = 1            # num of simulations to run FOR EACH N in N_vec
 
 D_vec   = c(3)
 J_samps = c(40)
-N = 200 # fix this value for now
+N = 1000 # fix this value for now
 
 set.seed(123)
 B = 20
 
 # compute the TRUE log marginal likelihood (fixed for all the B batches) -------
 
-D       = 70                              # dimension of parameter space
+D       = 3                               # dimension of parameter space
 p       = D - 1                           # dimension of beta
 mu_beta = rep(0, p)                       # prior mean for beta
 V_beta  = diag(1, p)                      # scaled precision matrix for beta
@@ -174,7 +174,7 @@ for (b in 1:B) {
     # this should be able to be done using extractParamSupport
     # A_mu = c(min(mu_post), max(mu_post))
     # A_sigmasq = c(min(sigma_sq_post), max(sigma_sq_post))
-    A_theta = extractSupport(u_df, D) # 1-d intervals stored row-wise
+     #A_theta = extractSupport(u_df, D) # 1-d intervals stored row-wise
     
     
     ## TODO:  draw from the importance density N-IG
@@ -267,6 +267,137 @@ hme_df_long = melt(hme_df, id.vars = "mcmc")
 x11()
 ggplot(hme_df_long, aes(x = mcmc, y = value, col = variable)) + geom_point() +
     geom_hline(aes(yintercept = LIL_mvnig), linetype = 'dashed', size = 0.9)
+
+
+
+# ------------------------------------------------------------------------------
+
+
+
+# compute approx over grid of J
+
+
+# perform analysis for a grid of J
+B = 100
+J_vec   = c(100, 500, 1000, 2000)  # number of MC samples
+
+lil_hml = data.frame(matrix(0, B, length(J_vec)))
+names(lil_hml) = paste('j', J_vec, sep = '')
+
+for (i in 1:length(J_vec)) {
+    
+    J = J_vec[i]
+    J_iter = 1 / n_chains * N_approx * J * B + burn_in 
+    
+    mvnig_fit = stan(file    = 'mvn_ig/mvn_ig_sampler.stan', 
+                     data    = post_dat,
+                     iter    = J_iter,
+                     warmup  = burn_in,
+                     chains  = n_chains,
+                     refresh = 0) # should give us J * N_approx draws
+    
+    print(paste("iter = ", i, ", J = ", J, sep = ''))
+    u_df = preprocess(mvnig_fit, D, post, prior)
+    
+    for (b_i in 1:B) {
+        
+        # if (b_i %% 20 == 0) print(paste("iter: ", b_i, "/", B, sep = ""))
+        
+        start = ((b_i - 1) * J + 1)
+        end = start + J - 1
+        
+        u_df_b = u_df[start:end,]
+        
+        # (1) compute hybrid app
+        hml_approx = hml(N_approx, D, u_df_b, J, prior) 
+        lil_hml[b_i,i] = hml_approx$hybrid_vec
+        
+    } # end of simulation outer loop
+    
+}
+
+
+
+## plot results
+hme_df = cbind(mcmc = 1:B, lil_hml)
+
+hme_df %>% head
+# # mean average error (AE, true - estimated)
+# (MAE = round(mean(logZ_mvn - lil_hml), 3))
+# 
+# # root mean squared error (RMSE)
+# (RMSE = round(sqrt(mean((logZ_mvn - lil_hml)^2)), 3))
+
+hme_df_long = melt(hme_df, id.vars = 'mcmc', value.name = 'logZ')
+
+
+p1 = ggplot(hme_df, aes(x = mcmc, y = j100)) + geom_point(col = 'blue') +
+    geom_hline(aes(yintercept = LIL_mvnig), linetype = 'dashed', size = 1.3) +
+    labs(x = 'iter', y = '',
+         title = paste("logZ = ", round(LIL_mvnig, 3), ", D = ", D, 
+                       ", J = ", J_vec[1], 
+                       ", approx = ", round(mean(hme_df$j100), 2), sep = '')) + 
+    ylim(-431, -427) + 
+    geom_hline(aes(yintercept = mean(hme_df$j100)), 
+               col = 'red', linetype = 'dotdash', size = 1.3)
+
+
+p2 = ggplot(hme_df, aes(x = mcmc, y = j500)) + geom_point(col = 'blue') +
+    geom_hline(aes(yintercept = LIL_mvnig), linetype = 'dashed', size = 1.3) +
+    labs(x = 'iter', y = '',
+         title = paste("logZ = ", round(LIL_mvnig, 3), ", D = ", D, 
+                       ", J = ", J_vec[2], 
+                       ", approx = ", round(mean(hme_df$j500), 2), sep = '')) + 
+    ylim(-431, -427) + 
+    geom_hline(aes(yintercept = mean(hme_df$j500)), 
+               col = 'red', linetype = 'dotdash', size = 1.3)
+
+
+p3 = ggplot(hme_df, aes(x = mcmc, y = j1000)) + geom_point(col = 'blue') +
+    geom_hline(aes(yintercept = LIL_mvnig), linetype = 'dashed', size = 1.3) +
+    labs(x = 'iter', y = '',
+         title = paste("logZ = ", round(LIL_mvnig, 3), ", D = ", D, 
+                       ", J = ", J_vec[3], 
+                       ", approx = ", round(mean(hme_df$j1000), 2), sep = '')) + 
+    ylim(-431, -427) + 
+    geom_hline(aes(yintercept = mean(hme_df$j1000)), 
+               col = 'red', linetype = 'dotdash', size = 1.3)
+
+p4 = ggplot(hme_df, aes(x = mcmc, y = j2000)) + geom_point(col = 'blue') +
+    geom_hline(aes(yintercept = LIL_mvnig), linetype = 'dashed', size = 1.3) +
+    labs(x = 'iter', y = '',
+         title = paste("logZ = ", round(LIL_mvnig, 3), ", D = ", D, 
+                       ", J = ", J_vec[4], 
+                       ", approx = ", round(mean(hme_df$j2000), 2), sep = '')) + 
+    ylim(-431, -427) + 
+    geom_hline(aes(yintercept = mean(hme_df$j2000)), 
+               col = 'red', linetype = 'dotdash', size = 1.3)
+
+multiplot(p1, p2, p3, p4, cols = 4)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
