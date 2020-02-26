@@ -337,7 +337,7 @@ p1 = ggplot(hme_df, aes(x = mcmc, y = j100)) + geom_point(col = 'blue') +
          title = paste("logZ = ", round(LIL_mvnig, 3), ", D = ", D, 
                        ", J = ", J_vec[1], 
                        ", approx = ", round(mean(hme_df$j100), 2), sep = '')) + 
-    ylim(-431, -427) + 
+    ylim(-2112.5, -2110.5) + 
     geom_hline(aes(yintercept = mean(hme_df$j100)), 
                col = 'red', linetype = 'dotdash', size = 1.3)
 
@@ -348,7 +348,7 @@ p2 = ggplot(hme_df, aes(x = mcmc, y = j500)) + geom_point(col = 'blue') +
          title = paste("logZ = ", round(LIL_mvnig, 3), ", D = ", D, 
                        ", J = ", J_vec[2], 
                        ", approx = ", round(mean(hme_df$j500), 2), sep = '')) + 
-    ylim(-431, -427) + 
+    ylim(-2112.5, -2110.5) + 
     geom_hline(aes(yintercept = mean(hme_df$j500)), 
                col = 'red', linetype = 'dotdash', size = 1.3)
 
@@ -359,7 +359,7 @@ p3 = ggplot(hme_df, aes(x = mcmc, y = j1000)) + geom_point(col = 'blue') +
          title = paste("logZ = ", round(LIL_mvnig, 3), ", D = ", D, 
                        ", J = ", J_vec[3], 
                        ", approx = ", round(mean(hme_df$j1000), 2), sep = '')) + 
-    ylim(-431, -427) + 
+    ylim(-2112.5, -2110.5) + 
     geom_hline(aes(yintercept = mean(hme_df$j1000)), 
                col = 'red', linetype = 'dotdash', size = 1.3)
 
@@ -369,7 +369,7 @@ p4 = ggplot(hme_df, aes(x = mcmc, y = j2000)) + geom_point(col = 'blue') +
          title = paste("logZ = ", round(LIL_mvnig, 3), ", D = ", D, 
                        ", J = ", J_vec[4], 
                        ", approx = ", round(mean(hme_df$j2000), 2), sep = '')) + 
-    ylim(-431, -427) + 
+    ylim(-2112.5, -2110.5) + 
     geom_hline(aes(yintercept = mean(hme_df$j2000)), 
                col = 'red', linetype = 'dotdash', size = 1.3)
 
