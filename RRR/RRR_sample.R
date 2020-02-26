@@ -39,14 +39,13 @@ C = A %*% t(B)
 ##
 ## -----------------------------------------------------------------------------
 
-# dimensions can be computed from the dimensions of the input above
 
 # various dimension settings
+# dimensions can be computed from the dimensions of the input above
 p = ncol(X)    # number of columns in X
 q = ncol(Y)    # number of columns in Y
 r = ncol(A)    # number of columns in B and A
 n = nrow(X)    # number of rows in X and Y
-
 
 # prior parameters
 sig2 = 10^(-2);  # fixed for now
@@ -69,119 +68,45 @@ u_samps = read.csv("RRR/u_df_rrr.csv", header = FALSE)
 dim(u_samps)
 
 ### can stick the following directly into preprocess function
-u_samps = u_samps[-c(1:burn),]
-u_samps_sub = u_samps[1:J,]    # (J x d) -- MCMC samples stored row-wise
+# u_samps = u_samps[-c(1:burn),]
+# u_samps_sub = u_samps[1:J,]    # (J x d) -- MCMC samples stored row-wise
 
 
 ## evaluate psi() function for each of the posterior samples (row-wise)
-u_df = preprocess(u_samps_sub, d, param_list)
+u_df = preprocess(u_samps, d, param_list)
+
+lambda(u, param_list)
 
 
-# for now, when moving this into helper function, just load the helper function 
-# after loading hybrid_approx.R so that it overrides it
-# this function, and psi() both use 'params' arg instead of 'prior' --
-# should be switching over to params anyway, it's not always just the prior 
-# parameters getting passed into preprocess, psi..
-preprocess = function(post_samps, D, params) {
-    
-    psi_u = apply(post_samps, 1, psi, params = params) %>% unname() # (J x 1)
-    
-    # (1.2) name columns so that values can be extracted by partition.R
-    u_df_names = character(D + 1)
-    for (d in 1:D) {
-        u_df_names[d] = paste("u", d, sep = '')
-    }
-    u_df_names[D + 1] = "psi_u"
-    
-    # populate u_df
-    u_df = cbind(post_samps, psi_u) # J x (D + 1)
-    names(u_df) = u_df_names
-    
-    
-    return(u_df)
-    
-} # end of preprocess() function
 
-
-psi = function(u, params) {
-    
-    # note that the norm(,type = 'F') runs 10x faster than computing the trace
-    
-    n = params$n # num of rows in X, Y
-    p = params$p # num rows of A
-    r = params$r # num cols of A, num rows of B^T
-    q = params$q # num cols of B^T
-    
-    sig2 = params$sig2
-    del  = params$del
-    
-    Y = params$Y
-    X = params$X
-    
-    # extract and reshape u to get the matrices: A, B^T
-    A_post  = matrix(u[1:(p * r)], p, r)
-    Bt_post = matrix(u[(p * r + 1):d], r, q)
-    
-    const_term = - 0.5 * n * q * log(2 * pi * sig2)
-    exp_term   = -1/(2 * sig2) * 
-        norm(Y - X %*% A_post %*% Bt_post, type = 'F')^2 + 
-        del^2 / (2 * sig2) * 
-        (norm(Bt_post, type = 'F')^2 + norm(A_post, type = 'F')^2)
-    
-    return(const_term + exp_term)
-    
-} # end of psi() function
-    
-
-lambda = function(u, params) {
-    
-    
-    
-    
-} # end of lambda() function
- 
+# replicate structure of the remaining part of the call to the main algorithm
 
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+## -----------------------------------------------------------------------------
 
 
 # library(microbenchmark)
 # microbenchmark("frob" = { a = norm(B, type = 'F')^2 },
 #                "trace" = { b = sum(diag((t(B) %*% B))) })
-
-
-## evaluate lambda() function
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
