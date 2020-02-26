@@ -22,23 +22,28 @@ sigX = eye(p);
 
 X = mvnrnd(zeros(1, p), sigX, n);
 
+csvwrite('X.csv', X)
+
 % Generate and fix parameters A & B
 A = normrnd(0, 1, p, r);
 B = normrnd(0, 1, q, r); 
 
+csvwrite('A.csv', A);
+csvwrite('B.csv', B);
 
 % Generate data
 eps = normrnd(0, sqrt(sig2), n, q);
 Y = X * A * B' + eps;
 C = A * B'
 
+csvwrite('eps.csv', eps)
 
 % Prior parameters
 del=10^(-2);
 
 %% Gibbs sampling
 
-nMCMC = 1000;
+nMCMC = 1500;
 B = normrnd(0, 1, q, r);
 
 D = r * p + q * r;      % dimension of each MC sample, u
@@ -76,12 +81,13 @@ for g = 1:nMCMC
 
 end
 
+csvwrite('u_df_rrr.csv', u_df)
+
 A_g  = reshape(u_df(g,1:p*r), p, r);   % recover the matrix A
 Bt_g = reshape(u_df(g,p*r+1:D), r, q); % recover the matrix B^T =: B
 
+% writematrix(u_df, 'u_df_rrr.csv')
 
-writematrix(u_df, 'u_df_rrr.csv')
-csvwrite('u_df_rrr.csv', u_df)
 
 % A * B'
 
