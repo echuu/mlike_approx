@@ -15,7 +15,7 @@ psi = function(u, prior) {
     #     t(u) %*% prior$Sigma_inv %*% u
 
     prior$D / 2 * log(2 * pi) + 0.5 * ld_sigma +
-        t(u) %*% prior$Sigma_inv %*% u
+        0.5 * t(u) %*% prior$Sigma_inv %*% u
     
     # prior$D / 2 * log(2 * pi) + 0.5 * ld_sigma +
     #     a * sum(u^2) + b * (sum(u^2))^2

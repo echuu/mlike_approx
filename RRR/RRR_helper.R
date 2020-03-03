@@ -1,6 +1,10 @@
 
+## RRR_helper.R file 
 
 
+
+
+### preprocess() ---------------------------------------------------------------
 # for now, when moving this into helper function, just load the helper function 
 # after loading hybrid_approx.R so that it overrides it
 # this function, and psi() both use 'params' arg instead of 'prior' --
@@ -28,7 +32,43 @@ preprocess = function(post_samps, D, params) {
 
 
 
+### loglik() -------------------------------------------------------------------
+## evalute the loglikelihood of the following regression model:
+##     Y ~ MN (XAB^T, I_n, sig2 * I_q)
+##     vec(y) ~ N(vec(XAB^T), sig2 kron(I_q, I_n))
+## 
+rrr_loglik = function(u, params) {
+    
+    p = params$p
+    q = params$q
+    
+    n = params$n
+    q = params$q
+    
+    Y = params$Y
+    X = params$X
+    
+    sig2 = params$sig2
+    
+    # likelihood evaluated using the posterior samples
+    A_post  = matrix(u[1:(p * r)], p, r)
+    Bt_post = matrix(u[(p * r + 1):d], r, q)
+    
+    # print(dim(X))
+    # print(dim(A_post))
+    
+    loglik = (-n * q / 2) * log(2 * pi * sig2) -
+        1 / (2 * sig2) * norm(Y - X %*% A_post %*% Bt_post, type = 'F')^2
+    
+    return(loglik)
+} # end rrr_loglik function
 
+### lambda() -- (vectorized) gradient calculation ------------------------------
+## input : 
+## u : (d x 1) vector, d = r * p + r * q
+## output: 
+## lambda(u) : (d x 1) vector -- vectorized version of the actual gradient
+##
 psi = function(u, params) {
     
     # note that the norm(,type = 'F') runs 10x faster than computing the trace
@@ -60,7 +100,12 @@ psi = function(u, params) {
 
 
 
-### (vectorized) gradient calculation
+### lambda() -- (vectorized) gradient calculation ------------------------------
+## input : 
+## u : (d x 1) vector, d = r * p + r * q
+## output: 
+## lambda(u) : (d x 1) vector -- vectorized version of the actual gradient
+##
 lambda = function(u, params) {
     
     n = params$n # num of rows in X, Y

@@ -19,7 +19,7 @@ source("hybrid_approx.R")               # load main algorithm functions
 source("mvn/mvn_helper.R")              # load psi(), lambda() function
 source('extractPartition.R')            # load extractPartition() function
 
-D  = 3
+D  = 10
 Omega = diag(1, D)
 N  = 1000
 Sigma = D / N * Omega 
@@ -56,49 +56,49 @@ hml_approx$n_const / nrow(hml_approx$verbose_partition)
 # ------------------------------------------------------------------------------
 
 
-lil_hml  = numeric(B) # store the harmonic mean approximate for each batch
-prop_const = numeric(B) # proportion of partitions that use constant approx 
-
-for (b_i in 1:B) {
-    
-    if (b_i %% 20 == 0) print(paste("iter: ", b_i, "/", B, sep = ""))
-    
-    start = ((b_i - 1) * J + 1)
-    end = start + J - 1
-    
-    u_df_b = u_df[start:end,]
-    
-    # (1) compute hybrid app
-    hml_approx = hml(N_approx, D, u_df_b, J, prior) 
-    lil_hml[b_i] = hml_approx$hybrid_vec
-    
-    prop_const[b_i] = hml_approx$n_const / nrow(hml_approx$verbose_partition)
-    
-} # end of simulation outer loop
-
-
-## plot results
-hme_df = data.frame(mcmc = 1:B, hml = lil_hml)
-
-# mean average error (AE, true - estimated)
-(MAE = round(mean(logZ_mvn - lil_hml), 3))
-
-# root mean squared error (RMSE)
-(RMSE = round(sqrt(mean((logZ_mvn - lil_hml)^2)), 3))
-
-ggplot(hme_df, aes(x = mcmc, y = lil_hml)) + geom_point(col = 'blue') +
-    geom_hline(aes(yintercept = logZ_mvn), linetype = 'dashed', size = 1.3) +
-    labs(x = 'iter', y = 'logML',
-         title = paste("logZ = ", round(logZ_mvn, 3), 
-                       ", D = ", D, ", J = ", J, 
-                       " (MAE = ", MAE, ", RMSE = ", RMSE, ")", sep = ''))
-
-
-
-
-prop_const # prop of constant approximations used for each partition
-mean(prop_const)
-
+# lil_hml  = numeric(B) # store the harmonic mean approximate for each batch
+# prop_const = numeric(B) # proportion of partitions that use constant approx 
+# 
+# for (b_i in 1:B) {
+#     
+#     if (b_i %% 20 == 0) print(paste("iter: ", b_i, "/", B, sep = ""))
+#     
+#     start = ((b_i - 1) * J + 1)
+#     end = start + J - 1
+#     
+#     u_df_b = u_df[start:end,]
+#     
+#     # (1) compute hybrid app
+#     hml_approx = hml(N_approx, D, u_df_b, J, prior) 
+#     lil_hml[b_i] = hml_approx$hybrid_vec
+#     
+#     prop_const[b_i] = hml_approx$n_const / nrow(hml_approx$verbose_partition)
+#     
+# } # end of simulation outer loop
+# 
+# 
+# ## plot results
+# hme_df = data.frame(mcmc = 1:B, hml = lil_hml)
+# 
+# # mean average error (AE, true - estimated)
+# (MAE = round(mean(logZ_mvn - lil_hml), 3))
+# 
+# # root mean squared error (RMSE)
+# (RMSE = round(sqrt(mean((logZ_mvn - lil_hml)^2)), 3))
+# 
+# ggplot(hme_df, aes(x = mcmc, y = lil_hml)) + geom_point(col = 'blue') +
+#     geom_hline(aes(yintercept = logZ_mvn), linetype = 'dashed', size = 1.3) +
+#     labs(x = 'iter', y = 'logML',
+#          title = paste("logZ = ", round(logZ_mvn, 3), 
+#                        ", D = ", D, ", J = ", J, 
+#                        " (MAE = ", MAE, ", RMSE = ", RMSE, ")", sep = ''))
+# 
+# 
+# 
+# 
+# prop_const # prop of constant approximations used for each partition
+# mean(prop_const)
+# 
 
 
 
@@ -140,7 +140,7 @@ for (i in 1:length(J_vec)) {
 ## plot results
 hme_df = cbind(mcmc = 1:B, lil_hml)
 
-hme_df %>% head
+# hme_df %>% head
 # # mean average error (AE, true - estimated)
 # (MAE = round(mean(logZ_mvn - lil_hml), 3))
 # 
@@ -155,9 +155,9 @@ p1 = ggplot(hme_df, aes(x = mcmc, y = j100)) + geom_point(col = 'blue') +
     labs(x = 'iter', y = '',
          title = paste("logZ = ", round(logZ_mvn, 3), ", D = ", D, 
                        ", J = ", J_vec[1], 
-                       ", approx = ", round(mean(hme_df$j100), 2), sep = '')) + 
-    ylim(-6.5, -3.5) + 
-    geom_hline(aes(yintercept = mean(hme_df$j100)), 
+                       ", approx = ", round(mean(hme_df$j100, na.rm = T), 2), sep = '')) + 
+    ylim(-14, -9) + 
+    geom_hline(aes(yintercept = mean(hme_df$j100, na.rm = T)), 
                col = 'red', linetype = 'dotdash', size = 1.3)
     
 
@@ -167,7 +167,7 @@ p2 = ggplot(hme_df, aes(x = mcmc, y = j500)) + geom_point(col = 'blue') +
          title = paste("logZ = ", round(logZ_mvn, 3), ", D = ", D, 
                        ", J = ", J_vec[2], 
                        ", approx = ", round(mean(hme_df$j500), 2), sep = '')) + 
-    ylim(-6.5, -3.5) + 
+    ylim(-14, -9) + 
     geom_hline(aes(yintercept = mean(hme_df$j500)), 
                col = 'red', linetype = 'dotdash', size = 1.3)
 
@@ -178,7 +178,7 @@ p3 = ggplot(hme_df, aes(x = mcmc, y = j1000)) + geom_point(col = 'blue') +
          title = paste("logZ = ", round(logZ_mvn, 3), ", D = ", D, 
                        ", J = ", J_vec[3], 
                        ", approx = ", round(mean(hme_df$j1000), 2), sep = '')) + 
-    ylim(-6.5, -3.5) + 
+    ylim(-14, -9) + 
     geom_hline(aes(yintercept = mean(hme_df$j1000)), 
                col = 'red', linetype = 'dotdash', size = 1.3)
 
@@ -188,7 +188,7 @@ p4 = ggplot(hme_df, aes(x = mcmc, y = j2000)) + geom_point(col = 'blue') +
          title = paste("logZ = ", round(logZ_mvn, 3), ", D = ", D, 
                        ", J = ", J_vec[4], 
                        ", approx = ", round(mean(hme_df$j2000), 2), sep = '')) + 
-    ylim(-6.5, -3.5) + 
+    ylim(-14, -9) + 
     geom_hline(aes(yintercept = mean(hme_df$j2000)), 
                col = 'red', linetype = 'dotdash', size = 1.3)
 

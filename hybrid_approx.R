@@ -417,7 +417,11 @@ hml = function(N_approx, D, u_df_full, J, prior) {
                 n_taylor          = length(taylor_contribution),
                 n_const           = length(const_contribution),
                 error             = partition_approx,
-                u_rpart           = u_rpart))
+                u_rpart           = u_rpart,
+                taylor_approx     = taylor_approx,
+                ck_2              = ck_2,
+                ck_3              = ck_3,
+                lambda_k          = lambda_k))
     
 } # end of approx_lil() function
 

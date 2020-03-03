@@ -37,7 +37,7 @@ lil = function(y, X, prior, post, N = length(y), d = ncol(X)) {
 
 #### specify prior distribution density
 
-## updated 1/12
+## updated 1/12 -- is this used?
 ## log of the multivariate normal - inverse gamma density -- 
 ## log NIG(beta, sigmasq | mu_beta, V_beta, a, b)
 log_mvnig = function(u, post, d = length(u) - 1) {
@@ -71,7 +71,7 @@ log_mvnig = function(u, post, d = length(u) - 1) {
 ## psi_mvn:          the negative log posterior as described in the notes, 
 ##                   = -loglik - logprior 
 
-# done -- updated 1/12
+# done -- updated 1/12 -- don't think I ever use this? 
 psi_true_mvn = function(u, post) {
 
     # p = length(u) - 1
@@ -89,8 +89,6 @@ psi_true_mvn = function(u, post) {
 
 # checked + fixed -- 1/13
 psi = function(u, prior) {
-    
-    ## TODO: verify this is calculating what's intended
     
     y = prior$y
     X = prior$X

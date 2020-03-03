@@ -3,6 +3,8 @@
 ##  read in the posterior samples written to .csv from MATLAB script
 
 library(dplyr)
+library(mvtnorm)
+
 
 # path for lenovo
 LEN_PATH  = "C:/Users/ericc/mlike_approx"
@@ -13,7 +15,7 @@ setwd(LEN_PATH)
 
 source("partition/partition.R")         # load partition extraction functions
 source("hybrid_approx.R")               # load main algorithm functions
-source("mvn/mvn_helper.R")              # load psi(), lambda() function
+source("RRR/RRR_helper.R")              # load psi(), lambda(), preprocess()
 source('extractPartition.R')            # load extractPartition() function
 
 
@@ -54,6 +56,12 @@ del  = 10^(-2);
 # dimension of the parameter, u (drawn from posterior)
 d = r * p + r * q
 
+# various identity matrices
+I_p = diag(1, p)
+I_q = diag(1, q)
+I_n = diag(1, n)
+I_r = diag(1, r)
+
 # store parameters in param object
 param_list = list(p = p, q = q, r = r, n = n, d = d,   # dimensions variables
                   Y = Y, X = X,                        # response, design matrix
@@ -73,26 +81,42 @@ dim(u_samps)
 
 
 ## evaluate psi() function for each of the posterior samples (row-wise)
-u_df = preprocess(u_samps, d, param_list)
+u_df = preprocess(u_samps, d, param_list) # J x (d + 1) 
 
 lambda(u, param_list)
-
 
 
 # replicate structure of the remaining part of the call to the main algorithm
 
 
+## -----------------------------------------------------------------------------
+
+J = nrow(u_df) # number of MCMC samples to use in the approximation
+
+hml_approx = hml(1, d, u_df, J, param_list) 
+
+hml_approx$const_vec
+hml_approx$taylor_vec
+hml_approx$hybrid_vec
+
+hml_approx$n_taylor
+hml_approx$verbose_partition
+hml_approx$taylor_approx
+
+hml_approx$ck_2
+hml_approx$ck_3
+
+hml_approx$lambda[10,18]
+
+log(-1 / hml_approx$lambda[10,18] * 
+    exp(- hml_approx$lambda[10,18] * hml_approx$partition$u18_ub[10]) - 
+    exp(- hml_approx$lambda[10,18] * hml_approx$partition$u18_lb[10]))
 
 
 
-
-
-
-
-
-
-
-
+LIL_const[,k]  = hml_approx$const_vec
+LIL_taylor[,k] = hml_approx$taylor_vec
+LIL_hybrid[,k] = hml_approx$hybrid_vec
 
 
 

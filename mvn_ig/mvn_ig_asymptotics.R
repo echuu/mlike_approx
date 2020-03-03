@@ -67,7 +67,7 @@ for (d_i in 1:length(D_vec)) {
     print(paste("Performing LIL approximation for D = ", D, sep = ''))
     
     # priors, true parameter values --------------------------------------------
-    # D       = 3                # dimension of paramter
+    # D       = 3              # dimension of paramter
     p       = D - 1            # dimension of beta
     mu_beta = rep(0, p)        # prior mean for beta
     V_beta  = diag(1, p)       # scaled precision matrix for betaV_beta
@@ -308,7 +308,7 @@ I_p = diag(1, p)       # (p x p) identity matrix
 # values of N for which we will compute + approximate the LIL
 N_vec = seq(50, 5000, 100)
 N_vec = c(50, 60, 70, 100, 110, 125, 150, 200, 225, 250, 300)
-# N_vec = c(200)
+N_vec = c(200)
 LIL_N = numeric(length(N_vec)) # store the LIL for each of the grid values of N
 K_sims = 100  # num of simulations to run FOR EACH N in N_vec
 

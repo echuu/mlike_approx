@@ -36,7 +36,7 @@ B = 20
 
 # compute the TRUE log marginal likelihood (fixed for all the B batches) -------
 
-D       = 3                               # dimension of parameter space
+D       = 10                              # dimension of parameter space
 p       = D - 1                           # dimension of beta
 mu_beta = rep(0, p)                       # prior mean for beta
 V_beta  = diag(1, p)                      # scaled precision matrix for beta
@@ -278,6 +278,7 @@ ggplot(hme_df_long, aes(x = mcmc, y = value, col = variable)) + geom_point() +
 
 
 # perform analysis for a grid of J
+set.seed(1)
 B = 100
 J_vec   = c(100, 500, 1000, 2000)  # number of MC samples
 
@@ -314,8 +315,11 @@ for (i in 1:length(J_vec)) {
         
     } # end of simulation outer loop
     
+    print(paste("batch approximate =", mean(lil_hml[,i], na.rm = T)))
 }
 
+
+# true value: -2195.11 for D = 10, N = 1000
 
 
 ## plot results
@@ -337,9 +341,9 @@ p1 = ggplot(hme_df, aes(x = mcmc, y = j100)) + geom_point(col = 'blue') +
          title = paste("logZ = ", round(LIL_mvnig, 3), ", D = ", D, 
                        ", J = ", J_vec[1], 
                        ", approx = ", round(mean(hme_df$j100), 2), sep = '')) + 
-    ylim(-2112.5, -2110.5) + 
     geom_hline(aes(yintercept = mean(hme_df$j100)), 
-               col = 'red', linetype = 'dotdash', size = 1.3)
+               col = 'red', linetype = 'dotdash', size = 1.3) + 
+    ylim(-2196, -2191.4)
 
 
 p2 = ggplot(hme_df, aes(x = mcmc, y = j500)) + geom_point(col = 'blue') +
@@ -348,9 +352,9 @@ p2 = ggplot(hme_df, aes(x = mcmc, y = j500)) + geom_point(col = 'blue') +
          title = paste("logZ = ", round(LIL_mvnig, 3), ", D = ", D, 
                        ", J = ", J_vec[2], 
                        ", approx = ", round(mean(hme_df$j500), 2), sep = '')) + 
-    ylim(-2112.5, -2110.5) + 
     geom_hline(aes(yintercept = mean(hme_df$j500)), 
-               col = 'red', linetype = 'dotdash', size = 1.3)
+               col = 'red', linetype = 'dotdash', size = 1.3) + 
+    ylim(-2196, -2191.4)
 
 
 p3 = ggplot(hme_df, aes(x = mcmc, y = j1000)) + geom_point(col = 'blue') +
@@ -359,9 +363,9 @@ p3 = ggplot(hme_df, aes(x = mcmc, y = j1000)) + geom_point(col = 'blue') +
          title = paste("logZ = ", round(LIL_mvnig, 3), ", D = ", D, 
                        ", J = ", J_vec[3], 
                        ", approx = ", round(mean(hme_df$j1000), 2), sep = '')) + 
-    ylim(-2112.5, -2110.5) + 
     geom_hline(aes(yintercept = mean(hme_df$j1000)), 
-               col = 'red', linetype = 'dotdash', size = 1.3)
+               col = 'red', linetype = 'dotdash', size = 1.3) + 
+    ylim(-2196, -2191.4)
 
 p4 = ggplot(hme_df, aes(x = mcmc, y = j2000)) + geom_point(col = 'blue') +
     geom_hline(aes(yintercept = LIL_mvnig), linetype = 'dashed', size = 1.3) +
@@ -369,9 +373,9 @@ p4 = ggplot(hme_df, aes(x = mcmc, y = j2000)) + geom_point(col = 'blue') +
          title = paste("logZ = ", round(LIL_mvnig, 3), ", D = ", D, 
                        ", J = ", J_vec[4], 
                        ", approx = ", round(mean(hme_df$j2000), 2), sep = '')) + 
-    ylim(-2112.5, -2110.5) + 
     geom_hline(aes(yintercept = mean(hme_df$j2000)), 
-               col = 'red', linetype = 'dotdash', size = 1.3)
+               col = 'red', linetype = 'dotdash', size = 1.3) + 
+    ylim(-2196, -2191.4)
 
 multiplot(p1, p2, p3, p4, cols = 4)
 
