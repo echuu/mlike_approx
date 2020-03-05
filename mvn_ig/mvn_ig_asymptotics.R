@@ -166,7 +166,7 @@ for (d_i in 1:length(D_vec)) {
             u_df %>% head
             
             # subtract log max likelihood to stabilize approximation
-            LIL_N_k_hat[k] = mean(approx_lil(N_approx, D, u_df, J, prior)) #- 
+            # LIL_N_k_hat[k] = mean(approx_lil(N_approx, D, u_df, J, prior)) #- 
                 #sum(dnorm(y, ybar, sqrt(sigmasq_mle), log = T))
             
             hml_approx = hml(1, D, u_df, J, prior) 

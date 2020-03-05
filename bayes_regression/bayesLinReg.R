@@ -36,7 +36,7 @@ N = c(200) # for testing -- comment this line to perform ext. analysis
 ## priors ----------------------------------------------------------------------
 set.seed(1)
 mu_0 = rep(0, D)      # prior mean for beta
-lambda  = 1 / 4       # precision: inverse of variance
+tau  = 1 / 4       # precision: inverse of variance
 sigmasq = 4           # true variance (1 x 1) 
 
 ## true beta -------------------------------------------------------------------
@@ -52,12 +52,12 @@ y   = X %*% beta + eps                          # (N x 1) response vector
 
 ## compute posterior parameters ------------------------------------------------
 
-Q_beta = 1 / sigmasq * (t(X) %*% X + lambda * diag(1, D))
+Q_beta = 1 / sigmasq * (t(X) %*% X + tau * diag(1, D))
 Q_beta_inv = solve(Q_beta)
 b = 1 / sigmasq * t(X) %*% y
 mu_beta = Q_beta_inv %*% b
 
-prior = list(y = y, X = X, sigmasq = sigmasq, lambda = lambda, N = N, D = D)
+prior = list(y = y, X = X, sigmasq = sigmasq, tau = tau, N = N, D = D)
 post = list(Q_beta = Q_beta, Q_beta_inv = Q_beta_inv, mu_beta = mu_beta, b = b)
 
 
@@ -85,6 +85,13 @@ hml_approx$hybrid_vec
 
 
 
+
+
+
+
+# library(microbenchmark)
+# microbenchmark("psi" = { a = psi(unname(unlist(u_samps[1,])), prior) },
+#                "psi1" = { b = psi1(unname(unlist(u_samps[1,])), prior) })
 
 
 
