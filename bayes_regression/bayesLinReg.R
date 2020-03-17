@@ -36,7 +36,7 @@ N = c(200) # for testing -- comment this line to perform ext. analysis
 ## priors ----------------------------------------------------------------------
 set.seed(1)
 mu_0 = rep(0, D)      # prior mean for beta
-tau  = 1 / 4       # precision: inverse of variance
+tau  = 1 / 4          # precision: inverse of variance
 sigmasq = 4           # true variance (1 x 1) 
 
 ## true beta -------------------------------------------------------------------
@@ -84,8 +84,28 @@ hml_approx$const_vec
 hml_approx$hybrid_vec
 
 
+# ------------------------------------------------------------------------------
+
+# testing the stabilizing computation for the D-dim integral
+
+k_part = nrow(hml_approx$lambda)
+
+ind = 2
+hml_approx$ck_3[ind]
 
 
+upper = hml_approx$partition$u18_ub[k_part]
+lower = hml_approx$partition$u18_lb[k_part]
+
+l_k_d = hml_approx$lambda[k_part,ind]
+
+# log(-1 / hml_approx$lambda[6,ind] * 
+#     exp(- hml_approx$lambda[6,ind] * hml_approx$partition$u18_ub[6]) - 
+#     exp(- hml_approx$lambda[6,ind] * hml_approx$partition$u18_lb[6]))
+
+- l_k_d * upper + log(- 1 / l_k_d * (1 - exp(-l_k_d * lower + l_k_d * upper)))
+
+hml_approx$ck_3[ind]
 
 
 

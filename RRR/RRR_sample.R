@@ -83,6 +83,8 @@ dim(u_samps)
 ## evaluate psi() function for each of the posterior samples (row-wise)
 u_df = preprocess(u_samps, d, param_list) # J x (d + 1) 
 
+
+u = u_df[1, 1:d] %>% unlist %>% unname
 lambda(u, param_list)
 
 
@@ -104,19 +106,55 @@ hml_approx$verbose_partition
 hml_approx$taylor_approx
 
 hml_approx$ck_2
-hml_approx$ck_3
 
-hml_approx$lambda[10,18]
+dim(hml_approx$lambda) # 6 partitions x 28 dim parameter
 
-log(-1 / hml_approx$lambda[10,18] * 
-    exp(- hml_approx$lambda[10,18] * hml_approx$partition$u18_ub[10]) - 
-    exp(- hml_approx$lambda[10,18] * hml_approx$partition$u18_lb[10]))
+ind = 20
+hml_approx$ck_3[ind]
 
 
+upper = hml_approx$partition$u20_ub[6]
+lower = hml_approx$partition$u20_lb[6]
 
-LIL_const[,k]  = hml_approx$const_vec
-LIL_taylor[,k] = hml_approx$taylor_vec
-LIL_hybrid[,k] = hml_approx$hybrid_vec
+l_k_d = hml_approx$lambda[6,ind]
+
+# log(-1 / hml_approx$lambda[6,ind] * 
+#     exp(- hml_approx$lambda[6,ind] * hml_approx$partition$u18_ub[6]) - 
+#     exp(- hml_approx$lambda[6,ind] * hml_approx$partition$u18_lb[6]))
+
+- l_k_d * upper + log(- 1 / l_k_d * (1 - exp(-l_k_d * lower + l_k_d * upper)))
+
+exp(-l_k_d * lower + l_k_d * upper) # overflowing
+
+exp(-l_k_d * lower) * exp(l_k_d * upper)
+
+-l_k_d * lower + l_k_d * upper 
+
+
+log(1 - exp(-l_k_d * lower + l_k_d * upper))
+
+
+library(brms)
+library(VGAM) # log1mexp(x)
+
+log1p(- exp(-l_k_d * lower + l_k_d * upper))
+
+# overflowing for exp(x), x > 700
+log1mexp(l_k_d * lower - l_k_d * upper)
+
+hml_approx$ck_3[ind]
+
+
+
+
+
+
+
+
+# 
+# LIL_const[,k]  = hml_approx$const_vec
+# LIL_taylor[,k] = hml_approx$taylor_vec
+# LIL_hybrid[,k] = hml_approx$hybrid_vec
 
 
 

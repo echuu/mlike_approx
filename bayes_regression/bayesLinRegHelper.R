@@ -103,7 +103,7 @@ lambda = function(u, prior) {
     
     return(dbeta)
         
-} # end of lambda() functino
+} # end of lambda() function
 
 
 

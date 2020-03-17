@@ -131,15 +131,21 @@ lambda = function(u, params) {
     lambda_Bt = t(A_post) %*% t(X) %*% Y - 
         t(A_post) %*% t(X) %*% X %*% A %*% Bt_post + del^2 * Bt_post
     
-    if (nrow(lambda_A)  != nrow(A_post)  | ncol(lambda_A)  != ncol(A_post) |
-        nrow(lambda_Bt) != nrow(Bt_post) | ncol(lambda_Bt) != ncol(lambda_Bt)) {
+    # check dimensions after computing the gradient
+    if (nrow(lambda_A)  != nrow(A_post)  | 
+        ncol(lambda_A)  != ncol(A_post)  |
+        nrow(lambda_Bt) != nrow(Bt_post) | 
+        ncol(lambda_Bt) != ncol(lambda_Bt)) {
+        
         warning("dimension mismatch in gradient calculation")
+        
     } 
     
     # vectorize the resulting derivatives, column-wise collapse of each matrix
     vec_lambda_A  = c(lambda_A)     # (p*r x 1) vector 
     vec_lambda_Bt = c(lambda_Bt)    # (r*q x 1) vector
     
+    # return vectorized version of the gradient
     return(1 / sig2 * c(vec_lambda_A, vec_lambda_Bt))
     
 } # end of lambda() function
