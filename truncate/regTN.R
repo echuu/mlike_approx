@@ -6,13 +6,13 @@ library(mvtnorm)
 
 LEN_PATH  = "C:/Users/ericc/mlike_approx"
 setwd(LEN_PATH)
-no
+
 source("partition/partition.R")
 source("extractPartition.R")
 source("hybrid_approx.R")
 source("truncate/regTN_helper.R")
 D = 2
-N = 500
+N = 200
 I_D = diag(1, D)
 
 
@@ -128,8 +128,32 @@ lil_0 + log(TruncatedNormal::pmvnorm(mu_beta, Q_beta_inv, lb = rep(0, D), ub = r
 set.seed(1)
 
 
+TruncatedNormal::dtmvnorm(c(0.8210398, 0.1810452), mu = rep(0, D),
+                 sigma = sigmasq / tau * diag(1, D) , lb = rep(0, D),
+                 ub = rep(Inf, D), log = F)
+
+prod(dnorm(c(0.8210398, 0.1810452), 0, sqrt(sigmasq / tau), log = F)) * 4
+
+
 # start_time <- Sys.time()
 u_df = preprocess(samples, D, prior)
+
+psi_fast = u_df$psi_u
+head(psi_fast)
+
+
+sum(psi_fast != psi_slow)
+psi_fast[psi_fast != psi_slow]
+which(psi_fast != psi_slow)
+
+samples[35,]
+
+psi_slow = u_df$psi_u
+head(psi_slow)
+
+
+
+
 # end_time <- Sys.time()
 # end_time - start_time
 

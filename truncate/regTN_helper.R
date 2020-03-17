@@ -27,9 +27,11 @@ psi = function(u, prior) {
     loglik = - 0.5 * N * log(2 * pi * sigmasq) - 
         1 / (2 * sigmasq) * sum((y - X %*% beta)^2)
     
-    logTN = TruncatedNormal::dtmvnorm(u, mu = rep(0, D),
-                     sigma = tau / sigmasq * diag(1, D) , lb = rep(0, D),
-                     ub = rep(Inf, D), log = T)
+    # logTN = TruncatedNormal::dtmvnorm(u, mu = rep(0, D),
+    #                  sigma = sigmasq / tau * diag(1, D) , lb = rep(0, D),
+    #                  ub = rep(Inf, D), log = T)
+    
+    logTN = sum(dnorm(u, 0, sqrt(sigmasq / tau), log = T) ) + D * log(2)
     
     psi_u = - loglik - logTN
     
