@@ -39,7 +39,6 @@ psi = function(u, prior) {
     # psi_u = -(sum(dnorm(y, X %*% beta, sqrt(sigmasq), log = T)) + 
     #               sum(dnorm(beta, 0, sqrt(sigmasq / tau), log = T)))
     
-    
     return(psi_u)
     
 } # end of psi() function ------------------------------------------------------
@@ -70,12 +69,18 @@ lambda = function(u, prior) {
     sigmasq = prior$sigmasq
     tau     = prior$tau
     
+    Q_beta = prior$Q_beta
+    b      = prior$b
+    
     beta = unname(unlist(u))
     # beta = u
     # all quantities below have been calculated before
     # TODO: optimize this part later, can save big-time on computation
-    dbeta = 1 / sigmasq * 
-        ((t(X) %*% X + tau * diag(D)) %*% beta - t(X) %*% y) 
+    # dbeta = 1 / sigmasq *
+    #     ((t(X) %*% X + tau * diag(D)) %*% beta - t(X) %*% y)
+    
+    dbeta = Q_beta %*% beta - b
+    
     
     return(dbeta)
     

@@ -42,7 +42,8 @@ mu_beta    =  Q_beta_inv %*% b
 
 
 # create prior, post objects to be passed into the hml algorithm 
-prior = list(y = y, X = X, sigmasq = sigmasq, tau = tau, N = N, D = D)
+prior = list(y = y, X = X, sigmasq = sigmasq, tau = tau, N = N, D = D,
+             Q_beta = Q_beta, b = b)
 post = list(Q_beta = Q_beta, Q_beta_inv = Q_beta_inv, mu_beta = mu_beta, b = b)
 
 
@@ -63,7 +64,7 @@ N_approx = 1           # number of estimates to compute per iteration b
 
 # samples = data.frame(rtmg(J * B,           # number of samples
 #                           M = Q_beta_inv,  # (D x D) precision matrix
-#                           r = c(b),        # linear coeff of log-density
+#                           r = R,           # linear coeff of log-density
 #                           initial,         # initial value of markov chain
 #                           f = ff,          #
 #                           g = gg))         # m-dim with constraints
@@ -72,6 +73,8 @@ N_approx = 1           # number of estimates to compute per iteration b
 # plot(samples)
 
 samples = data.frame(rtmvnorm(J * B, c(mu_beta), Q_beta_inv, rep(0, D), rep(Inf, D)))
+# samples = data.frame(rtmvnorm(J * B, R, Q_beta_inv, rep(0, D), rep(Inf, D)))
+
 plot(samples)
 
 ## TODO: be able to evaluate log-prior of each of the posterior samples
@@ -79,34 +82,34 @@ plot(samples)
 #                                      sigma = Q_beta_inv, lb = rep(0, D),
 #                                      ub = rep(Inf, D), log = T)
 
-dtmvnorm(unlist(unname(samples[5,])), mu = c(mu_beta),
-         sigma = Q_beta_inv, lb = rep(0, D),
-         ub = rep(Inf, D), log = T)
-
-dmvnorm(unlist(unname(samples[5,])), mean = c(mu_beta),
-        sigma = Q_beta_inv, log = T)
-
-
-## compute probability to compare to closed form
-
-TruncatedNormal::pmvnorm(c(mu_beta), Q_beta_inv, lb = rep(-Inf, D), ub = rep(Inf, D))[1]  
-TruncatedNormal::pmvnorm(c(mu_beta), Q_beta_inv, lb = rep(0, D), ub = rep(Inf, D))[1]  
-
-u = unlist(unname(samples[5,]))
-dtmvnorm(u, mu = rep(0, D),
-         sigma = tau / sigmasq * I_D , lb = rep(0, D),
-         ub = rep(Inf, D), log = T)
-
-dtmvnorm(u, mu = rep(0, D),
-         sigma = tau / sigmasq * I_D , lb = rep(0, D),
-         ub = rep(Inf, D))
+# dtmvnorm(unlist(unname(samples[5,])), mu = c(mu_beta),
+#          sigma = Q_beta_inv, lb = rep(0, D),
+#          ub = rep(Inf, D), log = T)
+# 
+# dmvnorm(unlist(unname(samples[5,])), mean = c(mu_beta),
+#         sigma = Q_beta_inv, log = T)
+# 
+# 
+# ## compute probability to compare to closed form
+# 
+# TruncatedNormal::pmvnorm(c(mu_beta), Q_beta_inv, lb = rep(-Inf, D), ub = rep(Inf, D))[1]  
+# TruncatedNormal::pmvnorm(c(mu_beta), Q_beta_inv, lb = rep(0, D), ub = rep(Inf, D))[1]  
+# 
+# u = unlist(unname(samples[5,]))
+# dtmvnorm(u, mu = rep(0, D),
+#          sigma = tau / sigmasq * I_D , lb = rep(0, D),
+#          ub = rep(Inf, D), log = T)
+# 
+# dtmvnorm(u, mu = rep(0, D),
+#          sigma = tau / sigmasq * I_D , lb = rep(0, D),
+#          ub = rep(Inf, D))
 
 (lil_0 = -0.5 * N * log(2 * pi) - 0.5 * (N + D) * log(sigmasq) + 
     0.5 * D * log(tau) - 0.5 * log_det(Q_beta) - 
     1 / (2 * sigmasq) * sum(y^2) + 0.5 * sum(b * mu_beta))
 
 
-lil_0 - log(TruncatedNormal::pmvnorm(rep(0, D), tau / sigmasq * I_D, lb = rep(0, D), ub = rep(Inf, D))[1]) 
+# lil_0 - log(TruncatedNormal::pmvnorm(rep(0, D), tau / sigmasq * I_D, lb = rep(0, D), ub = rep(Inf, D))[1]) 
 
 lil_0 + log(TruncatedNormal::pmvnorm(mu_beta, Q_beta_inv, lb = rep(0, D), ub = rep(Inf, D))[1]) 
 
@@ -159,7 +162,7 @@ head(psi_slow)
 
 # u_df %>% head
 
-hml_approx = hml(N_approx, D, u_df, 1000, prior)
+hml_approx = hml(N_approx, D, u_df, 100, prior)
 hml_approx$hybrid_vec
 
 
