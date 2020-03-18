@@ -10,8 +10,9 @@ source("partition/partition.R")
 source("extractPartition.R")
 source("hybrid_approx.R")
 source("truncate/regTN_helper.R")
+source("misc.R")
 
-D = 50
+D = 2
 N = 200
 I_D = diag(1, D)
 
@@ -42,6 +43,8 @@ N_vec     = floor(exp(N_vec_log)) %>% unique # sample size to generate data
 
 LIL_N = numeric(length(N_vec))      # store the LIL for each N
 LIL_N_k_hat = matrix(0, length(N_vec), K_sims) 
+
+i = 1; k = 1;
 
 for (i in 1:length(N_vec)) {
     
@@ -82,7 +85,7 @@ for (i in 1:length(N_vec)) {
         
         lil_0 = -0.5 * N * log(2 * pi) - 0.5 * (N + D) * log(sigmasq) +
             0.5 * D * log(tau) - 0.5 * log_det(Q_beta) -
-            1 / (2 * sigmasq) * sum(y^2) + 0.5 * sum(b * mu_beta)
+            1 / (2 * sigmasq) * sum(y^2) + 0.5 * sum(b * mu_beta) + D * log(2)
 
         LIL_N_k[k] = lil_0 +
             log(TruncatedNormal::pmvnorm(mu_beta, Q_beta_inv, lb = rep(0, D),
@@ -132,6 +135,21 @@ LIL_df = data.frame(LIL_N = lil_0, LIL_hat = lil_hyb, log_N = log(N_vec))
 
 LIL_df_long = melt(LIL_df, id.vars = "log_N")
 head(LIL_df_long)
+
+
+ggplot(LIL_df_long, aes(x = log_N, y = value, 
+                        color = as.factor(variable))) + geom_point(size = 1.3) + 
+    geom_smooth(method = lm, se = F, formula = formula1) +
+    labs(x = "log(n)", y = "log(Z)", 
+         title = "True (Red), Hybrid (Blue)") + 
+    stat_poly_eq(aes(label = paste(..eq.label.., sep = "~~~")), 
+                 label.x.npc = "right", label.y.npc = "top",
+                 eq.with.lhs = "logZ~`=`~",
+                 eq.x.rhs = "~logN",
+                 formula = formula1, parse = TRUE, size = 8) +
+    theme_bw(base_size = 16) + 
+    theme(legend.position = "none")
+
 # ------------------------------------------------------------------------------
 
 

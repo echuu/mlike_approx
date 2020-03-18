@@ -95,7 +95,22 @@ lambda(u, param_list)
 
 J = nrow(u_df) # number of MCMC samples to use in the approximation
 
+source("hybrid_approx_v1.R")                   # load main algorithm functions
 hml_approx = hml(1, d, u_df, J, param_list) 
+
+
+stable_ck3 = hml_approx$ck_3
+stable_ck3
+
+old_ck3 = hml_approx$ck_3
+old_ck3
+
+cbind(stable_ck3, old_ck3)
+
+
+
+
+## -----------------------------------------------------------------------------
 
 hml_approx$const_vec
 hml_approx$taylor_vec
@@ -109,40 +124,65 @@ hml_approx$ck_2
 
 dim(hml_approx$lambda) # 6 partitions x 28 dim parameter
 
-ind = 20
+hml_approx$lambda[6,]
+
+hml_approx$ck_3
+
+ind = 18
 hml_approx$ck_3[ind]
 
+upper = hml_approx$partition$u18_ub[6]
+lower = hml_approx$partition$u18_lb[6]
 
-upper = hml_approx$partition$u20_ub[6]
-lower = hml_approx$partition$u20_lb[6]
-
-l_k_d = hml_approx$lambda[6,ind]
+(l_k_d = hml_approx$lambda[6,ind])
 
 # log(-1 / hml_approx$lambda[6,ind] * 
 #     exp(- hml_approx$lambda[6,ind] * hml_approx$partition$u18_ub[6]) - 
 #     exp(- hml_approx$lambda[6,ind] * hml_approx$partition$u18_lb[6]))
 
-- l_k_d * upper + log(- 1 / l_k_d * (1 - exp(-l_k_d * lower + l_k_d * upper)))
 
-exp(-l_k_d * lower + l_k_d * upper) # overflowing
-
-exp(-l_k_d * lower) * exp(l_k_d * upper)
-
--l_k_d * lower + l_k_d * upper 
-
-
-log(1 - exp(-l_k_d * lower + l_k_d * upper))
-
-
-library(brms)
 library(VGAM) # log1mexp(x)
 
-log1p(- exp(-l_k_d * lower + l_k_d * upper))
-
-# overflowing for exp(x), x > 700
-log1mexp(l_k_d * lower - l_k_d * upper)
 
 hml_approx$ck_3[ind]
+
+- l_k_d * upper + log(- 1 / l_k_d * (1 - exp(-l_k_d * lower + l_k_d * upper)))
+
+# for lambda > 0
+- l_k_d * lower - log(l_k_d) + log1mexp(l_k_d * upper - l_k_d * lower)
+
+# for lambda < 0
+-log(-l_k_d) - l_k_d * upper + log1mexp(l_k_d * lower - l_k_d * upper)
+
+
+
+
+
+
+
+
+
+# exp(-l_k_d * lower + l_k_d * upper) # overflowing
+# exp(-l_k_d * upper + l_k_d * lower)
+# 
+# 
+# exp(-l_k_d * lower) * exp(l_k_d * upper)
+# 
+# -l_k_d * lower + l_k_d * upper 
+# 
+# 
+# log(1 - exp(-l_k_d * lower + l_k_d * upper))
+# 
+# 
+# library(brms)
+# library(VGAM) # log1mexp(x)
+# 
+# log1p(- exp(-l_k_d * lower + l_k_d * upper))
+# 
+# # overflowing for exp(x), x > 700
+# log1mexp(l_k_d * upper - l_k_d * lower)
+# 
+# hml_approx$ck_3[ind]
 
 
 
@@ -157,9 +197,15 @@ hml_approx$ck_3[ind]
 # LIL_hybrid[,k] = hml_approx$hybrid_vec
 
 
-
-
-
+# library(microbenchmark)
+# microbenchmark("manual" = { a = - 0.5 * N * log(2 * pi * sigmasq) - 
+#     1 / (2 * sigmasq) * sum((y - X %*% beta)^2) },
+#                "dnorm" = { b = sum(dnorm(y, X %*% mu_beta, sqrt(sigmasq), log = T)) })
+# 
+# 
+# 
+# - 0.5 * N * log(2 * pi * sigmasq) - 
+#     1 / (2 * sigmasq) * sum((y - X %*% beta)^2)
 
 
 

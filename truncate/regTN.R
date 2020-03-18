@@ -106,12 +106,14 @@ plot(samples)
 
 (lil_0 = -0.5 * N * log(2 * pi) - 0.5 * (N + D) * log(sigmasq) + 
     0.5 * D * log(tau) - 0.5 * log_det(Q_beta) - 
-    1 / (2 * sigmasq) * sum(y^2) + 0.5 * sum(b * mu_beta))
+    1 / (2 * sigmasq) * sum(y^2) + 0.5 * sum(b * mu_beta)) 
 
 
 # lil_0 - log(TruncatedNormal::pmvnorm(rep(0, D), tau / sigmasq * I_D, lb = rep(0, D), ub = rep(Inf, D))[1]) 
 
-lil_0 + log(TruncatedNormal::pmvnorm(mu_beta, Q_beta_inv, lb = rep(0, D), ub = rep(Inf, D))[1]) 
+lil_0 + D * log(2) + 
+    log(TruncatedNormal::pmvnorm(mu_beta, Q_beta_inv, 
+                                 lb = rep(0, D), ub = rep(Inf, D))[1]) 
 
 
 # psi(u, prior)
@@ -131,11 +133,11 @@ lil_0 + log(TruncatedNormal::pmvnorm(mu_beta, Q_beta_inv, lb = rep(0, D), ub = r
 set.seed(1)
 
 
-TruncatedNormal::dtmvnorm(c(0.8210398, 0.1810452), mu = rep(0, D),
-                 sigma = sigmasq / tau * diag(1, D) , lb = rep(0, D),
-                 ub = rep(Inf, D), log = F)
-
-prod(dnorm(c(0.8210398, 0.1810452), 0, sqrt(sigmasq / tau), log = F)) * 4
+# TruncatedNormal::dtmvnorm(c(0.8210398, 0.1810452), mu = rep(0, D),
+#                  sigma = sigmasq / tau * diag(1, D) , lb = rep(0, D),
+#                  ub = rep(Inf, D), log = F)
+# 
+# prod(dnorm(c(0.8210398, 0.1810452), 0, sqrt(sigmasq / tau), log = F)) * 4
 
 
 # start_time <- Sys.time()
@@ -161,12 +163,24 @@ head(psi_slow)
 # end_time - start_time
 
 # u_df %>% head
+source("hybrid_approx_v1.R")                   # load main algorithm functions
+source("hybrid_approx.R")                   # load main algorithm functions
 
 hml_approx = hml(N_approx, D, u_df, 100, prior)
+
+stable_ck3 = hml_approx$ck_3
+
+old_ck3 = hml_approx$ck_3
+
+cbind(stable_ck3, old_ck3)
+
+
+
 hml_approx$hybrid_vec
+hml_approx$const_vec
 
-
-
+hml_approx$n_const
+hml_approx$n_taylor
 
 
 

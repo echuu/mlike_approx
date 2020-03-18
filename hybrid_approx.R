@@ -427,8 +427,7 @@ hml = function(N_approx, D, u_df_full, J, prior) {
                 ck_3              = ck_3,
                 lambda_k          = lambda_k))
     
-} # end of approx_lil() function
-
+} # end of hml() function
 
 
 
