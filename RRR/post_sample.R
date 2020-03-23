@@ -1,6 +1,10 @@
 
-library(mvtnorm)
 
+LEN_PATH  = "C:/Users/ericc/mlike_approx"
+setwd(LEN_PATH)
+
+library(mvtnorm)
+library(dplyr)
 ## likelihood parameters
 
 # ------------------------------------------------------------------------------
@@ -20,6 +24,7 @@ del = 10^(-2)     # prior parameter -- one of these is squared version ?
 
 # identity matrices
 I_q = diag(1, q)
+I_r = diag(1, r)
 
 
 ## generate and FIX parameters A, B
@@ -36,6 +41,9 @@ set.seed(1)
 A_0 = matrix(rnorm(p * r, 0, 1), p, r) # (p x r) matrix
 B_0 = matrix(rnorm(q * r, 0, 1), q, r) # (q x r) matrix
 
+A_0 = read.csv("RRR/A.csv", header = FALSE) %>% as.matrix # (p x r) matrix
+B_0 = read.csv("RRR/B.csv", header = FALSE) %>% as.matrix # (q x r) matrix
+
 # ------------------------------------------------------------------------------
 
 ## TODO: read in values of X, eps from MATLAB 
@@ -43,11 +51,14 @@ B_0 = matrix(rnorm(q * r, 0, 1), q, r) # (q x r) matrix
 
 ## generate covariates -- (n x p) matrix, each row ~ MVN(0, I_p)
 X = rmvnorm(n, mean = rep(0, p), diag(1, p))
+X = read.csv("RRR/X.csv", header = FALSE) %>% as.matrix # (n x p)
+
 
 ## generate data
-eps = matrix(rnorm(n * q, 0, sqrt(sig2)), n, q)     # (n x q) matrix
-Y   = X %*% A_0 %*% t(B_0) + eps                      # (n x q) response matrix
-C   = A_0 %*% t(B_0)                                # (p x q)
+eps = matrix(rnorm(n * q, 0, sqrt(sig2)), n, q)              # (n x q) error
+eps = read.csv("RRR/eps.csv", header = FALSE) %>% as.matrix  # (n x q) error
+Y   = X %*% A_0 %*% t(B_0) + eps                             # (n x q) response 
+C   = A_0 %*% t(B_0)                                         # (p x q)
 
 XtX = t(X) %*% X
 Xty = t(X) %*% Y
@@ -69,18 +80,20 @@ Xty = t(X) %*% Y
 set.seed(1)
 nMCMC = 1500
 B = matrix(rnorm(q * r, 0, 1), q, r) # (q x r) matrix for starting point of MCMC
-A = matrix(rnorm(p * r, 0, 1), p, r) # (p x r) matrix for starting point of MCMC
-
+B = read.csv("RRR/B_init.csv", header = FALSE) %>% as.matrix 
+A = A_0 # (p x r) matrix for starting point of MCMC
 
 u_df = matrix(0, nMCMC, D)
 for (g in 1:nMCMC) {
     
     # sample from the conditional distribution: B' | - 
-    Btvarpart = sig2 * solve(t(A) %*% XtX %*% A + del^2)
+    Btvarpart = sig2 * solve(t(A) %*% XtX %*% A + del^2 * I_r)
     Btvar = I_q %x% Btvarpart
     Btmu = Btvarpart %*% t(A) %*% Xty / sig2
     
     Bt_row = c(rmvnorm(1, c(Btmu), Btvar)) # (1 x rq) row vector
+    Bt = matrix(Bt_row, r, q)              # (r x q) matrix
+    B = t(Bt)
     
     Mt = solve(t(B) %*% B) %*% (t(B) %*% t(Y) %*% X) %*% solve(XtX)
     M = t(Mt)
@@ -88,11 +101,12 @@ for (g in 1:nMCMC) {
     BtB = t(B) %*% B
     
     # sample from the conditional distribution A | -
-    Avarpart = 1 / sig2 * (BtB %x% XtX)
+    Avarpart = (BtB %x% XtX / sig2)
     Avar = solve(del^2 / sig2 * diag(1, nrow(Avarpart)) + Avarpart)
     Amu = Avar %*% Avarpart %*% c(M)
     
     A_row = c(rmvnorm(1, Amu, Avar))
+    A = matrix(A_row, p, r) # (p x r) matrix
     
     u_df[g,] = c(A_row, Bt_row)
     
@@ -104,6 +118,10 @@ for (g in 1:nMCMC) {
 
 # recover matrix Bt
 (Bt_g = matrix(u_df[g,(p * r + 1):D], r, q))
+
+
+head(u_df)
+tail(u_df)
 
 
 # ------------------------------------------------------------------------------

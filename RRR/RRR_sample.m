@@ -46,6 +46,8 @@ del=10^(-2);
 nMCMC = 1500;
 B = normrnd(0, 1, q, r);
 
+csvwrite('B_init.csv', B);
+
 D = r * p + q * r;      % dimension of each MC sample, u
 u_df = zeros(nMCMC, D); % store each MCMC sample, u,  row-wise in u_df
 
@@ -88,6 +90,8 @@ csvwrite('u_df_rrr.csv', u_df)
 A_g  = reshape(u_df(g,1:p*r), p, r);   % recover the matrix A
 Bt_g = reshape(u_df(g,p*r+1:D), r, q); % recover the matrix B^T =: B
 
+u_df((g-6):g,:)
+u_df(1:6,:)
 % writematrix(u_df, 'u_df_rrr.csv')
 
 

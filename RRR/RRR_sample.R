@@ -84,9 +84,14 @@ dim(u_samps)
 u_df = preprocess(u_samps, d, param_list) # J x (d + 1) 
 
 source("hybrid_approx_v1.R")               # load main algorithm functions
+source("RRR/RRR_helper.R")              # load psi(), lambda(), preprocess()
+u_df = preprocess(data.frame(u_df), d, param_list) # J x (d + 1) 
+
 # source("hybrid_approx.R")               # load main algorithm functions
 
-hml_approx = hml(1, d, u_df, J, param_list) 
+hml_approx = hml(1, d, u_df, J, param_list)
+hml_approx$verbose_partition %>% dim
+hml_approx$hybrid_vec
 hml_approx$ck_3
 
 ## -----------------------------------------------------------------------------
