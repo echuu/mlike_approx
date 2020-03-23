@@ -83,7 +83,13 @@ dim(u_samps)
 ## evaluate psi() function for each of the posterior samples (row-wise)
 u_df = preprocess(u_samps, d, param_list) # J x (d + 1) 
 
+source("hybrid_approx_v1.R")               # load main algorithm functions
+# source("hybrid_approx.R")               # load main algorithm functions
 
+hml_approx = hml(1, d, u_df, J, param_list) 
+hml_approx$ck_3
+
+## -----------------------------------------------------------------------------
 u = u_df[1, 1:d] %>% unlist %>% unname
 lambda(u, param_list)
 
@@ -128,11 +134,11 @@ hml_approx$lambda[6,]
 
 hml_approx$ck_3
 
-ind = 18
+ind = 20
 hml_approx$ck_3[ind]
 
-upper = hml_approx$partition$u18_ub[6]
-lower = hml_approx$partition$u18_lb[6]
+upper = hml_approx$partition$u20_ub[6]
+lower = hml_approx$partition$u20_lb[6]
 
 (l_k_d = hml_approx$lambda[6,ind])
 

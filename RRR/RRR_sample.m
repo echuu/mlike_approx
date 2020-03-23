@@ -55,6 +55,8 @@ for g = 1:nMCMC
     Btvarpart = sig2 * inv(A' * (X' * X) * A + del^2);
     Btvar = kron(eye(q), Btvarpart);
     Btmu = Btvarpart * A' * X' * Y ./ sig2; 
+    
+    
     Bt_row = mvnrnd(reshape(Btmu, 1, []), Btvar, 1);  % (1 x rq) row vector
     Bt = reshape(Bt_row, r, q);                       % (r x q)  matrix
     B = Bt';

@@ -8,11 +8,11 @@ setwd(LEN_PATH)
 
 source("partition/partition.R")
 source("extractPartition.R")
-source("hybrid_approx.R")
+source("hybrid_approx_v1.R")
 source("truncate/regTN_helper.R")
 source("misc.R")
 
-D = 2
+D = 100
 N = 200
 I_D = diag(1, D)
 
@@ -147,6 +147,7 @@ ggplot(LIL_df_long, aes(x = log_N, y = value,
                  eq.with.lhs = "logZ~`=`~",
                  eq.x.rhs = "~logN",
                  formula = formula1, parse = TRUE, size = 8) +
+    scale_y_continuous(limits = c(-550, -200)) + 
     theme_bw(base_size = 16) + 
     theme(legend.position = "none")
 
