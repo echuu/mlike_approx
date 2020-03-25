@@ -41,8 +41,8 @@ set.seed(1)
 A_0 = matrix(rnorm(p * r, 0, 1), p, r) # (p x r) matrix
 B_0 = matrix(rnorm(q * r, 0, 1), q, r) # (q x r) matrix
 
-A_0 = read.csv("RRR/A.csv", header = FALSE) %>% as.matrix # (p x r) matrix
-B_0 = read.csv("RRR/B.csv", header = FALSE) %>% as.matrix # (q x r) matrix
+# A_0 = read.csv("RRR/A.csv", header = FALSE) %>% as.matrix # (p x r) matrix
+# B_0 = read.csv("RRR/B.csv", header = FALSE) %>% as.matrix # (q x r) matrix
 
 # ------------------------------------------------------------------------------
 
@@ -51,12 +51,12 @@ B_0 = read.csv("RRR/B.csv", header = FALSE) %>% as.matrix # (q x r) matrix
 
 ## generate covariates -- (n x p) matrix, each row ~ MVN(0, I_p)
 X = rmvnorm(n, mean = rep(0, p), diag(1, p))
-X = read.csv("RRR/X.csv", header = FALSE) %>% as.matrix # (n x p)
+# X = read.csv("RRR/X.csv", header = FALSE) %>% as.matrix # (n x p)
 
 
 ## generate data
 eps = matrix(rnorm(n * q, 0, sqrt(sig2)), n, q)              # (n x q) error
-eps = read.csv("RRR/eps.csv", header = FALSE) %>% as.matrix  # (n x q) error
+# eps = read.csv("RRR/eps.csv", header = FALSE) %>% as.matrix  # (n x q) error
 Y   = X %*% A_0 %*% t(B_0) + eps                             # (n x q) response 
 C   = A_0 %*% t(B_0)                                         # (p x q)
 
@@ -77,21 +77,25 @@ Xty = t(X) %*% Y
 
 
 ## gibbs sampling to obtain samples from (B^T, A) | y, X -----------------------
-set.seed(1)
+# set.seed(1)
 nMCMC = 1500
 B = matrix(rnorm(q * r, 0, 1), q, r) # (q x r) matrix for starting point of MCMC
-B = read.csv("RRR/B_init.csv", header = FALSE) %>% as.matrix 
+# B = read.csv("RRR/B_init.csv", header = FALSE) %>% as.matrix 
 A = A_0 # (p x r) matrix for starting point of MCMC
 
 u_df = matrix(0, nMCMC, D)
 for (g in 1:nMCMC) {
     
-    # sample from the conditional distribution: B' | - 
+    ## (1)  sample from the conditional distribution: B' | - 
     Btvarpart = sig2 * solve(t(A) %*% XtX %*% A + del^2 * I_r)
     Btvar = I_q %x% Btvarpart
     Btmu = Btvarpart %*% t(A) %*% Xty / sig2
     
     Bt_row = c(rmvnorm(1, c(Btmu), Btvar)) # (1 x rq) row vector
+    
+    ## even though Bt is not stored in the posterior sample df in matrix form,
+    ## we still need Bt in matrix form to compute the conditional distribution
+    ## of A | - in the next part of the gibbs sampler
     Bt = matrix(Bt_row, r, q)              # (r x q) matrix
     B = t(Bt)
     
@@ -100,17 +104,23 @@ for (g in 1:nMCMC) {
     
     BtB = t(B) %*% B
     
-    # sample from the conditional distribution A | -
+    # --------------------------------------------------------------------------
+    
+    ## (2) sample from the conditional distribution A | -
     Avarpart = (BtB %x% XtX / sig2)
     Avar = solve(del^2 / sig2 * diag(1, nrow(Avarpart)) + Avarpart)
     Amu = Avar %*% Avarpart %*% c(M)
     
     A_row = c(rmvnorm(1, Amu, Avar))
+    
+    ## even though A is not stored in the posterior sample df in matrix form,
+    ## we still need A in matrix form to compute the conditional distribution
+    ## of B | - in the next iteration
     A = matrix(A_row, p, r) # (p x r) matrix
     
     u_df[g,] = c(A_row, Bt_row)
     
-}
+} # end of Gibbs sampler
 
 
 # recover matrix A

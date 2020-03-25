@@ -33,7 +33,7 @@ preprocess = function(post_samps, D, params) {
 
 
 ### loglik() -------------------------------------------------------------------
-## evalute the loglikelihood of the following regression model:
+## evaluate the loglikelihood of the following regression model:
 ##     Y ~ MN (XAB^T, I_n, sig2 * I_q)
 ##     vec(y) ~ N(vec(XAB^T), sig2 kron(I_q, I_n))
 ## 
@@ -44,6 +44,8 @@ rrr_loglik = function(u, params) {
     
     n = params$n
     q = params$q
+    
+    d = params$d
     
     Y = params$Y
     X = params$X
@@ -63,6 +65,31 @@ rrr_loglik = function(u, params) {
     return(loglik)
 } # end rrr_loglik function
 
+
+
+## rrr_logprior() --------------------------------------------------------------
+## 
+##
+rrr_logprior = function(u, params) {
+    
+    d = params$d
+    
+    sig2 = params$sig2
+    del  = params$del
+    
+    A_post  = matrix(u[1:(p * r)], p, r)
+    Bt_post = matrix(u[(p * r + 1):d], r, q)
+    
+    logprior = - d / 2 * log(2 * pi * sig2) + d / 2 * log(del^2) -
+        del^2 / (2 * sig2) * 
+        (norm(Bt_post, type = 'F')^2 + norm(A_post, type = 'F')^2)
+    
+    
+    return(logprior)
+    
+} # end rrr_logprior() function ------------------------------------------------
+
+
 ### lambda() -- (vectorized) gradient calculation ------------------------------
 ## input : 
 ## u : (d x 1) vector, d = r * p + r * q
@@ -77,6 +104,44 @@ psi = function(u, params) {
     p = params$p # num rows of A
     r = params$r # num cols of A, num rows of B^T
     q = params$q # num cols of B^T
+    d = params$d
+    
+    sig2 = params$sig2
+    del  = params$del
+    
+    Y = params$Y
+    X = params$X
+    
+    # extract and reshape u to get the matrices: A, B^T
+    # A_post  = matrix(u[1:(p * r)], p, r)
+    # Bt_post = matrix(u[(p * r + 1):d], r, q)
+    
+    # const_term = - 0.5 * n * q * log(2 * pi * sig2)
+    # exp_term   = -1/(2 * sig2) * 
+    #     norm(Y - X %*% A_post %*% Bt_post, type = 'F')^2 + 
+    #     del^2 / (2 * sig2) * 
+    #     (norm(Bt_post, type = 'F')^2 + norm(A_post, type = 'F')^2)
+    
+    loglik = rrr_loglik(u, params)
+    logprior = rrr_logprior(u, params)
+    
+    
+    return(-loglik - logprior)
+    
+    # return(const_term + exp_term)
+    
+} # end of psi() function
+
+
+psi_old = function(u, params) {
+    
+    # note that the norm(,type = 'F') runs 10x faster than computing the trace
+    
+    n = params$n # num of rows in X, Y
+    p = params$p # num rows of A
+    r = params$r # num cols of A, num rows of B^T
+    q = params$q # num cols of B^T
+    d = params$d
     
     sig2 = params$sig2
     del  = params$del
@@ -112,6 +177,7 @@ lambda = function(u, params) {
     p = params$p # num rows of A
     r = params$r # num cols of A, num rows of B^T
     q = params$q # num cols of B^T
+    d = params$d
     
     sig2 = params$sig2
     del  = params$del
@@ -129,7 +195,7 @@ lambda = function(u, params) {
         t(X) %*% X %*% A_post %*% Bt_post %*% B_post + del^2 * A_post
     
     lambda_Bt = t(A_post) %*% t(X) %*% Y - 
-        t(A_post) %*% t(X) %*% X %*% A %*% Bt_post + del^2 * Bt_post
+        t(A_post) %*% t(X) %*% X %*% A_post %*% Bt_post + del^2 * Bt_post
     
     # check dimensions after computing the gradient
     if (nrow(lambda_A)  != nrow(A_post)  | 

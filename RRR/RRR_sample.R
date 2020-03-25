@@ -92,6 +92,7 @@ u_df = preprocess(data.frame(u_df), d, param_list) # J x (d + 1)
 hml_approx = hml(1, d, u_df, J, param_list)
 hml_approx$verbose_partition %>% dim
 hml_approx$hybrid_vec
+hml_approx$taylor_vec
 hml_approx$ck_3
 
 ## -----------------------------------------------------------------------------

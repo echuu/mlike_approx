@@ -44,7 +44,7 @@ N_vec     = floor(exp(N_vec_log)) %>% unique # sample size to generate data
 LIL_N = numeric(length(N_vec))      # store the LIL for each N
 LIL_N_k_hat = matrix(0, length(N_vec), K_sims) 
 
-i = 1; k = 1;
+i = 20; k = 1;
 
 for (i in 1:length(N_vec)) {
     
