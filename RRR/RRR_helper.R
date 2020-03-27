@@ -32,6 +32,30 @@ preprocess = function(post_samps, D, params) {
 
 
 
+### loglik_true() --------------------------------------------------------------
+## evaluate the loglikelihood of the following regression model:
+##     Y ~ MN (XAB^T, I_n, sig2 * I_q)
+##     vec(y) ~ N(vec(XAB^T), sig2 kron(I_q, I_n))
+## 
+loglik_true = function(A_0, B_0, params) {
+    
+    n = params$n
+    q = params$q
+    
+    Y = params$Y
+    X = params$X
+    
+    sig2 = params$sig2
+    
+    loglik = (-n * q / 2) * log(2 * pi * sig2) -
+        1 / (2 * sig2) * norm(Y - X %*% A_0 %*% t(B_0), type = 'F')^2
+    
+    return(loglik)
+    
+} # end loglik_true function ---------------------------------------------------
+
+
+
 ### loglik() -------------------------------------------------------------------
 ## evaluate the loglikelihood of the following regression model:
 ##     Y ~ MN (XAB^T, I_n, sig2 * I_q)
@@ -43,7 +67,7 @@ rrr_loglik = function(u, params) {
     q = params$q
     
     n = params$n
-    q = params$q
+    r = params$r
     
     d = params$d
     
@@ -56,14 +80,11 @@ rrr_loglik = function(u, params) {
     A_post  = matrix(u[1:(p * r)], p, r)
     Bt_post = matrix(u[(p * r + 1):d], r, q)
     
-    # print(dim(X))
-    # print(dim(A_post))
-    
     loglik = (-n * q / 2) * log(2 * pi * sig2) -
         1 / (2 * sig2) * norm(Y - X %*% A_post %*% Bt_post, type = 'F')^2
     
     return(loglik)
-} # end rrr_loglik function
+} # end rrr_loglik function ----------------------------------------------------
 
 
 
@@ -185,27 +206,30 @@ lambda = function(u, params) {
     Y = params$Y
     X = params$X
     
+    XtX = params$XtX
+    Xty = params$Xty
+    
     
     A_post  = matrix(u[1:(p * r)], p, r)
     Bt_post = matrix(u[(p * r + 1):d], r, q)
     B_post  = t(Bt_post)
     
     
-    lambda_A  = t(X) %*% Y %*% B_post - 
-        t(X) %*% X %*% A_post %*% Bt_post %*% B_post + del^2 * A_post
+    lambda_A  = Xty %*% B_post - 
+        XtX %*% A_post %*% Bt_post %*% B_post - del^2 * A_post
     
-    lambda_Bt = t(A_post) %*% t(X) %*% Y - 
-        t(A_post) %*% t(X) %*% X %*% A_post %*% Bt_post + del^2 * Bt_post
+    lambda_Bt = t(A_post) %*% Xty - 
+        t(A_post) %*% XtX %*% A_post %*% Bt_post - del^2 * Bt_post
     
     # check dimensions after computing the gradient
-    if (nrow(lambda_A)  != nrow(A_post)  | 
-        ncol(lambda_A)  != ncol(A_post)  |
-        nrow(lambda_Bt) != nrow(Bt_post) | 
-        ncol(lambda_Bt) != ncol(lambda_Bt)) {
-        
-        warning("dimension mismatch in gradient calculation")
-        
-    } 
+    # if (nrow(lambda_A)  != nrow(A_post)  | 
+    #     ncol(lambda_A)  != ncol(A_post)  |
+    #     nrow(lambda_Bt) != nrow(Bt_post) | 
+    #     ncol(lambda_Bt) != ncol(lambda_Bt)) {
+    #     
+    #     warning("dimension mismatch in gradient calculation")
+    #     
+    # } 
     
     # vectorize the resulting derivatives, column-wise collapse of each matrix
     vec_lambda_A  = c(lambda_A)     # (p*r x 1) vector 

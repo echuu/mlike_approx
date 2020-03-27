@@ -190,6 +190,8 @@ hml = function(N_approx, D, u_df_full, J, prior) {
         # organize all data into single data frame --> ready for approximation
         param_out = u_star(u_rpart, u_df, u_partition, D)
         
+        # print(param_out)
+        
         n_partitions = nrow(u_partition)     # number of partitions 
         # c_k        = numeric(n_partitions) # constant term for k-th partition
         # zhat       = numeric(n_partitions) # integral over k-th partition
@@ -235,6 +237,8 @@ hml = function(N_approx, D, u_df_full, J, prior) {
         
         # (4) compute closed form integral over each partition
         for (k in 1:n_partitions) {
+            
+            # print(k)
             
             # extract "representative point" of the k-th partition
             u = param_out[k, star_ind] %>% unlist %>% unname
@@ -288,6 +292,12 @@ hml = function(N_approx, D, u_df_full, J, prior) {
                 # ck_3[d] = - l_k[d] * upper + 
                 #     log(- 1 / l_k[d] * 
                 #             (1 - exp(-l_k[d] * lower + l_k[d] * upper)))
+                
+                # print(l_k[d])
+                # print(lower)
+                # print(upper)
+                
+                # print(d)
                 
                 ck_3[d] = log_int_rect(l_k[d], lower, upper)
                 
