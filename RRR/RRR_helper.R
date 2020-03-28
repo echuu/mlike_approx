@@ -236,7 +236,7 @@ lambda = function(u, params) {
     vec_lambda_Bt = c(lambda_Bt)    # (r*q x 1) vector
     
     # return vectorized version of the gradient
-    return(1 / sig2 * c(vec_lambda_A, vec_lambda_Bt))
+    return(- 1 / sig2 * c(vec_lambda_A, vec_lambda_Bt))
     
 } # end of lambda() function
 

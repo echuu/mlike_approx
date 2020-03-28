@@ -71,6 +71,7 @@ for (i in 1:length(N_vec)) {
         
         param_list = list(p = p, q = q, r = r, n = N, d = D,  # dimensions vars
                           Y = gibbs_obj$Y, X = gibbs_obj$X,   # response, design
+                          XtX = gibbs_obj$XtX, Xty = gibbs_obj$Xty,
                           sig2 = sig2, del = del)             # prior params
         
         # compute log-likelihood evaluated at max
