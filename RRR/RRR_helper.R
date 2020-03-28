@@ -186,6 +186,8 @@ psi_old = function(u, params) {
 
 
 
+
+
 ### lambda() -- (vectorized) gradient calculation ------------------------------
 ## input : 
 ## u : (d x 1) vector, d = r * p + r * q

@@ -11,32 +11,34 @@ pkg load statistics
 
 % Likelihood parameters
 
-p = 8;           % number of columns in X
-q = 6;           % number of columns in Y
+p = 2;           % number of columns in X
+q = 3;           % number of columns in Y
 r = 2;           % number of columns in B and A
-n = 100;         % number of rows in X and Y
+% n = 100;         % number of rows in X and Y
+% n = p;
 sig2 = 10^(-2);  % fixed for now.
 
 % Generate covariates
 sigX = eye(p);
 
 X = mvnrnd(zeros(1, p), sigX, n);
+X = eye(p);
 
-csvwrite('X.csv', X)
+% csvwrite('X.csv', X)
 
 % Generate and fix parameters A & B
 A = normrnd(0, 1, p, r);
 B = normrnd(0, 1, q, r); 
 
-csvwrite('A.csv', A);
-csvwrite('B.csv', B);
+% csvwrite('A.csv', A);
+% csvwrite('B.csv', B);
 
 % Generate data
 eps = normrnd(0, sqrt(sig2), n, q);
 Y = X * A * B' + eps;
-C = A * B'
+C = A * B';
 
-csvwrite('eps.csv', eps)
+% csvwrite('eps.csv', eps)
 
 % Prior parameters
 del=10^(-2);
@@ -46,7 +48,7 @@ del=10^(-2);
 nMCMC = 1500;
 B = normrnd(0, 1, q, r);
 
-csvwrite('B_init.csv', B);
+% csvwrite('B_init.csv', B);
 
 D = r * p + q * r;      % dimension of each MC sample, u
 u_df = zeros(nMCMC, D); % store each MCMC sample, u,  row-wise in u_df
@@ -85,13 +87,19 @@ for g = 1:nMCMC
 
 end
 
-csvwrite('u_df_rrr.csv', u_df)
+% csvwrite('u_df_rrr.csv', u_df)
 
 A_g  = reshape(u_df(g,1:p*r), p, r);   % recover the matrix A
 Bt_g = reshape(u_df(g,p*r+1:D), r, q); % recover the matrix B^T =: B
 
-u_df((g-6):g,:)
-u_df(1:6,:)
+
+C
+
+A * B'
+
+% u_df((g-6):g,:)
+% u_df(1:6,:)
+
 % writematrix(u_df, 'u_df_rrr.csv')
 
 

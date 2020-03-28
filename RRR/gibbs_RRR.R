@@ -21,9 +21,7 @@ sampleRRR = function(n_samps, n_burn, A_0, B_0, p, q, r_0, r, D, N, sig2, del,
         X = rmvnorm(N, mean = rep(0, p), diag(1, p))      # (n x p) response
     }
     
-    Y   = X %*% A_0 %*% t(B_0) + eps                  # (n x q) response 
-    # C   = A_0 %*% t(B_0)                            # (p x q)
-    
+    Y   = X %*% A_0 %*% t(B_0) + eps # (n x q) response 
     XtX = t(X) %*% X
     Xty = t(X) %*% Y
     
@@ -34,6 +32,7 @@ sampleRRR = function(n_samps, n_burn, A_0, B_0, p, q, r_0, r, D, N, sig2, del,
     
     n_iters = n_samps + n_burn
     u_samps = matrix(0, n_iters, D)
+    c_samps = matrix(0, n_iters, p * q)
     
     for (g in 1:n_iters) {
         
@@ -69,7 +68,10 @@ sampleRRR = function(n_samps, n_burn, A_0, B_0, p, q, r_0, r, D, N, sig2, del,
         ## distribution of B | - in the next iteration
         A = matrix(A_row, p, r) # (p x r) matrix
         
+        C_mat = A %*% Bt
+        
         u_samps[g,] = c(A_row, Bt_row) 
+        c_samps[g,] = c(C_mat)
         
     } # end of Gibbs sampler
     
@@ -77,11 +79,12 @@ sampleRRR = function(n_samps, n_burn, A_0, B_0, p, q, r_0, r, D, N, sig2, del,
     
     # discard the first n_burn samples
     u_samps = data.frame(u_samps[-c(1:n_burn),]) 
+    c_samps = data.frame(c_samps[-c(1:n_burn),]) 
     # u_samps = data.frame(u_samps)
     
     
     return(list(Y = Y, X = X, XtX = XtX, Xty = Xty,
-                gibbs_mean = c(Amu, Bt), u_samps = u_samps))
+                gibbs_mean = c(Amu, Bt), u_samps = u_samps, c_samps = c_samps))
     
 } # end of sampleRRR() function ------------------------------------------------
 

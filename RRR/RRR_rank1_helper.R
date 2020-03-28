@@ -2,6 +2,26 @@
 
 
 
+preprocess = function(post_samps, D, params) {
+    
+    psi_u = apply(post_samps, 1, psi, params = params) %>% unname() # (J x 1)
+    
+    # (1.2) name columns so that values can be extracted by partition.R
+    u_df_names = character(D + 1)
+    for (d in 1:D) {
+        u_df_names[d] = paste("u", d, sep = '')
+    }
+    u_df_names[D + 1] = "psi_u"
+    
+    # populate u_df
+    u_df = cbind(post_samps, psi_u) # J x (D + 1)
+    names(u_df) = u_df_names
+    
+    
+    return(u_df)
+    
+} # end of preprocess() function
+
 
 
 loglike_true = function(a_0, b_0, params) {
@@ -92,8 +112,8 @@ lambda = function(u, params) {
     
     
 
-    lambda_a = btb * a - Y %*% b + del^2 * a  # (p x 1)
-    lambda_b = ata * b - Y %*% a + del^2 * b  # (q x 1)
+    lambda_a = btb * a - Y %*% b + del^2 * a     # (p x 1)
+    lambda_b = ata * b - t(Y) %*% a + del^2 * b  # (q x 1)
     
     
     # return vectorized version of the gradient
