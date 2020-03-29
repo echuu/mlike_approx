@@ -29,7 +29,7 @@ D = r * p + r * q
 D_C = p * q        # dimension of the integral
 N = 100
 
-sig2 = 1    # fixed for now.
+sig2 = 1           # fixed for now.
 del = 10^(-2)     # prior parameter -- one of these is squared version ?
 
 ## model : Y = ab' + E
@@ -45,6 +45,9 @@ A_0 = matrix(rnorm(p * r, 0, 1), p, r) # (p x r) matrix
 B_0 = matrix(rnorm(q * r, 0, 1), q, r) # (q x r) matrix
 C_0 = A_0 %*% t(B_0)
 
+
+nMCMC = 300       # number of MCMC samples from the posterior AFTER burnin
+nBurn = 500       # number of samples to discard
 
 gibbs_obj = sampleRRR(nMCMC, nBurn, A_0, B_0, p, q, r, r, D, N, sig2, del)
 
@@ -115,6 +118,7 @@ stable_marglik = function(u) {
     
 }
 
+library(cubature)
 marglik_numer = adaptIntegrate(marglik, 
                                lowerLimit = c(-Inf, -Inf, -Inf, -Inf, -Inf), 
                                upperLimit = c(Inf, Inf, Inf, Inf, Inf),
@@ -129,17 +133,29 @@ stable_numer = adaptIntegrate(stable_marglik,
                               tol = 1e-4)
 
 
-scaled_marglik = -N * q / 2 * log(2 * pi * sig2) - 
+(scaled_marglik = -N * q / 2 * log(2 * pi * sig2) - 
     1 / (2 * sig2) * matrix.trace(t(gibbs_obj$Y) %*% gibbs_obj$Y) + 
-    log(stable_numer$integral)
+    log(stable_numer$integral))
 
 
 
+# testing for preventing underflow ---------------------------------------------
 
 
+u = u_samps[1,]
+a_post = u[1:p] %>% unlist %>% unname # (p x 1)
+b_post = u[-(1:p)] %>% unlist %>% unname
+c_post = a_post %*% t(b_post)
 
+# these quantities should be equal ---------------------------------------------
+log((2 * pi * sig2)^(-N * q / 2) *
+    exp(-1/(2 * sig2) *
+            norm(gibbs_obj$Y - gibbs_obj$X %*% a_post %*% t(b_post), type = 'F')^2))
 
-
+-N * q / 2 * log(2 * pi * sig2) - 
+    1 / (2 * sig2) * matrix.trace(t(gibbs_obj$Y) %*% gibbs_obj$Y) -
+    1 / (2 * sig2) * matrix.trace(t(c_post) %*% gibbs_obj$XtX %*% c_post - 2 * t(gibbs_obj$Xty) %*% c_post)
+    
 
 
 
