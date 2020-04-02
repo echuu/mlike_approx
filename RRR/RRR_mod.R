@@ -14,8 +14,10 @@ source("RRR/gibbs_RRR.R")               # load sampleRRR()
 source('extractPartition.R')            # load extractPartition() function
 
 
+options(scipen=999)
+
 p = 3             # number of columns in X
-q = 5             # number of columns in Y
+q = 2             # number of columns in Y
 
 r_0 = 2           # true rank
 r = 2             # model-postulated rank
@@ -67,11 +69,15 @@ hml_approx$hybrid_vec
 
 # ------------------------------------------------------------------------------
 
-K_sims    = 100                                # num of sims to run for each N
-N_vec_log = seq(5, 9, by = 0.2)              # sample size grid unif in log
+
+## begin simulation ------------------------------------------------------------
+
+K_sims    = 50                                 # num of sims to run for each N
+N_vec_log = seq(5, 9, by = 0.1)                # sample size grid unif in log
 N_vec     = floor(exp(N_vec_log)) %>% unique   # sample size to generate data
 LIL_N_k_hat = matrix(0, length(N_vec), K_sims) 
 
+length(N_vec)
 
 for (i in 1:length(N_vec)) {
     
@@ -80,14 +86,16 @@ for (i in 1:length(N_vec)) {
     for (k in 1:K_sims) {
         
         # generate data, sample from posterior ---------------------------------
-        gibbs_obj = sampleRRR(nMCMC, nBurn, A_0, B_0, p, q, r_0, r, D, N, sig2, del)
+        gibbs_obj = sampleRRR(nMCMC, nBurn, A_0, B_0, p, q, r_0, r, D, N, 
+                              sig2, del)
         
         param_list = list(p = p, q = q, r = r, n = N, d = D,  # dimensions vars
                           Y = gibbs_obj$Y, X = gibbs_obj$X,   # response, design
-                          XtX = gibbs_obj$XtX, Xty = gibbs_obj$Xty,
+                          XtX = gibbs_obj$XtX,                # precompute X'X
+                          Xty = gibbs_obj$Xty,                # precompute X'y
                           sig2 = sig2, del = del)             # prior params
         
-        # compute log-likelihood evaluated at max
+        # compute maximized log-likelihood
         loglik_max = loglik_true(A_0, B_0, param_list)
         
         # extract posterior samples from gibbs object
@@ -100,7 +108,7 @@ for (i in 1:length(N_vec)) {
         hml_approx = hml(1, D_C, c_df, nMCMC, param_list)
         
         # subtract maximized likelihood from the resulting approximation
-        LIL_N_k_hat[i, k] = hml_approx$hybrid_vec - loglik_max # -147.6771
+        LIL_N_k_hat[i, k] = hml_approx$hybrid_vec - loglik_max
         
     } # end inner loop over K_sims
     
@@ -108,20 +116,40 @@ for (i in 1:length(N_vec)) {
                 "approx LIL for N = ", N, " -- LIL = ",
                 round(mean(LIL_N_k_hat[i, ]), 2), sep = ''))
     
-} # end outer loop over sample size
+} # end outer loop over sample size --------------------------------------------
+
+
+## end algorithm ---------------------------------------------------------------
+
+
+
+# plot results -- logML vs. logN -----------------------------------------------
+
+
+lil_hyb   = rowMeans(LIL_N_k_hat)  # length(N_vec) x 1
+log_N     = log(N_vec)             # length(N_vec) x 1
+LIL_df    = data.frame(LIL_hat = lil_hyb, log_N = log(N_vec))
+
+log_log_N = log(log_N)
+LIL_df = data.frame(LIL_hat = lil_hyb, log_N = log(N_vec), log_log_N = log_log_N)
+lm(LIL_hat ~ ., LIL_df[-c(1:13),])
+
+library(reshape2)
+library(ggpmisc)
+formula1 = y ~ x
+
+ggplot(LIL_df[-c(1:20),], aes(x = log_N, y = LIL_hat)) + geom_point(size = 1.3) + 
+    geom_smooth(method = lm, se = F, formula = formula1) +
+    labs(x = "log(n)", y = "log(Z)", 
+         title = "Hybrid (Blue); true slope = -7/2") + 
+    stat_poly_eq(aes(label = paste(..eq.label.., sep = "~~~")), 
+                 label.x.npc = "right", label.y.npc = "top",
+                 eq.with.lhs = "logZ~`=`~",
+                 eq.x.rhs = "~logN",
+                 formula = formula1, parse = TRUE, size = 8)
 
 
 
 
 
-
-
-
-
-
-
-
-
-
-
-
+# end RRR_mod.R file -----------------------------------------------------------

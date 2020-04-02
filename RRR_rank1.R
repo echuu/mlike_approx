@@ -85,25 +85,25 @@ hml_approx$taylor_vec
 
 library(matrixcalc)
 
-marglik = function(u) {
-    
-    a = u[1:p]
-    b = tail(u, q)
-    
-    # (-N * q / 2) * log(2 * pi * sig2) -
-    #     1 / (2 * sig2) * 
-    #     norm(gibbs_obj$Y - gibbs_obj$X %*% a %*% t(b), type = 'F')^2
-    
-    (2 * pi * sig2)^(-N * q / 2) *
-         exp(-1/(2 * sig2) *
-                 norm(gibbs_obj$Y - gibbs_obj$X %*% a %*% t(b), type = 'F')^2)
-
-    # (2 * pi * sig2)^(-p * q/2) *
-    #     exp(-1/(2 * sig2) * norm(rank1_obj$Y - a %*% t(b), type = 'F')^2) *
-    #     (2 * pi * sig2)^(-(p + q) / 2) * (del^2)^((p + q) / 2) *
-    #     exp(-del^2 / (2 * sig2) * (t(a) %*% a + t(b) %*% b))
-    
-}
+# marglik = function(u) {
+#     
+#     a = u[1:p]
+#     b = tail(u, q)
+#     
+#     # (-N * q / 2) * log(2 * pi * sig2) -
+#     #     1 / (2 * sig2) * 
+#     #     norm(gibbs_obj$Y - gibbs_obj$X %*% a %*% t(b), type = 'F')^2
+#     
+#     (2 * pi * sig2)^(-N * q / 2) *
+#          exp(-1/(2 * sig2) *
+#                  norm(gibbs_obj$Y - gibbs_obj$X %*% a %*% t(b), type = 'F')^2)
+# 
+#     # (2 * pi * sig2)^(-p * q/2) *
+#     #     exp(-1/(2 * sig2) * norm(rank1_obj$Y - a %*% t(b), type = 'F')^2) *
+#     #     (2 * pi * sig2)^(-(p + q) / 2) * (del^2)^((p + q) / 2) *
+#     #     exp(-del^2 / (2 * sig2) * (t(a) %*% a + t(b) %*% b))
+#     
+# }
 
 stable_marglik = function(u) {
     
@@ -118,18 +118,21 @@ stable_marglik = function(u) {
     
 }
 
+
+# marglik_numer = adaptIntegrate(marglik, 
+#                                lowerLimit = c(-Inf, -Inf, -Inf, -Inf, -Inf), 
+#                                upperLimit = c(Inf, Inf, Inf, Inf, Inf),
+#                                tol = 1e-4)
+# 
+# marglik_numer$integral
+# log(marglik_numer$integral)  # -423.2818
+
+
 library(cubature)
-marglik_numer = adaptIntegrate(marglik, 
-                               lowerLimit = c(-Inf, -Inf, -Inf, -Inf, -Inf), 
-                               upperLimit = c(Inf, Inf, Inf, Inf, Inf),
-                               tol = 1e-4)
-
-marglik_numer$integral
-log(marglik_numer$integral)  # -423.2818
-
+library(matrixcalc)
 stable_numer = adaptIntegrate(stable_marglik, 
-                              lowerLimit = c(-Inf, -Inf, -Inf, -Inf, -Inf), 
-                              upperLimit = c(Inf, Inf, Inf, Inf, Inf),
+                              lowerLimit = rep(-Inf, 10), 
+                              upperLimit = rep(Inf, 10),
                               tol = 1e-4)
 
 

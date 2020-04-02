@@ -113,7 +113,7 @@ library(ggpmisc)
 formula1 = y ~ x
 
 
-ggplot(LIL_df, aes(x = log_N, y = LIL_hat)) + geom_point(size = 1.3) + 
+ggplot(LIL_df[-c(1:7),], aes(x = log_N, y = LIL_hat)) + geom_point(size = 1.3) + 
     geom_smooth(method = lm, se = F, formula = formula1) +
     labs(x = "log(n)", y = "log(Z)", 
          title = "Hybrid (Blue)") + 

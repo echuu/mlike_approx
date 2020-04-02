@@ -31,6 +31,31 @@ preprocess = function(post_samps, D, params) {
 } # end of preprocess() function
 
 
+
+### loglik_true() --------------------------------------------------------------
+## evaluate the loglikelihood of the following regression model:
+##     Y ~ MN (XAB^T, I_n, sig2 * I_q)
+##     vec(y) ~ N(vec(XAB^T), sig2 kron(I_q, I_n))
+## 
+loglik_true = function(A_0, B_0, params) {
+    
+    n = params$n
+    q = params$q
+    
+    Y = params$Y
+    X = params$X
+    
+    sig2 = params$sig2
+    
+    loglik = (-n * q / 2) * log(2 * pi * sig2) -
+        1 / (2 * sig2) * norm(Y - X %*% A_0 %*% t(B_0), type = 'F')^2
+    
+    return(loglik)
+    
+} # end loglik_true function ---------------------------------------------------
+
+
+
 ### loglik() -------------------------------------------------------------------
 ## evaluate the loglikelihood of the following regression model:
 ##     Y ~ MN (XAB^T, I_n, sig2 * I_q)
