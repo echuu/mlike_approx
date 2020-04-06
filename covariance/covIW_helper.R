@@ -105,9 +105,7 @@ maxLogLik = function(Sigma, param_list) {
 } # end maxLogLik() function ---------------------------------------------------
 
 
-
-
-## cov_logprior() function
+## cov_logprior() function  ----------------------------------------------------
 cov_logprior = function(u, params) {
     
     Omega = params$Omega
@@ -133,7 +131,7 @@ cov_logprior = function(u, params) {
     
     # compute full log prior expression -- note log(det(L)) = sum(logDiagL)
     logprior = logC - (nu + D + 1) * sum(logDiagL) - 
-        0.5 * matrix.trace(L %*% t(L) %*% Omega) +
+        0.5 * matrix.trace(solve(L %*% t(L)) %*% Omega) +
         logJacTerm
     
     return(logprior)
@@ -142,18 +140,33 @@ cov_logprior = function(u, params) {
 
 
 
-## TODO: cov_loglik() function
+## cov_loglik() function -------------------------------------------------------
 cov_loglik = function(u, params) {
     
+    N = params$N
+    D = params$D
+    S = params$S
+    
+    L = matrix(0, D, D)             # (D x D) lower triangular matrix
+    L[lower.tri(L, diag = T)] = u   # populate lower triangular terms
+    
+    logDiagL = log(diag(L))         # log of diagonal terms of L
     
     
+    # compute loglikelihood using the 'L' instead of 'Sigma' --> allows us
+    # to use simplified version of the determinant 
+    
+    loglik = - 0.5 * N * D * log(2 * pi) - N * sum(logDiagL) - 
+        0.5 * matrix.trace(solve(L %*% t(L)) %*% S)
+    
+    return(loglik)
     
 } # end of cov_loglik() function -----------------------------------------------
 
 
 
 
-## psi() function
+## psi() function  -------------------------------------------------------------
 psi = function(u, params) {
     
     loglik = cov_loglik(u, params)
@@ -188,28 +201,28 @@ psi = function(u, params) {
 
 
 
-# cov_logprior_sigma = function(Sigma, params) {
-#     
-#     # compute the logprior using 
-#     #     (1) sigma  (actual prior on the original model)
-#     #     (2) L      (induced prior)
-#     
-#     
-#     Omega = params$Omega
-#     
-#     nu = params$nu
-#     D  = params$D  # dimension of covariance matrix Sigma, L
-#     
-#     
-#     logC = 0.5 * nu * log_det(Omega) - 0.5 * (nu * D) * log(2) - 
-#         logmultigamma(D, nu / 2)
-#     
-#     logprior = logC - 0.5 * (nu + D + 1) * log_det(Sigma) - 
-#         0.5 * matrix.trace(solve(Sigma) %*% Omega)
-#     
-#     return(logprior)
-# 
-# }
+cov_logprior_sigma = function(Sigma, params) {
+
+    # compute the logprior using
+    #     (1) sigma  (actual prior on the original model)
+    #     (2) L      (induced prior)
+
+
+    Omega = params$Omega
+
+    nu = params$nu
+    D  = params$D  # dimension of covariance matrix Sigma, L
+
+
+    logC = 0.5 * nu * log_det(Omega) - 0.5 * (nu * D) * log(2) -
+        logmultigamma(D, nu / 2)
+
+    logprior = logC - 0.5 * (nu + D + 1) * log_det(Sigma) -
+        0.5 * matrix.trace(solve(Sigma) %*% Omega)
+
+    return(logprior)
+
+}
 # 
 # cov_logprior_L = function(L, params) {
 #     
@@ -233,7 +246,7 @@ psi = function(u, params) {
 #     
 #     # compute full log prior expression
 #     logprior = logC - (nu + D + 1) * log_det(L) - 
-#         0.5 * matrix.trace(L %*% t(L) %*% Omega) +
+#         0.5 * matrix.trace(solve(L %*% t(L)) %*% Omega) +
 #         logJacTerm
 #     
 #     return(logprior)

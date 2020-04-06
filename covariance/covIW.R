@@ -47,32 +47,38 @@ postIW = sampleIW(J, N, D_u, nu, S, Omega) # post_samps, Sigma_post, L_post
 
 Sigma0 = postIW$Sigma_post[[1]]
 
-u = postIW$post_samps[1,]
+
 L = postIW$L_post[[1]]
 
 L %*% t(L)
 Sigma0
 
-cov_logprior(u, param_list)             # -47.20618
-cov_logprior_sigma(Sigma0, param_list)
-cov_logprior_L(L, param_list)
 
 L1 = matrix(0, D, D)
 L1[lower.tri(L1, diag = T)] = postIW$post_samps[1,]
 
 
+# cov_logprior_sigma(Sigma0, param_list)
+# cov_logprior_L(L, param_list)
+
+# test log-prior function
+cov_logprior(u, param_list)       # -34.36231
+
+# test log-likelihood function
+cov_loglik(u, param_list)
+
+u = postIW$post_samps[5,]
+# test psi() function
+psi(u, param_list)
+
+# evaluate psi() for each of the rows in post_samps
+post_samps = postIW$post_samps                   # (J x D_u)
+u_df = preprocess(post_samps, D_u, param_list)   # J x (D_u + 1)
 
 
 
 
-postIW$Sigma_post[[1]] %>% det
 
-
-(postIW$L_post[[1]] %>% det)^2
-
-(postIW$L_post[[1]] %>% diag %>% prod)^2
-
-## TODO: fill out the helper functions
 ## TODO: modify algorithm so that only constant approximations are made
 ## TODO: compare approximations to true log marginal likelihood
 ## TODO: perform asymptotic analysis

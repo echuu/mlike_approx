@@ -60,6 +60,9 @@ N_vec_log = seq(5, 12, by = 0.25)              # sample size grid unif in log
 N_vec     = floor(exp(N_vec_log)) %>% unique   # sample size to generate data
 LIL_N_k_hat = matrix(0, length(N_vec), K_sims) 
 
+i = 4; k = 1;
+
+
 for (i in 1:length(N_vec)) {
     
     N = N_vec[i]
