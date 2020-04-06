@@ -42,11 +42,35 @@ param_list = list(S = S, N = N, D = D, D_u = D_u, # S, dimension vars
                   Omega = Omega, nu = nu,         # prior parameters
                   u_df = NULL)                    # posterior samples
 
-## TODO: obtain posterior samples
-Sigma_post = solve(Wishart_InvA_RNG(nu + N, S + Omega))
-Sigma_post
-Sigma
+## obtain posterior samples
+postIW = sampleIW(J, N, D_u, nu, S, Omega) # post_samps, Sigma_post, L_post
 
+Sigma0 = postIW$Sigma_post[[1]]
+
+u = postIW$post_samps[1,]
+L = postIW$L_post[[1]]
+
+L %*% t(L)
+Sigma0
+
+cov_logprior(u, param_list)             # -47.20618
+cov_logprior_sigma(Sigma0, param_list)
+cov_logprior_L(L, param_list)
+
+L1 = matrix(0, D, D)
+L1[lower.tri(L1, diag = T)] = postIW$post_samps[1,]
+
+
+
+
+
+
+postIW$Sigma_post[[1]] %>% det
+
+
+(postIW$L_post[[1]] %>% det)^2
+
+(postIW$L_post[[1]] %>% diag %>% prod)^2
 
 ## TODO: fill out the helper functions
 ## TODO: modify algorithm so that only constant approximations are made
@@ -113,6 +137,20 @@ ggplot(LIL_df, aes(x = log_N, y = LIL_N)) + geom_point(size = 1.3) +
                  eq.with.lhs = "logZ~`=`~",
                  eq.x.rhs = "~logN",
                  formula = formula1, parse = TRUE, size = 8)
+
+
+# ------------------------------------------------------------------------------
+
+## testing collapse functionality
+D = 3
+Sigma = matrix(rWishart(1, D, diag(1, D)), D)
+
+L = t(chol(Sigma))
+
+u = L[lower.tri(L, diag = T)]     # map lower diagonal + diagonal to a vector 
+
+L1 = matrix(0, D, D)
+L1[lower.tri(L1, diag = T)] = u   # map vector back to lower diagonal matrix
 
 
 
