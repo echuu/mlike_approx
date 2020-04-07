@@ -46,7 +46,7 @@ sampleIW = function(J, N, D_u, nu, S, Omega) {
     
     
     
-    return(list(post_samps = post_samps, Sigma_post = Sigma_post, 
+    return(list(post_samps = data.frame(post_samps), Sigma_post = Sigma_post, 
                 L_post = L_post))
     
     

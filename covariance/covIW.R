@@ -7,10 +7,13 @@ setwd(LEN_PATH)
 source("partition/partition.R")
 source("extractPartition.R")
 source("hybrid_approx_v1.R")
+source("hybrid_const.R")
 source("covariance/covIW_helper.R")
 
 library(matrixcalc) # move into one of the other header files later
 library(mvtnorm)
+
+options(scipen=999)
 
 ## define necessary parameters needed for this simulation
 
@@ -28,6 +31,8 @@ nu    = D + 1       # degrees of freedom
 set.seed(1)
 Sigma = matrix(rWishart(1, D, Omega), D)
 is.positive.definite(Sigma)
+
+# ------------------------------------------------------------------------------
 
 ## generate data
 X = rmvnorm(N, mean = rep(0, D), sigma = Sigma) # (N x p)
@@ -97,12 +102,13 @@ LIL_N       = numeric(length(N_vec))            # store true logML
 
 length(N_vec)
 
+# i = 1; k = 1;
 
 for (i in 1:length(N_vec)) {
     
     N = N_vec[i]
     
-    LIL_N_k = numeric(K_sims)
+    LIL_N_k = numeric(K_sims) # store true log ML
     
     for (k in 1:K_sims) {
         
@@ -115,18 +121,49 @@ for (i in 1:length(N_vec)) {
         param_list = list(S = S, N = N, D = D, D_u = D_u, # S, dimension vars
                           Omega = Omega, nu = nu,         # prior parameters
                           u_df = NULL)                    # posterior samples
+        
+        # compute maximized log likelihood
+        loglik_max = maxLogLik(Sigma, param_list)
+        
+        # postIW contains: post_samps, Sigma_post, L_post
+        postIW = sampleIW(J, N, D_u, nu, S, Omega) 
+        
+        post_samps = postIW$post_samps                   # (J x D_u)
+        u_df = preprocess(post_samps, D_u, param_list)   # J x (D_u + 1)
+        
+        
+        # generate hybrid approximation
+        # hml_approx() is a version of hml() that ignores the gradient term
+        hml_approx = hml_const(1, D_u, u_df, J, param_list)
+        
+        # subtract maximized likelihood from the resulting approximation
+        LIL_N_k_hat[i, k] = hml_approx - loglik_max # -147.6771
+        
+        # compute true log ML - maximized likelihood
         LIL_N_k[k] = lil(param_list) - maxLogLik(Sigma, param_list)
         
     }
     
     LIL_N[i] = mean(LIL_N_k)
     
+    print(paste("iter ", i, "/", length(N_vec), ": ",
+                "approx LIL for N = ", N, " -- LIL = ",
+                round(mean(LIL_N_k_hat[i, ]), 2), 
+                " (", round(LIL_N[i], 2), ")", 
+                sep = ''))
+    
 }
 
 
-LIL_df = data.frame(LIL_N = LIL_N, log_N = log(N_vec))
+lil_hyb   = rowMeans(LIL_N_k_hat)  # length(N_vec) x 1
+log_N     = log(N_vec)             # length(N_vec) x 1
+
+LIL_df = data.frame(LIL_hat = lil_hyb, log_N = log_N)
+# LIL_df = data.frame(LIL_N = LIL_N, log_N = log(N_vec))
 # write.csv(LIL_df, "true_lil.csv", row.names = F) # N = seq(5, 12, by = 0.25)
 
+
+LIL_df = read.csv("covariance/true_lil.csv")
 
 library(reshape2)
 library(ggpmisc)
@@ -134,6 +171,19 @@ library(ggpmisc)
 formula1 = y ~ x
 
 
+# approx
+ggplot(LIL_df, aes(x = log_N, y = LIL_hat)) + geom_point(size = 1.3) + 
+    geom_smooth(method = lm, se = F, formula = formula1) +
+    labs(x = "log(n)", y = "log(Z)", 
+         title = "Hybrid (Blue)") + 
+    stat_poly_eq(aes(label = paste(..eq.label.., sep = "~~~")), 
+                 label.x.npc = "right", label.y.npc = "top",
+                 eq.with.lhs = "logZ~`=`~",
+                 eq.x.rhs = "~logN",
+                 formula = formula1, parse = TRUE, size = 8)
+
+
+# true
 ggplot(LIL_df, aes(x = log_N, y = LIL_N)) + geom_point(size = 1.3) + 
     geom_smooth(method = lm, se = F, formula = formula1) +
     labs(x = "log(n)", y = "log(Z)", 
@@ -143,6 +193,32 @@ ggplot(LIL_df, aes(x = log_N, y = LIL_N)) + geom_point(size = 1.3) +
                  eq.with.lhs = "logZ~`=`~",
                  eq.x.rhs = "~logN",
                  formula = formula1, parse = TRUE, size = 8)
+
+
+# TODO: with the true log marginal likelihood
+library(reshape2)
+lil_0   = LIL_N                  # length(N_vec) x 1
+lil_hyb = rowMeans(LIL_N_k_hat)  # length(N_vec) x 1
+log_N   = log(N_vec)             # length(N_vec) x 1
+
+LIL_df = data.frame(LIL_N = lil_0, LIL_hat = lil_hyb, log_N = log(N_vec))
+
+LIL_df_long = melt(LIL_df, id.vars = "log_N")
+head(LIL_df_long)
+
+ggplot(LIL_df_long, aes(x = log_N, y = value, 
+                        color = as.factor(variable))) + geom_point(size = 1.3) + 
+    geom_smooth(method = lm, se = F, formula = formula1) +
+    labs(x = "log(n)", y = "log(Z)", 
+         title = "True (Red), Approx (Blue)") + 
+    stat_poly_eq(aes(label = paste(..eq.label.., sep = "~~~")), 
+                 label.x.npc = "right", label.y.npc = "top",
+                 eq.with.lhs = "logZ~`=`~",
+                 eq.x.rhs = "~logN",
+                 formula = formula1, parse = TRUE, size = 8) +
+    theme_bw(base_size = 16) + 
+    theme(legend.position = "none")
+
 
 
 # ------------------------------------------------------------------------------
