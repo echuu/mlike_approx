@@ -13,6 +13,10 @@ source("covariance/covIW_helper.R")
 library(matrixcalc) # move into one of the other header files later
 library(mvtnorm)
 
+library(MCMCpack)
+library(CholWishart)
+
+
 options(scipen=999)
 
 ## define necessary parameters needed for this simulation
@@ -50,10 +54,15 @@ param_list = list(S = S, N = N, D = D, D_u = D_u, # S, dimension vars
 ## obtain posterior samples
 postIW = sampleIW(J, N, D_u, nu, S, Omega) # post_samps, Sigma_post, L_post
 
-Sigma0 = postIW$Sigma_post[[1]]
+
+Sigma_post = riwish(nu + N, Omega + S)
+Sigma_post
+
+(Sigma0 = postIW$Sigma_post[[1]])
+Sigma
 
 
-L = postIW$L_post[[1]]
+L = t(chol(Sigma))
 
 L %*% t(L)
 Sigma0
@@ -82,8 +91,6 @@ u_df = preprocess(post_samps, D_u, param_list)   # J x (D_u + 1)
 
 
 
-
-
 ## TODO: modify algorithm so that only constant approximations are made
 ## TODO: compare approximations to true log marginal likelihood
 ## TODO: perform asymptotic analysis
@@ -102,7 +109,7 @@ LIL_N       = numeric(length(N_vec))            # store true logML
 
 length(N_vec)
 
-# i = 1; k = 1;
+i = 1; k = 1;
 
 for (i in 1:length(N_vec)) {
     
@@ -130,17 +137,20 @@ for (i in 1:length(N_vec)) {
         
         post_samps = postIW$post_samps                   # (J x D_u)
         u_df = preprocess(post_samps, D_u, param_list)   # J x (D_u + 1)
-        
-        
+    
         # generate hybrid approximation
         # hml_approx() is a version of hml() that ignores the gradient term
         hml_approx = hml_const(1, D_u, u_df, J, param_list)
         
         # subtract maximized likelihood from the resulting approximation
-        LIL_N_k_hat[i, k] = hml_approx - loglik_max # -147.6771
+        LIL_N_k_hat[i, k] = hml_approx - loglik_max
+        
+        hml_approx - loglik_max
         
         # compute true log ML - maximized likelihood
         LIL_N_k[k] = lil(param_list) - maxLogLik(Sigma, param_list)
+        
+        lil(param_list) - maxLogLik(Sigma, param_list)
         
     }
     

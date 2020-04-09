@@ -472,6 +472,7 @@ hml = function(N_approx, D, u_df_full, J, prior) {
                 taylor_approx     = taylor_approx,
                 ck_2              = ck_2,
                 ck_3              = ck_3,
-                lambda_k          = lambda_k))
+                lambda_k          = lambda_k,
+                u_df_star         = u_df))
     
 } # end of approx_lil() function

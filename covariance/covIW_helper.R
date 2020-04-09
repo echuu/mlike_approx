@@ -31,7 +31,9 @@ sampleIW = function(J, N, D_u, nu, S, Omega) {
     
     for (j in 1:J) {
         
-        Sigma_post_j = solve(Wishart_InvA_RNG(nu + N, S + Omega))
+        # Sigma_post_j = solve(Wishart_InvA_RNG(nu + N, S + Omega))
+        
+        Sigma_post_j = riwish(nu + N, Omega + S)
         
         L_post_j = t(chol(Sigma_post_j)) 
         # store the matrices Sigma, L so that we don't have to reconstruct
@@ -105,6 +107,32 @@ maxLogLik = function(Sigma, param_list) {
 } # end maxLogLik() function ---------------------------------------------------
 
 
+
+## cov_loglik() function -------------------------------------------------------
+cov_loglik = function(u, params) {
+    
+    N = params$N
+    D = params$D
+    S = params$S
+    
+    L = matrix(0, D, D)             # (D x D) lower triangular matrix
+    L[lower.tri(L, diag = T)] = u   # populate lower triangular terms
+    
+    logDiagL = log(diag(L))         # log of diagonal terms of L
+    
+    
+    # compute loglikelihood using the 'L' instead of 'Sigma' --> allows us
+    # to use simplified version of the determinant 
+    
+    loglik = - 0.5 * N * D * log(2 * pi) - N * sum(logDiagL) - 
+        0.5 * matrix.trace(solve(L %*% t(L)) %*% S)
+    
+    return(loglik)
+    
+} # end of cov_loglik() function -----------------------------------------------
+
+
+
 ## cov_logprior() function  ----------------------------------------------------
 cov_logprior = function(u, params) {
     
@@ -140,30 +168,6 @@ cov_logprior = function(u, params) {
 
 
 
-## cov_loglik() function -------------------------------------------------------
-cov_loglik = function(u, params) {
-    
-    N = params$N
-    D = params$D
-    S = params$S
-    
-    L = matrix(0, D, D)             # (D x D) lower triangular matrix
-    L[lower.tri(L, diag = T)] = u   # populate lower triangular terms
-    
-    logDiagL = log(diag(L))         # log of diagonal terms of L
-    
-    
-    # compute loglikelihood using the 'L' instead of 'Sigma' --> allows us
-    # to use simplified version of the determinant 
-    
-    loglik = - 0.5 * N * D * log(2 * pi) - N * sum(logDiagL) - 
-        0.5 * matrix.trace(solve(L %*% t(L)) %*% S)
-    
-    return(loglik)
-    
-} # end of cov_loglik() function -----------------------------------------------
-
-
 
 
 ## psi() function  -------------------------------------------------------------
@@ -176,11 +180,6 @@ psi = function(u, params) {
     return(- loglik - logprior)
     
 } # end of psi() function ------------------------------------------------------
-
-
-
-
-
 
 
 

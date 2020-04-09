@@ -89,9 +89,22 @@ for (i in 1:length(N_vec)) {
         # generate hybrid approximation
         hml_approx = hml(1, D, u_df, nMCMC, param_list)
         
+        hml_approx$verbose_partition
+        hml_approx$partition
+        u_df_star = hml_approx$u_df_star
+        hml_approx$const_vec
+        
         # test hml_const() function
-        # hml_const(1, D, u_df, nMCMC, param_list)   # should equal below
-        # hml_approx$const_vec                       # should equal above
+        hml_approx_const = hml_const(1, D, u_df, nMCMC, param_list)   # should equal below
+        hml_approx_const$const_vec                       # should equal above
+        hml_approx_const$n_partitions
+        hml_approx_const$const_approx
+        hml_approx_const$param_out
+        log_sum_exp(hml_approx_const$const_approx)
+        u_df_star = hml_approx_const$u_df_fit
+        
+        # TODO: integral over each of the partitions
+        
         
         # subtract maximized likelihood from the resulting approximation
         LIL_N_k_hat[i, k] = hml_approx$hybrid_vec - loglik_max # -147.6771
