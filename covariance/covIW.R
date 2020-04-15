@@ -1,8 +1,7 @@
 
 ## covIW.R
 
-LEN_PATH  = "C:/Users/ericc/mlike_approx"
-setwd(LEN_PATH)
+
 
 source("partition/partition.R")
 source("extractPartition.R")
@@ -17,7 +16,20 @@ library(MCMCpack)
 library(CholWishart)
 
 
-options(scipen=999)
+options(scipen = 999) # moved to load_libraries.R file
+
+
+# ------------------------------------------------------------------------------
+
+
+
+setwd("C:/Users/ericc/Dropbox/logML") # change to your working directory
+source("setup.R")
+
+LEN_PATH  = "C:/Users/ericc/mlike_approx"
+setwd(LEN_PATH)
+source("covariance/covIW_helper.R")
+
 
 ## define necessary parameters needed for this simulation
 
@@ -48,8 +60,7 @@ for (n in 1:N) {
 # ------------------------------------------------------------------------------
 
 param_list = list(S = S, N = N, D = D, D_u = D_u, # S, dimension vars
-                  Omega = Omega, nu = nu,         # prior parameters
-                  u_df = NULL)                    # posterior samples
+                  Omega = Omega, nu = nu)         # prior parmas
 
 ## obtain posterior samples
 postIW = sampleIW(J, N, D_u, nu, S, Omega) # post_samps, Sigma_post, L_post
@@ -118,7 +129,7 @@ for (i in 1:length(N_vec)) {
     LIL_N_k = numeric(K_sims) # store true log ML
     
     for (k in 1:K_sims) {
-        
+        set.seed(1)
         X = rmvnorm(N, mean = rep(0, D), sigma = Sigma) # (N x p)
         S = matrix(0, D, D)
         for (n in 1:N) {
@@ -143,14 +154,14 @@ for (i in 1:length(N_vec)) {
         hml_approx = hml_const(1, D_u, u_df, J, param_list)
         
         # subtract maximized likelihood from the resulting approximation
-        LIL_N_k_hat[i, k] = hml_approx - loglik_max
+        LIL_N_k_hat[i, k] = hml_approx$const_vec - loglik_max
         
-        hml_approx - loglik_max
+        hml_approx$const_vec - loglik_max # -34.70373
         
         # compute true log ML - maximized likelihood
         LIL_N_k[k] = lil(param_list) - maxLogLik(Sigma, param_list)
         
-        lil(param_list) - maxLogLik(Sigma, param_list)
+        lil(param_list) - maxLogLik(Sigma, param_list) # -43.2191
         
     }
     

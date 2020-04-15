@@ -18,15 +18,15 @@ hml_const = function(N_approx, D, u_df_full, J, prior) {
         
         # (3.1) obtain the (data-defined) support for each of the parameters
         
-        param_support = extractSupport(u_df, D)
+        param_support = extractSupport(u_df, D) # hybrid_approx_v1.R
         
         # (3.2) obtain the partition
-        u_partition = extractPartition(u_rpart, param_support)  # partition.R
+        u_partition = extractPartition(u_rpart, param_support)  # extractPartition.R
         
         # organize all data into single data frame --> ready for approximation
-        param_out = u_star(u_rpart, u_df, u_partition, D)
+        param_out = u_star(u_rpart, u_df, u_partition, D) # partition.R
         
-        n_partitions = nrow(u_partition)     # number of partitions 
+        n_partitions = nrow(u_partition) # number of partitions 
         
         # ----------------------------------------------------------------------
         

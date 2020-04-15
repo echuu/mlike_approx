@@ -1,142 +1,158 @@
 
+# logML_approx.R
 
-library(dplyr)
-library(rpart)
-library(VGAM)    # for log1mexp() function
-
-## available functions in this file
-## 
-## (1) log_det()
-## (2) preprocess()
-## (3) approx_lil()
+## functions in this file
 ##
-## -----------------------------------------------------------------------------
-## input :
-##          xmat   : matrix
-## output : 
-##          (1 x 1) log(det(xmat))
+##     hml_const()
+##     hml()
 ##
-log_det = function(xmat) {
-    return(c(determinant(xmat, logarithm = T)$modulus))
-}
 
 
 
-## preprocess() ----------------------------------------------------------------
-## input :
-##          post_samps : posterior samples from gamma(u), stored row-wise
-##          D          : dimension of parameter
-##          prior      : parameters to be passed into psi(), lambda()
-## output : 
-##          u_df       : dataframe w/ one more column than post_samps, contains
-##                       psi(u) evalued for each posterior sample
-##
-preprocess = function(post_samps, D, prior) {
-    
-    psi_u = apply(post_samps, 1, psi, prior = prior) %>% unname() # (J x 1)
-    
-    # (1.2) name columns so that values can be extracted by partition.R
-    u_df_names = character(D + 1)
-    for (d in 1:D) {
-        u_df_names[d] = paste("u", d, sep = '')
-    }
-    u_df_names[D + 1] = "psi_u"
-    
-    # populate u_df
-    u_df = cbind(post_samps, psi_u) # J x (D + 1)
-    names(u_df) = u_df_names
-    
-    
-    return(u_df)
-    
-} # end of preprocess() function
 
 
-
-# param_out is the return of u_star
-plotPartition = function(u_df, param_out) {
+#### hml_const() ---------------------------------------------------------------
+#
+#
+hml_const = function(N_approx, D, u_df_full, J, prior) {
     
-    plot(u_df[,1], u_df[,2], pch = 20, cex = 1, col = "cyan",
-         xlab = 'u1', ylab = 'u2', main = '')
-    rect(param_out$u1_lb, 
-         param_out$u2_lb, 
-         param_out$u1_ub, 
-         param_out$u2_ub)
+    const_vec  = numeric(N_approx) # store constant approximation
     
-    # add psi_hat labels for each partition
-    text(x = param_out$u1_lb + (param_out$u1_ub - param_out$u1_lb) / 2, 
-         y = param_out$u2_lb + (param_out$u2_ub - param_out$u2_lb) / 2,
-         labels = round(param_out$psi_hat, 5),
-         cex = 0.8)
-    
-    # make the 'median' points red and large
-    points(x = param_out$u1_star, y = param_out$u2_star,
-           col = 'red', pch = 19, cex = 1.2)
-    
-}
-
-
-extractSupport = function(u_df, D) {
-    
-    # (3.1) obtain the (data-defined) support for each of the parameters
-    param_support = matrix(NA, D, 2) # store the parameter supports row-wise
-    
-    for (d in 1:D) {
-        param_d_min = min(u_df[,d])
-        param_d_max = max(u_df[,d])
+    # compute approximation to LIL N_approx times
+    for (t in 1:N_approx) {
         
-        param_support[d,] = c(param_d_min, param_d_max)
-    }
-    
-    return(param_support)
-}
-
-
-
-# log_sum_exp():
-# calculates expressions of the form log(sum(exp(x)))
-log_sum_exp = function(x) { 
-    offset = max(x)                         # scale by max to prevent overflow
-    s = log(sum(exp(x - offset))) + offset
-    i = which(!is.finite(s))                # check for any overflow
-    if (length(i) > 0) {                    # replace inf values with max
-        s[i] = offset 
-    }
-    
-    return(s)
-} # end of log_sum_exp()
-
-
-
-# log_int_rect(): 
-# compute the log of the closed form integral over the d-th rectangle
-# note: we don't compute the integral explicitly b/c we use log-sum-exp at the
-# end of the calculation for stability
-log_int_rect = function(l_d, a, b) {
-    
-    # equivalent to the following calculation:
-    # - l_k[d] * upper + 
-    #     log(- 1 / l_k[d] * (1 - exp(-l_k[d] * lower + l_k[d] * upper)))
-    
-    # split into cases depending on the sign of the gradient (lambda_d)
-    # note: 'lambda' is already the name of a the gradient function
-    
-    if (l_d > 0) {
+        ## (1) subset out rows in u_df_full to be used in the t-th approximation
+        row_id = J * (t - 1) + 1
+        u_df = u_df_full[row_id:(row_id+J-1),]
         
-        # extract e^(-lambda_d * a), term corresponding to the lower bound
-        out = - l_d * a - log(l_d) + log1mexp(l_d * b - l_d * a)
+        ## (2) fit the regression tree via rpart()
+        u_rpart = rpart(psi_u ~ ., u_df)
         
-    } else {
+        ## (3) process the fitted tree
         
-        # extract e^(-lambda_d * b), term corresponding to the upper bound
-        out = - l_d * b - log(-l_d) + log1mexp(l_d * a - l_d * b)
+        # (3.1) obtain the (data-defined) support for each of the parameters
         
-    }
+        param_support = extractSupport(u_df, D) # hybrid_approx_v1.R
+        
+        # (3.2) obtain the partition
+        u_partition = extractPartition(u_rpart, param_support)  # extractPartition.R
+        
+        # organize all data into single data frame --> ready for approximation
+        param_out = u_star(u_rpart, u_df, u_partition, D) # partition.R
+        
+        n_partitions = nrow(u_partition) # number of partitions 
+        
+        # ----------------------------------------------------------------------
+        
+        K = nrow(u_partition)
+        
+        # new declarations here: additional storage for all 3 approximations
+        const_approx   = numeric(K)       # store approx that uses 1-term taylor
+        # taylor_approx  = numeric(K)     # store approx that uses 2-term taylor
+        # hybrid_approx  = numeric(K)     # store approx that uses both
+        
+        # declare terms that will be used in the log-sum-exp trick
+        eta_k = numeric(K) # log of the area of each partition A_k
+        
+        ck_1 = numeric(K)
+        
+        # star_ind will be a vector of indices -- subsetting these out of 
+        # param_out will give u_k = (u_k1, u_k2, ... , u_kD)
+        star_ind = grep("_star", names(param_out)) 
+        
+        # ----------------------------------------------------------------------
+        
+        # (4) compute closed form integral over each partition
+        for (k in 1:n_partitions) {
+            
+            # print(k)
+            
+            # extract "representative point" of the k-th partition
+            u = param_out[k, star_ind] %>% unlist %>% unname
+            
+            # compute the following for log-sum-exp trick
+            ck_1[k] = -psi(u, prior)
+            # ck_2[k] = sum(l_k * u)
+            # ck_3 = numeric(D)
+            
+            # ------------------------------------------------------------------
+            
+            for (d in 1:D) {
+                
+                # find column id of the first lower bound
+                col_id_lb = grep("u1_lb", names(param_out)) + 2 * (d - 1)
+                col_id_ub = col_id_lb + 1
+                
+                # limits of integration, length of the interval for param d
+                upper = param_out[k, col_id_ub]
+                lower = param_out[k, col_id_lb]
+                
+                eta_k[k] = eta_k[k] + log(upper - lower)
+                
+                # ck_3[d] = log_int_rect(l_k[d], lower, upper)
+                
+            } # end of loop computing each of 1-dim integrals
+            
+            const_approx[k]  = ck_1[k] + eta_k[k]
+            # taylor_approx[k] = ck_1[k] + ck_2[k] + sum(ck_3)
+            
+        } # end of for loop over the K partitions
+        
+        # update approximations
+        const_vec[t]  = log_sum_exp(const_approx) 
+        
+        u_df = u_df %>% mutate(leaf_id = u_rpart$where,
+                               const_approx = 0,  const_resid = 0)
+        
+        partition_id = u_rpart$where %>% unique
+        
+        # for each partition, compute the sum of squared residuals,
+        # (psi(u) - psi_tilde(u))^2
+        for (j in 1:K) {
+            
+            k = partition_id[j]
+            
+            u_k_star = param_out %>% filter(leaf_id == k) %>%
+                dplyr::select(star_ind) %>% unname %>% unlist
+            
+            #### compute constant approximation for psi
+            # note: we actually already do this when computing e_ck_1, so
+            # eventually, we can just take log(e_ck_1) to recover this term
+            u_df[u_df$leaf_id == k,]$const_approx = psi(u_k_star, prior) %>% c()
+            
+            #### compute order 1 taylor approximation for psi
+            
+            # assumes u1,...,uD are the first D columns of u_df -- make sure
+            # this structure is maintained, maybe provide a check ?
+            # diff_k = sweep(u_df %>% filter(leaf_id == k) %>%
+            #                    dplyr::select(c(1:D)), 2,
+            #                FUN = '+', -u_k_star)
+            
+            # methodology notes:
+            # compute psi(u_star) for each of the partitions; we do this in 2
+            # ways -> (1) constant approximation, (2) order 1 taylor
+            # based on the residual for each approximation, we decide
+            # which approximation to use to compute the integral over each
+            # partition
+            # u_df[u_df$leaf_id == k,]$taylor_approx = c(psi(u_k_star, prior)) +
+            #     as.matrix(diff_k) %*% lambda(u_k_star, prior)
+            
+            # compute difference between psi_u and corresponding approximation
+            u_df = u_df %>% mutate(const_resid  = psi_u - const_approx)
+            
+        } # end of for loop computing residuals
+        
+    } # end of N_approx outer loop
     
-    return(out)
     
-} # end of log_int_rect() function
-
+    return(list(const_vec    = const_vec, 
+                const_approx = const_approx,
+                n_partitions = n_partitions,
+                u_df_fit     = u_df,
+                param_out    = param_out))
+    
+} 
+# end of hml_const() function --------------------------------------------------
 
 
 
@@ -475,4 +491,11 @@ hml = function(N_approx, D, u_df_full, J, prior) {
                 lambda_k          = lambda_k,
                 u_df_star         = u_df))
     
-} # end of hml() function
+} 
+# end of hml() function --------------------------------------------------------
+
+
+
+
+
+# end of logML_approx.R

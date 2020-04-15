@@ -14,9 +14,22 @@ setwd(LEN_PATH)
 source("partition/partition.R")         # load partition extraction functions
 source("hybrid_approx_v1.R")            # load main algorithm functions
 source("RRR/RRR_helper.R")              # load psi(), lambda(), preprocess()
+source("RRR/gibbs_RRR.R")              # load psi(), lambda(), preprocess()
+source("hybrid_const.R")
 source('extractPartition.R')            # load extractPartition() function
+options(scipen = 999)
 
-options(scipen=999)
+
+## testing refactored code
+source("C:/Users/ericc/Dropbox/logML/load_libraries.R")
+source("C:/Users/ericc/Dropbox/logML/algo_helpers.R")
+source("C:/Users/ericc/Dropbox/logML/partition.R")
+source("C:/Users/ericc/Dropbox/logML/logML_approx.R")
+
+LEN_PATH  = "C:/Users/ericc/mlike_approx"
+setwd(LEN_PATH)
+source("RRR/RRR_helper.R")              # load psi(), lambda(), preprocess()
+source("RRR/gibbs_RRR.R")               # load sampleRRR()
 
 
 p = 3             # number of columns in X
@@ -69,6 +82,7 @@ for (i in 1:length(N_vec)) {
 
     for (k in 1:K_sims) {
         
+        set.seed(1)
         # generate data, sample from posterior ---------------------------------
         gibbs_obj = sampleRRR(nMCMC, nBurn, A_0, B_0, p, q, r_0, r, D, N, sig2, del)
         
@@ -89,19 +103,22 @@ for (i in 1:length(N_vec)) {
         # generate hybrid approximation
         hml_approx = hml(1, D, u_df, nMCMC, param_list)
         
-        hml_approx$verbose_partition
-        hml_approx$partition
-        u_df_star = hml_approx$u_df_star
-        hml_approx$const_vec
+        # hml_approx$verbose_partition
+        # hml_approx$partition
+        # u_df_star = hml_approx$u_df_star
+        hml_approx$const_vec  # -2366.219
+        hml_approx$hybrid_vec # -2366.219
+        hml_approx$taylor_vec # -2212.549
         
         # test hml_const() function
         hml_approx_const = hml_const(1, D, u_df, nMCMC, param_list)   # should equal below
-        hml_approx_const$const_vec                       # should equal above
-        hml_approx_const$n_partitions
-        hml_approx_const$const_approx
-        hml_approx_const$param_out
-        log_sum_exp(hml_approx_const$const_approx)
-        u_df_star = hml_approx_const$u_df_fit
+        # hml_approx_const$n_partitions
+        # hml_approx_const$const_approx
+        # hml_approx_const$param_out
+        # log_sum_exp(hml_approx_const$const_approx)
+        # u_df_star = hml_approx_const$u_df_fit
+        
+        hml_approx_const$const_vec # -2366.219
         
         # TODO: integral over each of the partitions
         

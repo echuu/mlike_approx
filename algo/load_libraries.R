@@ -1,0 +1,48 @@
+
+# load_libraries.R
+# load the packages required to run the algorithm
+
+library('MASS')             # misc functions
+library('ggplot2')          # visualization
+library('rpart')            # rpart()
+library('tidyr')            # data mangaement
+library('readr')            # data management
+library('stringr')          # regex functions to extract partitions from rpart
+library('dplyr')            # data mangaement
+library('VGAM')             # for log1mexp() function
+library('matrixcalc')       # trace(), is.positive.definite()
+library('MCMCpack')         # riwish()
+library('CholWishart')      # lmvgamma()
+library('mvtnorm')          # rmvnorm(), dmvnorm()
+library('rpart.plot')       # rpart.rules()
+
+options(scipen = 999)
+
+## change value of INSTALL_ALL to TRUE if you are missing the above libraries
+
+INSTALL_ALL = FALSE
+
+if (INSTALL_ALL) {
+    install.packages("mvtnorm")
+    install.packages('mvtnorm')
+    install.packages('MASS')
+    install.packages('ggplot2')
+    install.packages('rplot')
+    install.packages('tidyr')           
+    install.packages('readr')            
+    install.packages('stringr')          
+    install.packages('dplyr')            
+    install.packages('VGAM')             
+    install.packages('matrixcalc')       
+    install.packages('MCMCpack')         
+    install.packages('CholWishart')   
+    install.packages('rpart.plot')
+    
+}
+
+
+
+
+
+
+

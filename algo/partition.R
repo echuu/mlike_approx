@@ -1,71 +1,120 @@
 
-# partition.R ------------------------------------------------------------------
-# 
+# partition.R
 
 
-# conventions: 
-# u = (u1, u2, ... , up) is a p-dimensional vector representing the parameters
-# partitions are indexed with k
+## functions in this file
+## TODO: add function documentation/description
+##
+##     extractPartition()
+##     u_star()
+##     updatePartition()
+##     node_partition()
+## 
 
-
-
-library('mvtnorm')      # multivariate normal density
-library('MASS')         # mvnorm()
-library('ggplot2')      # don't think we use this in these functions
-library('rpart')        # rpart() for fitting the tree
-library('rpart.plot')   # do we need this?
-library('tidyr')        # data mangaement
-library('readr')        # data management
-library('stringr')      # regex functions
-library('dplyr')        # data mangaement
-
-
-# steps to extract the representative points of each partition
-
-# Idea: 
-# (1) append column to u_df to identify which leaf node each observation is
-#     assigned to -- this lets us easily subset out observations for a 
-#     particular leaf node so that we can recursively partition these points
-# (2) 
-
-processFit = function(u_df, rpart_obj) {
+#### extractPartition() --------------------------------------------------------
+#
+extractPartition = function(u_tree, param_support = NULL) {
     
-    # (1) assign leaf node id to each of the observations
-    u_df_leaf = u_df %>% mutate(leaf_id = rpart_obj$where)   
+    # pre-process the partition output
+    rules = rpart.rules(u_tree, digits = 6, roundint = FALSE)
     
-    # (2) for each of the leaf nodes, compute the KS distance
-    partition_id = sort(unique(rpart_obj$where))
+    ## 1/23 -- updated following 3 lines
+    rules_df_full = apply(rules, 2, as.character)
+    # psi_hat_rules = round(as.numeric(rules_df_full[,1]), 4)
+    rules_df = rules_df_full[,-c(1:2)]
+    rules_str = data.frame(x = matrix(0, nrow(rules_df))) # n_partitions x 1
     
-    # store ks distance for observations corresponding to each of partition ids
-    ks = numeric(length(partition_id)) 
-    for (leaf in partition_id) {
-        
-        # compute the KS distance for observations in the 'leaf' partition
-        
+    partition_id = sort(unique(u_tree$where)) # row id of leaf node information
+    
+    # this is now in the order of the rules_df_full, rules_df dataframes
+    psi_hat_id = cbind(leaf_id = partition_id, 
+                       psi_hat = u_tree$frame[partition_id, 5]) %>% 
+        data.frame() %>% arrange(psi_hat)
+    
+    # psi_hat = round(u_tree$frame[partition_id,]$yval, 6)
+    # psi_hat_sort = sort(psi_hat) # sort these to match the order of the rules
+    
+    n_params = length(u_tree$ordered)
+    n_partitions = nrow(rules_str)
+    
+    
+    for(r in 1:nrow(rules)) {
+        rules_str[r,] = str_c(rules_df[r,][rules_df[r,] != ""], collapse = ' ')
     }
     
     
+    # initialize storage for the partition intervals -- (n_params x 2)
+    partition = data.frame(matrix(NA, n_partitions, n_params * 2))
     
-    # (3) determine which leaf nodes require another rpart() fit
-    # issue: the recursive fits may result in leaf_node ids that coincide
-    # with the parent rpart fits which will lead to issues when computing the 
-    # representative point of each partition
+    for (p in 1:n_params) {
+        
+        p_col = 2 * p - 1
+        
+        # form column names for {(u1_lb, u1_ub),...,(up_lb, up_ub)}
+        lb = paste("u", p, "_lb", sep = "")
+        ub = paste("u", p, "_ub", sep = "")
+        names(partition)[p_col:(p_col + 1)] = c(lb, ub)
+        
+        # fill in the support for the p-th parameter
+        partition[, p_col] = param_support[p, 1]       # param p lower bound
+        partition[, p_col + 1] = param_support[p, 2]   # param p upper bound
+    } 
     
-    # potential solution: don't merge the recursive fits back with the original
-    # dataframe. instead, compute the representative point of the partition
-    # 'on the fly' right after the threshold/restriction on KS is met -> then,
-    # we need only return the reprenstative value, and the bounds of the
-    # partition (no need for the partition id)
-    #     - this needs to be fleshed out more
     
+    # populate the partition with decision rules
+    for (r in 1:n_partitions) {
+        
+        # (0)   split the string by & (each decision stored in matrix/vector)
+        part_vec = str_split(rules_str[r,], "\\&", simplify = TRUE)
+        
+        # (1)   iterate over the partition/decisions
+        for (p in 1:ncol(part_vec)) {
+            
+            
+            ### fixed : node_partition() function is buggy
+            processNode = node_partition(part_vec[p], param_support)
+            
+            # (1.1) identify the parameter corresponding to each partition
+            param_id = processNode$id
+            col_id = 2 * param_id - 1
+            
+            # (1.2) extract values defining the partition/decision
+            bdry = processNode$interval
+            
+            # (1.3) store the values from (1.2) into correct column
+            partition = updatePartition(partition, r, col_id, bdry)
+            
+        } # end of update step for each of the parameters
+        
+    } # end of loop storing the parititon boundaries
     
+    ## 1/23 -- updated the left-appended column
+    partition_out = cbind(psi_hat_id, partition)
     
-}
+    # number of observations in each leaf node
+    # part_obs_tbl = table(u_tree$where) %>% data.frame
+    # names(part_obs_tbl) = c("leaf_id", "n_obs")
+    
+    #### (2) obtain predicted value for each of the observations
+    # psi_hat_leaf = cbind(leaf_id = partition_id,
+    #                     psi_hat = u_tree$frame[partition_id,]$yval) %>% 
+    #    data.frame()
+    
+    #partition_out = merge(psi_hat_leaf %>% 
+    #                          mutate(psi_hat = round(psi_hat, 4)), 
+    #                      partition, by = 'psi_hat')
+    
+    return(partition_out)
+    
+} 
+# end extractPartition() function ----------------------------------------------
 
 
 
 
-#### (1) obtain partition location of each observation
+
+#### u_star() ------------------------------------------------------------------
+#
 u_star = function(rpart_obj, u_df_in, partition, n_params) {
     
     # (1.1) determine which partition each observation is grouped in
@@ -158,133 +207,21 @@ u_star = function(rpart_obj, u_df_in, partition, n_params) {
     
     ## merge with the boundary of each of the partitions
     u_df_full = merge(u_star_df, partition, by = 'leaf_id')
-
+    
     # append the number of observations for each leaf node to the right
     # this is later used to determine the type of approximation to use
     u_df_full = merge(u_df_full, part_obs_tbl, by = 'leaf_id')
     
     
     return(u_df_full)
-} # end u_star() function ------------------------------------------------------
+}
+# end u_star() function --------------------------------------------------------
 
 
 
-# partition object initialization
-# when creating the partition dataframe, we need:
-#    (1) number of parameters
-#    (2) the support of each of the parameters
-#    (3) the number of partitions (extracted rpart.rules() function)
-
-# param_support : (p x 2) with the range that each parameter stored row-wise
-
-# TODO: looks like extractPartition has replaced this? 4/8 -- see if 
-# we can delete this
-paramPartition = function(u_tree, param_support = NULL) {
-    
-    # pre-process the partition output
-    rules = rpart.rules(u_tree, digits = 6, roundint = FALSE)
-    rules_df = apply(rules, 2, as.character)[,-c(1:2)]
-    rules_str = data.frame(x = matrix(0, nrow(rules_df))) # n_partitions x 1
-    
-    # predicted values for each partition
-    # TODO: generalize the 4 to user input later
-    # psi_hat = round(as.numeric(rules[,1]), 4) 
-    
-    partition_id = sort(unique(u_tree$where)) # row id of leaf node information
-    psi_hat = round(u_tree$frame[partition_id,]$yval, 4)
-    
-    # n_params = length(u_tree$variable.importance)
-    
-    n_params = length(u_tree$ordered)
-    
-    n_partitions = nrow(rules_str)
-    
-    for(r in 1:nrow(rules)) {
-        rules_str[r,] = str_c(rules_df[r,][rules_df[r,] != ""], collapse = ' ')
-    }
-    
-    # use (-Inf, Inf) as the support for all the parameters if not specified
-    # by user
-    if (is.null(param_support)) {
-        param_support = cbind(rep(-Inf, n_params), rep(Inf, n_params))
-    }
-    
-    # initialize storage for the partition intervals -- (n_params x 2)
-    partition = data.frame(matrix(NA, n_partitions, n_params * 2))
-    
-    for (p in 1:n_params) {
-        
-        p_col = 2 * p - 1
-        
-        # form column names for {(u1_lb, u1_ub),...,(up_lb, up_ub)}
-        lb = paste("u", p, "_lb", sep = "")
-        ub = paste("u", p, "_ub", sep = "")
-        names(partition)[p_col:(p_col + 1)] = c(lb, ub)
-        
-        # fill in the support for the p-th parameter
-        partition[, p_col] = param_support[p, 1]       # param p lower bound
-        partition[, p_col + 1] = param_support[p, 2]   # param p upper bound
-    } 
-    
-    
-    # populate the partition with decision rules
-    for (r in 1:n_partitions) {
-        
-        # (0)   split the string by & (each decision stored in matrix/vector)
-        part_vec = str_split(rules_str[r,], "\\&", simplify = TRUE)
-        
-        # (1)   iterate over the partition/decisions
-        for (p in 1:ncol(part_vec)) {
-            
-            
-            ### fixed : node_partition() function is buggy
-            processNode = node_partition(part_vec[p], param_support)
-            
-            # (1.1) identify the parameter corresponding to each partition
-            param_id = processNode$id
-            col_id = 2 * param_id - 1
-            
-            # (1.2) extract values defining the partition/decision
-            bdry = processNode$interval
-            
-            # (1.3) store the values from (1.2) into correct column
-            partition = updatePartition(partition, r, col_id, bdry)
-            
-        } # end of update step for each of the parameters
-        
-    } # end of loop storing the parititon boundaries
-    
-    
-    partition = cbind(psi_hat, partition)
-    
-    # number of observations in each leaf node
-    part_obs_tbl = table(u_tree$where) %>% data.frame
-    names(part_obs_tbl) = c("leaf_id", "n_obs")
-    
-    
-    
-    #### (2) obtain predicted value for each of the observations
-    psi_hat_leaf = cbind(leaf_id = partition_id,
-                         psi_hat = u_tree$frame[partition_id,]$yval) %>% 
-        data.frame()
-    
-    partition_out = merge(psi_hat_leaf %>% 
-                              mutate(psi_hat = round(psi_hat, 4)), 
-                          partition, by = 'psi_hat')
-    
-
-    
-    return(partition_out)
-    
-} # end paramPartition() function ----------------------------------------------
 
 
-
-# ------------------------------------------------------------------------------
-
-
-
-# updatePartition() : 
+#### updatePartition() --------------------------------------------------------- 
 # store the values from (1.2) into correct column of the final df
 # partition: data frame that stores the current decisions/boundaries
 # row_id   : the row corresponding to the decision to be updated
@@ -297,9 +234,13 @@ updatePartition = function(partition, row_id, col_id, bdry) {
     return(partition)
 }
 
+# end updatePartition() function -----------------------------------------------
 
-# ------------------------------------------------------------------------------
 
+
+
+
+#### node_partition() ----------------------------------------------------------
 # str_in needs only have ONE of the interval identifiers, i.e., str_split()
 # already needs to have been called, splitting on "\\&"
 node_partition = function(str_in, param_support) {
@@ -355,7 +296,6 @@ node_partition = function(str_in, param_support) {
     return(list(id = param_id, interval = interval))
 }
 
-
-
+# end node_partition() function ------------------------------------------------
 
 

@@ -4,33 +4,7 @@
 ## they are updated to improve fit
 
 
-
-## TODO: write function that generates an output like the following
-## see mvn_troubleshoot.R for inspiration of what the output should look like
-
-#    psi_hat perc_mem partition_integral taylor1_integral taylor2_numer
-# 1   0.2875   0.4438        2.869490199       3.02938082    5.29740423
-# 2   1.1606   0.1032        0.683710569       0.79907025    1.39124488
-# 3   0.8198   0.0878        0.497127890       0.52349531    0.82736043
-# 4   1.0690   0.0796        0.490854427       0.53376998    1.23866939
-# 5   1.1197   0.0732        0.451552152       0.49167407    0.65655063
-# 6   1.8453   0.0564        0.338489901       0.41924842    0.75335918
-# 7   2.3347   0.0388        0.255096119       0.45286334   14.26437054
-# 8   2.4110   0.0370        0.234916417       0.30812222    0.36149494
-# 9   2.2413   0.0362        0.209963191       0.46940746    0.67163583
-# 10  3.6971   0.0188        0.087049219       0.24374799    1.29709727
-# 11  3.4981   0.0120        0.078856266       0.17221502    0.40278265
-# 12  4.8799   0.0054        0.047904170       0.13637846    2.00592708
-# 13  4.6801   0.0048        0.022964372       0.04403228    0.03690540
-# 14  4.3749   0.0030        0.009180518       0.02178593    0.01005086
-
-
-
-
-
-# using median objective function does worse in the MVN example 
-# TODO: check performance in singular example
-
+## TODO: can delete this? looks like a copy of u_star() function 4/8
 u_star_med = function(rpart_obj, u_df_in, partition, n_params) {
     
     # notes: 
@@ -133,9 +107,7 @@ u_star_med = function(rpart_obj, u_df_in, partition, n_params) {
     u_df_full = merge(u_df_full, part_obs_tbl, by = 'leaf_id')
     
     
-    
-    
-    
+
 }
 
 
@@ -215,7 +187,7 @@ extractPartition = function(u_tree, param_support = NULL) {
  
     } # end of loop storing the parititon boundaries
     
-    ## 1/23 -- updated the lef       t-appended column
+    ## 1/23 -- updated the left-appended column
     partition_out = cbind(psi_hat_id, partition)
     
     # number of observations in each leaf node
