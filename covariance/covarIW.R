@@ -83,15 +83,31 @@ lil(param_list) - maxLogLik(Sigma, param_list)
 
 #### model output diagnostics
 
-
-# (1.1) extract all u in a given partition
+part_info = hml_approx$param_out
+u_df_info = hml_approx$u_df_fit
 
 # (1.1) for each point: fitted value, leaf_id, residual
-hml_approx$u_df_fit %>% head
+
+## notation: 
+# psi_u     : true value, psi(u)
+# psi_star  : psi(u_star), where u_star is the partition's representative point
+# psi_resid : psi_u - psi_star
+# psi_hat   : fitted value for psi(u) on a given partition
+##
+
+u_df_info %>% head
 
 # (1.2) for each partition: 'median' points, fitted value, upper/lower bounds,
 # number of observations in partition
-hml_approx$param_out
+part_info 
+
+
+# compare the psi values from tree vs. psi values evaluated at 'representative'
+# point of each partition
+part_psi = part_info %>% 
+    dplyr::select(leaf_id, psi_hat) %>% 
+    merge(u_df_info %>% dplyr::select(leaf_id, psi_star) %>% unique, 
+          by = 'leaf_id')
 
 
 
@@ -101,21 +117,39 @@ hml_approx$param_out
 # (2.2) consider the number of observations in each of the partitions in
 # conjunction with the MSE for each partition
 
-u_df_fit = hml_approx$u_df_fit
-
 library(MLmetrics)
-u_df_fit %>% 
+part_mse = u_df_info %>% 
     dplyr::group_by(leaf_id) %>% 
-    summarise(mse = MSE(psi_u, const_approx)) %>% 
-    merge(hml_approx$param_out %>% 
-              dplyr::select(leaf_id, n_obs), by = 'leaf_id')
+    summarise(psi_star_mse = MSE(psi_u, psi_star)) %>% 
+    merge(part_info %>% dplyr::select(leaf_id, n_obs), by = 'leaf_id')
 
 
-# TODO: (3) compute approximate integral over each partition
+# for each partition, display the fitted value for psi (from tree), 
+# psi evaluated at the representative point, the mse associated with the
+# representative point, the number of observations for that partition
+psi_df = merge(part_psi, part_mse, by = 'leaf_id')
+
+psi_df %>% arrange(mse)
+
+psi_df %>% arrange(n_obs)
+
+# compute mse for the tree's fitted values
+psi_rpart = hml_approx$u_rpart
+tree_dev = rpart_mse(psi_rpart, u_df)
+tree_mse = tree_dev %>% group_by(leaf_id) %>% 
+    summarise(psi_hat_mse = mean(dev_sq))
+
+# gather all psi approximations (tree and algo) with associated MSEs
+# into one table
+psi_mse = psi_df %>% merge(tree_mse, by = 'leaf_id') %>% 
+    dplyr::select(leaf_id, psi_hat, psi_hat_mse, psi_star, psi_star_mse, n_obs)
 
 
+psi_mse
 
 
+# (3) compute approximate integral over each partition
+hml_approx$const_approx
 
 
 # (4) extract partitions corresponding to the diagonal
@@ -127,7 +161,7 @@ diagInd = getDiagIndex(D, D_u)
 diag_names = paste("u", diagInd, sep = '')
 
 # extract u_k_star with corresponding lb, ub for each k that is a diagonal entry
-getDiagCols(hml_approx$param_out, D, D_u)
+getDiagCols(part_info, D, D_u)
 
 
 

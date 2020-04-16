@@ -102,7 +102,7 @@ hml_const = function(N_approx, D, u_df_full, J, prior) {
         const_vec[t]  = log_sum_exp(const_approx) 
         
         u_df = u_df %>% mutate(leaf_id = u_rpart$where,
-                               const_approx = 0,  const_resid = 0)
+                               psi_star = 0,  const_resid = 0)
         
         partition_id = u_rpart$where %>% unique
         
@@ -118,27 +118,10 @@ hml_const = function(N_approx, D, u_df_full, J, prior) {
             #### compute constant approximation for psi
             # note: we actually already do this when computing e_ck_1, so
             # eventually, we can just take log(e_ck_1) to recover this term
-            u_df[u_df$leaf_id == k,]$const_approx = psi(u_k_star, prior) %>% c()
-            
-            #### compute order 1 taylor approximation for psi
-            
-            # assumes u1,...,uD are the first D columns of u_df -- make sure
-            # this structure is maintained, maybe provide a check ?
-            # diff_k = sweep(u_df %>% filter(leaf_id == k) %>%
-            #                    dplyr::select(c(1:D)), 2,
-            #                FUN = '+', -u_k_star)
-            
-            # methodology notes:
-            # compute psi(u_star) for each of the partitions; we do this in 2
-            # ways -> (1) constant approximation, (2) order 1 taylor
-            # based on the residual for each approximation, we decide
-            # which approximation to use to compute the integral over each
-            # partition
-            # u_df[u_df$leaf_id == k,]$taylor_approx = c(psi(u_k_star, prior)) +
-            #     as.matrix(diff_k) %*% lambda(u_k_star, prior)
-            
+            u_df[u_df$leaf_id == k,]$psi_star = psi(u_k_star, prior) %>% c()
+
             # compute difference between psi_u and corresponding approximation
-            u_df = u_df %>% mutate(const_resid  = psi_u - const_approx)
+            u_df = u_df %>% mutate(psi_resid  = psi_u - psi_star)
             
         } # end of for loop computing residuals
         
@@ -146,7 +129,7 @@ hml_const = function(N_approx, D, u_df_full, J, prior) {
     
     
     return(list(const_vec    = const_vec, 
-                const_approx = const_approx,
+                const_approx = const_approx,   # used to determine logML approx
                 n_partitions = n_partitions,
                 u_df_fit     = u_df,
                 param_out    = param_out))
