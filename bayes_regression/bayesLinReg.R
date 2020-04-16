@@ -15,7 +15,16 @@ library(mvtnorm)
 source("partition/partition.R")
 source("extractPartition.R")
 source("hybrid_approx.R")
-source("bayes_regression/bayesLinRegHelper.R") 
+
+
+
+## refactored code 4/15
+setwd("C:/Users/ericc/mlike_approx/algo")
+source("setup.R")           # setup global environment, load in algo functions
+## 
+
+
+source("C:/Users/ericc/mlike_approx/bayes_regression/bayesLinRegHelper.R") 
 
 
 # STAN sampler settings --------------------------------------------------------
@@ -75,13 +84,17 @@ K_sims    = 1            # number of simulations to run
 # true log marginal likelihood
 lil(prior, post) 
 
-u_samps = rmvnorm(J, mean = mu_beta, sigma = Q_beta_inv) %>% data.frame 
+u_samps = rmvnorm(J, mean = c(mu_beta), sigma = Q_beta_inv) %>% data.frame 
 u_df = preprocess(u_samps, D, prior) # J x (D + 1) -- stored row-wise 
 
 hml_approx = hml(N_approx, D, u_df, J, prior) 
 
-hml_approx$const_vec
+hml_approx = hml_const(1, D, u_df, J, prior)
+
+hml_approx$const_vec  # -457.1004
 hml_approx$hybrid_vec
+
+
 
 
 # ------------------------------------------------------------------------------

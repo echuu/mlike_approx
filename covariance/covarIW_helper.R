@@ -1,4 +1,6 @@
 
+## covarIW_helper.R
+
 ## functions included:
 ## (1) logmultigamma() : log multivariate gamma function
 ## (2) sampleIW()      : sample from IW-distribution
@@ -17,7 +19,39 @@ logmultigamma = function(p, a) {
 
 
 
-# sampleIW() function
+
+
+## getDiagIndex() function
+# return the indices of the diagonal elements in the cholesky factor
+# D   : dimension of the covariance matrix
+# D_u : number of elements in the lower cholesky factor (dimension of u) 
+getDiagIndex = function(D, D_u) {
+    
+    L_ld = matrix(0, D, D)
+    L_ld[lower.tri(L_ld, diag = T)] = 1:D_u
+    diag_ind = diag(L_ld)
+    
+    return(diag_ind)
+    
+} # end getDiagIndex() function ------------------------------------------------
+
+
+
+
+
+getDiagCols = function(hml_obj, D, D_u) {
+    
+    ind = getDiagIndex(D, D_u)
+    diag_names = paste("u", ind, sep = '')
+
+    dplyr::select(hml_obj, matches(diag_names))
+    
+}
+
+
+
+
+## sampleIW() function
 # input: 
 #        J     : # of MCMC samples to draw from inverse wishart
 #        N     : sample size

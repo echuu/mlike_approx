@@ -40,10 +40,7 @@ is.positive.definite(Sigma)
 
 ## (1) generate data
 X = rmvnorm(N, mean = rep(0, D), sigma = Sigma) # (N x p)
-S = matrix(0, D, D)
-for (n in 1:N) {
-    S = S + tcrossprod(X[n,]) # compute sum_n x_n * x_n'
-}
+S = t(X) %*% X                                  # (p x p)
 
 
 ## store parameters in a list that can be passed into the algorithm
@@ -81,6 +78,59 @@ hml_approx$const_vec - loglik_max
 
 # (3c) compute true log ML, subtract off maximized log likelihood
 lil(param_list) - maxLogLik(Sigma, param_list)
+
+# ------------------------------------------------------------------------------
+
+#### model output diagnostics
+
+
+# (1.1) extract all u in a given partition
+
+# (1.1) for each point: fitted value, leaf_id, residual
+hml_approx$u_df_fit %>% head
+
+# (1.2) for each partition: 'median' points, fitted value, upper/lower bounds,
+# number of observations in partition
+hml_approx$param_out
+
+
+
+# (2) fitted value for each partition (const_approx)
+# (2.1) look at the MSE for each of the partitions to see if there's one
+# parition where there is significantly larger discrepancy
+# (2.2) consider the number of observations in each of the partitions in
+# conjunction with the MSE for each partition
+
+u_df_fit = hml_approx$u_df_fit
+
+library(MLmetrics)
+u_df_fit %>% 
+    dplyr::group_by(leaf_id) %>% 
+    summarise(mse = MSE(psi_u, const_approx)) %>% 
+    merge(hml_approx$param_out %>% 
+              dplyr::select(leaf_id, n_obs), by = 'leaf_id')
+
+
+# TODO: (3) compute approximate integral over each partition
+
+
+
+
+
+
+# (4) extract partitions corresponding to the diagonal
+
+# extract column names corresponding to diagonal entries (this is built into 
+# getDiagCols() function already, but could be of some use later to have these
+# indices available
+diagInd = getDiagIndex(D, D_u)
+diag_names = paste("u", diagInd, sep = '')
+
+# extract u_k_star with corresponding lb, ub for each k that is a diagonal entry
+getDiagCols(hml_approx$param_out, D, D_u)
+
+
+
 
 
 
