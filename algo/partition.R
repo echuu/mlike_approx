@@ -113,6 +113,44 @@ extractPartition = function(u_tree, param_support = NULL) {
 
 
 
+#### rpart_mse() ---------------------------------------------------------------
+# compute partition-wise MSE using the fitted values provided by the rpart
+# regression tree; each mse can be extracted using a leaf_id
+# 
+rpart_mse = function(rpart_obj, u_df_in) {
+    
+    # (1.1) determine which partition each observation is grouped in
+    u_df = u_df_in %>% mutate(leaf_id = rpart_obj$where)
+    
+    # (1.2) obtain the rows in rpart.object$frame associated with the leaf nodes
+    # these rows contain the fitted value for nodes that fall w/in a 
+    # given partition
+    partition_id = sort(unique(rpart_obj$where)) # row id of leaf node
+    
+    # number of observations in each leaf node
+    part_obs_tbl = table(rpart_obj$where) %>% data.frame
+    names(part_obs_tbl) = c("leaf_id", "n_obs")
+    
+    #### (2) obtain predicted value for each of the observations
+    psi_hat_leaf = cbind(leaf_id = partition_id,
+                         psi_hat = rpart_obj$frame[partition_id,]$yval) %>% 
+        data.frame()
+    
+    # append the fitted value for each row on the right as an additional column
+    u_df = merge(u_df, psi_hat_leaf, "leaf_id")
+    
+    #### (3) compute squared residuals for each of the observations
+    u_df = u_df %>% mutate(dev_sq = (psi_u - psi_hat)^2)
+    
+    return(u_df)
+    
+    
+} # end rpart_mse() function ---------------------------------------------------
+
+
+
+
+
 #### u_star() ------------------------------------------------------------------
 #
 u_star = function(rpart_obj, u_df_in, partition, n_params) {

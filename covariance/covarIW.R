@@ -14,7 +14,7 @@ source("covarIW_helper.R")  # covariance related helper functions
 
 
 N = 100                     # number of observations
-D = 3                       # num rows/cols in the covariance matrix
+D = 5                       # num rows/cols in the covariance matrix
 D_u = 0.5 * D * (D + 1)     # dimension of u that is fed into the tree
 J = 300
 
@@ -109,7 +109,7 @@ part_psi = part_info %>%
     merge(u_df_info %>% dplyr::select(leaf_id, psi_star) %>% unique, 
           by = 'leaf_id')
 
-
+part_psi
 
 # (2) fitted value for each partition (const_approx)
 # (2.1) look at the MSE for each of the partitions to see if there's one
@@ -129,7 +129,9 @@ part_mse = u_df_info %>%
 # representative point, the number of observations for that partition
 psi_df = merge(part_psi, part_mse, by = 'leaf_id')
 
-psi_df %>% arrange(mse)
+psi_df %>% arrange(psi_star_mse)
+
+u_df_info %>% filter(leaf_id == 28)
 
 psi_df %>% arrange(n_obs)
 
@@ -162,6 +164,13 @@ diag_names = paste("u", diagInd, sep = '')
 
 # extract u_k_star with corresponding lb, ub for each k that is a diagonal entry
 getDiagCols(part_info, D, D_u)
+
+
+
+
+
+
+
 
 
 

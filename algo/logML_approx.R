@@ -102,7 +102,7 @@ hml_const = function(N_approx, D, u_df_full, J, prior) {
         const_vec[t]  = log_sum_exp(const_approx) 
         
         u_df = u_df %>% mutate(leaf_id = u_rpart$where,
-                               psi_star = 0,  const_resid = 0)
+                               psi_star = 0, psi_resid = 0)
         
         partition_id = u_rpart$where %>% unique
         
@@ -132,7 +132,8 @@ hml_const = function(N_approx, D, u_df_full, J, prior) {
                 const_approx = const_approx,   # used to determine logML approx
                 n_partitions = n_partitions,
                 u_df_fit     = u_df,
-                param_out    = param_out))
+                param_out    = param_out,
+                u_rpart      = u_rpart))
     
 } 
 # end of hml_const() function --------------------------------------------------
