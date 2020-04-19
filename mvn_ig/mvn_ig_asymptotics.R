@@ -27,7 +27,7 @@ source("mvn_ig/mvn_ig_helper.R") # load this LAST to overwrite def preprocess()
 
 # STAN sampler settings --------------------------------------------------------
 
-J         = 500          # number of MC samples per approximation
+J         = 300          # number of MC samples per approximation
 N_approx  = 1            # number of approximations
 burn_in   = 2000         # number of burn in draws
 n_chains  = 4            # number of markov chains to run

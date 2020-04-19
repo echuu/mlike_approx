@@ -35,10 +35,23 @@ hml_const = function(N_approx, D, u_df_full, J, prior) {
         param_support = extractSupport(u_df, D) # hybrid_approx_v1.R
         
         # (3.2) obtain the partition
-        u_partition = extractPartition(u_rpart, param_support)  # extractPartition.R
+        u_partition = extractPartition(u_rpart, param_support) 
+        
+        #### TO BE MODIFIED ----------------------------------------------------
         
         # organize all data into single data frame --> ready for approximation
         param_out = u_star(u_rpart, u_df, u_partition, D) # partition.R
+        
+        # currently: we take u_star_k to be a u \in A_k that minimizes
+        # (psi(u) - psi_hat(u))^2
+        # alternatively, we can change the criteria that we use to select
+        # u_k_star in an attempt to bracket the approximate value
+        # (1) try the median value (no residual calculation)
+        # (2) try 75th percentile value (no residual calculation)
+        # (3) try randomly selected point (no residual calculation)
+        
+        # ----------------------------------------------------------------------
+        
         
         n_partitions = nrow(u_partition) # number of partitions 
         
@@ -72,6 +85,7 @@ hml_const = function(N_approx, D, u_df_full, J, prior) {
             
             # compute the following for log-sum-exp trick
             ck_1[k] = -psi(u, prior)
+            
             # ck_2[k] = sum(l_k * u)
             # ck_3 = numeric(D)
             

@@ -38,8 +38,8 @@ source("C:/Users/ericc/mlike_approx/bayes_regression/bayesLinRegHelper.R")
 # K_sims = 1               # num of simulations to run FOR EACH N in N_vec
 
 
-D = c(3) # test for smalller dimensions for now
-N = c(200) # for testing -- comment this line to perform ext. analysis
+D = c(15) # test for smalller dimensions for now
+N = c(100) # for testing -- comment this line to perform ext. analysis
 
 
 ## priors ----------------------------------------------------------------------
@@ -72,7 +72,7 @@ post = list(Q_beta = Q_beta, Q_beta_inv = Q_beta_inv, mu_beta = mu_beta, b = b)
 
 ## algorithm settings ----------------------------------------------------------
 
-J         = 500          # number of MC samples per approximation
+J         = 2000          # number of MC samples per approximation
 N_approx  = 1            # number of approximations to compute using algorithm
 K_sims    = 1            # number of simulations to run
 
@@ -87,7 +87,7 @@ lil(prior, post)
 u_samps = rmvnorm(J, mean = c(mu_beta), sigma = Q_beta_inv) %>% data.frame 
 u_df = preprocess(u_samps, D, prior) # J x (D + 1) -- stored row-wise 
 
-hml_approx = hml(N_approx, D, u_df, J, prior) 
+# hml_approx = hml(N_approx, D, u_df, J, prior) 
 
 hml_approx = hml_const(1, D, u_df, J, prior)
 
@@ -166,6 +166,12 @@ psi_mse = psi_df %>% merge(tree_mse, by = 'leaf_id') %>%
 
 psi_mse
 
+hml_approx$const_vec 
+
+lil(prior, post) 
+
+
+
 
 # (3) compute approximate integral over each partition
 hml_approx$const_approx
@@ -197,6 +203,8 @@ l_k_d = hml_approx$lambda[k_part,ind]
 - l_k_d * upper + log(- 1 / l_k_d * (1 - exp(-l_k_d * lower + l_k_d * upper)))
 
 hml_approx$ck_3[ind]
+
+
 
 
 

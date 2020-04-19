@@ -16,7 +16,8 @@ source("covarIW_helper.R")  # covariance related helper functions
 N = 100                     # number of observations
 D = 5                       # num rows/cols in the covariance matrix
 D_u = 0.5 * D * (D + 1)     # dimension of u that is fed into the tree
-J = 300
+J = 1e5
+
 
 ## wishart prior parameters
 Omega = diag(1, D)          # scale matrix
@@ -78,6 +79,9 @@ hml_approx$const_vec - loglik_max
 
 # (3c) compute true log ML, subtract off maximized log likelihood
 lil(param_list) - maxLogLik(Sigma, param_list)
+
+hml_approx$const_vec
+lil(param_list)
 
 # ------------------------------------------------------------------------------
 
@@ -147,7 +151,12 @@ psi_mse = psi_df %>% merge(tree_mse, by = 'leaf_id') %>%
     dplyr::select(leaf_id, psi_hat, psi_hat_mse, psi_star, psi_star_mse, n_obs)
 
 
-psi_mse
+psi_mse %>% arrange(n_obs) %>% mutate(n_perc = n_obs / J)
+
+
+hml_approx$const_vec
+lil(param_list)
+
 
 
 # (3) compute approximate integral over each partition
