@@ -173,6 +173,41 @@ lil(prior, post)
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 # (3) compute approximate integral over each partition
 hml_approx$const_approx
 

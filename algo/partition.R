@@ -261,6 +261,24 @@ u_star0 = function(rpart_obj, u_df_in, partition, n_params) {
 
 u_star = function(rpart_obj, u_df_in, partition, n_params) {
     
+    # candidates for c_star:
+    # (1) constant fitted by tree
+    # (2) mean of c_{kj}
+    # (3) median of c_{kj}
+    # (4) max of c_{kj}
+    
+    
+    
+    
+    
+}  
+# end of u_star() function ----------------------------------------------------- 
+
+   
+    
+
+u_star_max = function(rpart_obj, u_df_in, partition, n_params) {
+    
     # (1.1) determine which partition each observation is grouped in
     u_df = u_df_in %>% mutate(leaf_id = rpart_obj$where)
     
@@ -360,6 +378,8 @@ u_star = function(rpart_obj, u_df_in, partition, n_params) {
     
     return(u_df_full)
 }
+# end of u_star_max() function--------------------------------------------------
+
 
 
 
