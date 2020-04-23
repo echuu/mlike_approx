@@ -42,14 +42,6 @@ hml_const = function(N_approx, D, u_df_full, J, prior) {
         # organize all data into single data frame --> ready for approximation
         param_out = u_star(u_rpart, u_df, u_partition, D) # partition.R
         
-        # currently: we take u_star_k to be a u \in A_k that minimizes
-        # (psi(u) - psi_hat(u))^2
-        # alternatively, we can change the criteria that we use to select
-        # u_k_star in an attempt to bracket the approximate value
-        # (1) try the median value (no residual calculation)
-        # (2) try 75th percentile value (no residual calculation)
-        # (3) try randomly selected point (no residual calculation)
-        
         # ----------------------------------------------------------------------
         
         
@@ -71,7 +63,7 @@ hml_const = function(N_approx, D, u_df_full, J, prior) {
         
         # star_ind will be a vector of indices -- subsetting these out of 
         # param_out will give u_k = (u_k1, u_k2, ... , u_kD)
-        star_ind = grep("_star", names(param_out)) 
+        # star_ind = grep("_star", names(param_out)) 
         
         # ----------------------------------------------------------------------
         
@@ -81,10 +73,12 @@ hml_const = function(N_approx, D, u_df_full, J, prior) {
             # print(k)
             
             # extract "representative point" of the k-th partition
-            u = param_out[k, star_ind] %>% unlist %>% unname
+            # u = param_out[k, star_ind] %>% unlist %>% unname
             
             # compute the following for log-sum-exp trick
-            ck_1[k] = -psi(u, prior)
+            # ck_1[k] = -psi(u, prior)
+            
+            ck_1[k] = -param_out$psi_star[k]
             
             # ck_2[k] = sum(l_k * u)
             # ck_3 = numeric(D)
@@ -115,29 +109,31 @@ hml_const = function(N_approx, D, u_df_full, J, prior) {
         # update approximations
         const_vec[t]  = log_sum_exp(const_approx) 
         
-        u_df = u_df %>% mutate(leaf_id = u_rpart$where,
-                               psi_star = 0, psi_resid = 0)
         
-        partition_id = u_rpart$where %>% unique
+        psi_star_df = param_out %>% dplyr::select(leaf_id, psi_star)
         
+        u_df = u_df %>% mutate(leaf_id = u_rpart$where)
+        u_df = merge(u_df, psi_star_df, by = 'leaf_id')
+        
+        # partition_id = u_rpart$where %>% unique
         # for each partition, compute the sum of squared residuals,
         # (psi(u) - psi_tilde(u))^2
-        for (j in 1:K) {
-            
-            k = partition_id[j]
-            
-            u_k_star = param_out %>% filter(leaf_id == k) %>%
-                dplyr::select(star_ind) %>% unname %>% unlist
-            
-            #### compute constant approximation for psi
-            # note: we actually already do this when computing e_ck_1, so
-            # eventually, we can just take log(e_ck_1) to recover this term
-            u_df[u_df$leaf_id == k,]$psi_star = psi(u_k_star, prior) %>% c()
-
-            # compute difference between psi_u and corresponding approximation
-            u_df = u_df %>% mutate(psi_resid  = psi_u - psi_star)
-            
-        } # end of for loop computing residuals
+        # for (j in 1:K) {
+        #     
+        #     k = partition_id[j]
+        #     
+        #     u_k_star = param_out %>% filter(leaf_id == k) %>%
+        #         dplyr::select(star_ind) %>% unname %>% unlist
+        #     
+        #     #### compute constant approximation for psi
+        #     # note: we actually already do this when computing e_ck_1, so
+        #     # eventually, we can just take log(e_ck_1) to recover this term
+        #     u_df[u_df$leaf_id == k,]$psi_star = psi(u_k_star, prior) %>% c()
+        # 
+        #     # compute difference between psi_u and corresponding approximation
+        #     u_df = u_df %>% mutate(psi_resid  = psi_u - psi_star)
+        #     
+        # } # end of for loop computing residuals
         
     } # end of N_approx outer loop
     

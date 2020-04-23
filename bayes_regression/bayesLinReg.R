@@ -38,7 +38,7 @@ source("C:/Users/ericc/mlike_approx/bayes_regression/bayesLinRegHelper.R")
 # K_sims = 1               # num of simulations to run FOR EACH N in N_vec
 
 
-D = c(15) # test for smalller dimensions for now
+D = c(10) # test for smalller dimensions for now
 N = c(100) # for testing -- comment this line to perform ext. analysis
 
 
@@ -72,7 +72,7 @@ post = list(Q_beta = Q_beta, Q_beta_inv = Q_beta_inv, mu_beta = mu_beta, b = b)
 
 ## algorithm settings ----------------------------------------------------------
 
-J         = 2000          # number of MC samples per approximation
+J         = 500          # number of MC samples per approximation
 N_approx  = 1            # number of approximations to compute using algorithm
 K_sims    = 1            # number of simulations to run
 
@@ -144,7 +144,7 @@ part_mse = u_df_info %>%
 # for each partition, display the fitted value for psi (from tree), 
 # psi evaluated at the representative point, the mse associated with the
 # representative point, the number of observations for that partition
-psi_df = merge(part_psi, part_mse, by = 'leaf_id')
+psi_df = merge(part_psi, part_mse, by = 'leaf_id')''
 
 psi_df %>% arrange(psi_star_mse)
 
@@ -166,10 +166,32 @@ psi_mse = psi_df %>% merge(tree_mse, by = 'leaf_id') %>%
 
 psi_mse
 
-hml_approx$const_vec 
+hml_approx = hml_const(1, D, u_df, J, prior)
 
-lil(prior, post) 
+hml_approx$const_vec # -257.5357
 
+hml_approx$param_out
+
+lil(prior, post) # -257.7619
+
+
+
+
+# ------------------------------------------------------------------------------
+
+
+hml_approx$u_rpart
+
+
+param_support = extractSupport(u_df, D)
+
+# u_partition : leaf_id, psi_hat, all lower/upper bounds 
+u_partition = extractPartition(hml_approx$u_rpart, param_support)
+
+# u_star : will compute psi_star, other psi computation
+param_out = u_star(hml_approx$u_rpart, u_df, u_partition, D)
+
+param_out
 
 
 
