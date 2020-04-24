@@ -2,20 +2,20 @@
 
 
 
-# DELL_PATH = "C:/Users/chuu/mlike_approx"
-LEN_PATH  = "C:/Users/ericc/mlike_approx"
-# path for lenovo
-setwd(LEN_PATH)
-
-# path for dell
-# setwd(DELL_PATH)
-
-library(mvtnorm)
-
-source("partition/partition.R")
-source("extractPartition.R")
-source("hybrid_approx.R")
-
+# # DELL_PATH = "C:/Users/chuu/mlike_approx"
+# LEN_PATH  = "C:/Users/ericc/mlike_approx"
+# # path for lenovo
+# setwd(LEN_PATH)
+# 
+# # path for dell
+# # setwd(DELL_PATH)
+# 
+# library(mvtnorm)
+# 
+# source("partition/partition.R")
+# source("extractPartition.R")
+# source("hybrid_approx.R")
+# 
 
 
 ## refactored code 4/15
@@ -38,8 +38,8 @@ source("C:/Users/ericc/mlike_approx/bayes_regression/bayesLinRegHelper.R")
 # K_sims = 1               # num of simulations to run FOR EACH N in N_vec
 
 
-D = c(10) # test for smalller dimensions for now
-N = c(100) # for testing -- comment this line to perform ext. analysis
+D = c(2) # test for smalller dimensions for now
+N = c(200) # for testing -- comment this line to perform ext. analysis
 
 
 ## priors ----------------------------------------------------------------------
@@ -72,7 +72,7 @@ post = list(Q_beta = Q_beta, Q_beta_inv = Q_beta_inv, mu_beta = mu_beta, b = b)
 
 ## algorithm settings ----------------------------------------------------------
 
-J         = 500          # number of MC samples per approximation
+J         = 500         # number of MC samples per approximation
 N_approx  = 1            # number of approximations to compute using algorithm
 K_sims    = 1            # number of simulations to run
 
@@ -91,7 +91,236 @@ u_df = preprocess(u_samps, D, prior) # J x (D + 1) -- stored row-wise
 
 hml_approx = hml_const(1, D, u_df, J, prior)
 
-hml_approx$const_vec  # -457.0106
+hml_approx$param_out %>%
+    dplyr::select(leaf_id, psi_choice, psi_star, logQ_cstar, n_obs)
+
+hml_approx$const_vec # -249.8994
+
+lil(prior, post) # -248.8395
+
+
+
+#### D = 2 (J = 500)
+
+## sample run (1)
+# always taking max   : -224.5714
+# using loss function : -223.7904
+# truth               : -223.7641
+
+## sample run (2)
+# always taking max   : -217.1747
+# using loss function : -216.5745
+# truth               : -216.599
+
+
+#### D = 4 (J = 500)
+
+## sample run (1)
+# always taking max   : -240.0592
+# using loss function : -239.0824
+# truth               : -238.9488
+
+## test logMSE() function
+
+
+### TODO: put the stuff below in a separate function
+# can be used as a diagnostics function - using the MSE doesn't seem like it 
+# will yield good results empirically. for higher dimensions, it still picks
+# mean/median
+# for lower dimension, the two agree on a few, but still not most of them
+
+
+
+param_support = extractSupport(u_df, D)
+rpart_obj = hml_approx$u_rpart
+partition = extractPartition(hml_approx$u_rpart, param_support) 
+
+u_df = u_df %>% mutate(leaf_id = rpart_obj$where)
+
+psi_hat_df = partition %>% dplyr::select(leaf_id, psi_hat)
+
+partition_id = sort(unique(rpart_obj$where)) # row id of leaf node
+
+part_obs_tbl = table(rpart_obj$where) %>% data.frame
+names(part_obs_tbl) = c("leaf_id", "n_obs")
+
+n_partitions = length(partition_id)
+
+# compute max for each of the partitions
+psi_all = u_df %>% dplyr::group_by(leaf_id) %>% 
+    summarise(psi_max  = max(psi_u), 
+              psi_med  = median(psi_u), 
+              psi_mean = mean(psi_u),
+              psi_85   = quantile(psi_u, 0.85),
+              psi_90   = quantile(psi_u, 0.90),
+              psi_95   = quantile(psi_u, 0.95)) %>% 
+    merge(psi_hat_df, by = 'leaf_id')
+
+psi_long_logQ = melt(psi_all, id.vars = c("leaf_id"), 
+                     value.name = "psi_star_Q", 
+                     variable.name = "psi_choice_Q")
+
+psi_long_logMSE = melt(psi_all, id.vars = c("leaf_id"), 
+                       value.name = "psi_star_mse", 
+                       variable.name = "psi_choice_mse")
+
+psi_logQ_df = psi_long_logQ %>% dplyr::mutate(logQ_cstar = 0)
+psi_logMSE_df = psi_long_logMSE %>% dplyr::mutate(lmse_cstar = 0)
+
+for (k in 1:n_partitions) {
+    # extract psi_u for the k-th partition
+    c_k = u_df[u_df$leaf_id == partition_id[k],]$psi_u
+    
+    psi_logQ_df = psi_logQ_df %>% 
+        mutate(logQ_cstar = ifelse(leaf_id == partition_id[k],
+                                   sapply(psi_star_Q, logQ, c_k = c_k),
+                                   logQ_cstar))
+    psi_logMSE_df = psi_logMSE_df %>% 
+        mutate(lmse_cstar = ifelse(leaf_id == partition_id[k],
+                                   sapply(psi_star_mse, logMSE, c_k = c_k),
+                                   lmse_cstar))
+    
+    
+} # end of loop extracting representative points
+
+# for each partition (leaf_id), subset out rows for which log(Q(c)) is min
+psi_min_logQ = psi_logQ_df %>% 
+    group_by(leaf_id) %>% 
+    slice(which.min(logQ_cstar)) %>%  # extract rows that minimize log(Q(c))
+    data.frame()
+
+psi_min_logQ
+
+psi_min_logMSE = psi_logMSE_df %>% 
+    group_by(leaf_id) %>% 
+    slice(which.min(lmse_cstar)) %>%  # extract rows that minimize log(Q(c))
+    data.frame()
+
+psi_min_logMSE
+
+psi_merge = merge(psi_min_logQ, psi_min_logMSE, by = "leaf_id")
+
+psi_merge
+
+
+k = 1
+
+c_k = u_df[u_df$leaf_id == partition_id[k],]$psi_u
+
+c_star_k = psi_all_df[psi_all_df$leaf_id == partition_id[k],]$psi_star[1]
+
+logMSE(c_star_k, c_k)
+
+
+
+
+
+
+
+
+c_k = c(1:10)
+c_star_k = 10
+log(1/length(c_k) * sum((exp(-c_k) - exp(-c_star_k))^2))
+
+log(mean((exp(-c_k) - exp(-c_star_k))^2))
+logMSE(c_star_k, c_k)
+
+
+
+log((exp(-c_k[1]) - exp(-c_star_k))^2)
+2 * (-c_k[1] + log1mexp(c_star_k - c_k[1]))
+
+
+
+
+
+
+# ------------------------------------------------------------------------------
+
+param_support = extractSupport(u_df, D)
+rpart_obj = hml_approx$u_rpart
+partition = extractPartition(hml_approx$u_rpart, param_support) 
+
+
+#### inside u_star() function ####
+u_df = u_df %>% mutate(leaf_id = rpart_obj$where)
+
+psi_hat_df = partition %>% dplyr::select(leaf_id, psi_hat)
+
+partition_id = sort(unique(rpart_obj$where)) # row id of leaf node
+
+part_obs_tbl = table(rpart_obj$where) %>% data.frame
+names(part_obs_tbl) = c("leaf_id", "n_obs")
+
+n_partitions = length(partition_id)
+
+# current function goes to here ------------------------------------------------
+
+## start new u_star() code
+
+# compute max for each of the partitions
+psi_all = u_df %>% dplyr::group_by(leaf_id) %>% 
+    summarise(psi_max  = max(psi_u), 
+              psi_med  = median(psi_u), 
+              psi_mean = mean(psi_u)) %>% 
+    merge(psi_hat_df, by = 'leaf_id')
+
+library(reshape2)
+
+psi_long = melt(psi_all, id.vars = c("leaf_id"), value.name = "psi_star",
+                variable.name = "psi_choice")
+
+psi_all_df = psi_long %>% 
+    dplyr::mutate(logQ_cstar = 0)
+
+
+for (k in 1:n_partitions) {
+    
+    
+    # take psi_star to be the one that gives minimum log Q
+    
+    # extract psi_u for the k-th partition
+    c_k = u_df[u_df$leaf_id == partition_id[k],]$psi_u
+    
+    psi_all_df = psi_all_df %>% 
+        mutate(logQ_cstar = ifelse(leaf_id == partition_id[k],
+                                   sapply(psi_star, logQ, c_k = c_k),
+                                   logQ_cstar))
+    
+} # end of loop extracting representative points
+
+# for each partition (leaf_id), subset out rows for which logQ_cstar is min
+
+psi_df = psi_all_df %>% 
+    group_by(leaf_id) %>% 
+    slice(which.min(logQ_cstar)) %>%  # extract rows that minimize log(Q(c))
+    data.frame()
+
+## end new u_star() code
+
+
+psi_df
+
+
+
+table(psi_star$variable)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 # ------------------------------------------------------------------------------
@@ -144,7 +373,7 @@ part_mse = u_df_info %>%
 # for each partition, display the fitted value for psi (from tree), 
 # psi evaluated at the representative point, the mse associated with the
 # representative point, the number of observations for that partition
-psi_df = merge(part_psi, part_mse, by = 'leaf_id')''
+psi_df = merge(part_psi, part_mse, by = 'leaf_id')
 
 psi_df %>% arrange(psi_star_mse)
 
@@ -165,102 +394,6 @@ psi_mse = psi_df %>% merge(tree_mse, by = 'leaf_id') %>%
 
 
 psi_mse
-
-hml_approx = hml_const(1, D, u_df, J, prior)
-
-hml_approx$const_vec # -257.5357
-
-hml_approx$param_out
-
-lil(prior, post) # -257.7619
-
-
-
-
-# ------------------------------------------------------------------------------
-
-
-hml_approx$u_rpart
-
-
-param_support = extractSupport(u_df, D)
-
-# u_partition : leaf_id, psi_hat, all lower/upper bounds 
-u_partition = extractPartition(hml_approx$u_rpart, param_support)
-
-# u_star : will compute psi_star, other psi computation
-param_out = u_star(hml_approx$u_rpart, u_df, u_partition, D)
-
-param_out
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# (3) compute approximate integral over each partition
-hml_approx$const_approx
-
-
-
-
-
-
-# ------------------------------------------------------------------------------
-
-# testing the stabilizing computation for the D-dim integral
-
-k_part = nrow(hml_approx$lambda)
-
-ind = 2
-hml_approx$ck_3[ind]
-
-
-upper = hml_approx$partition$u18_ub[k_part]
-lower = hml_approx$partition$u18_lb[k_part]
-
-l_k_d = hml_approx$lambda[k_part,ind]
-
-# log(-1 / hml_approx$lambda[6,ind] * 
-#     exp(- hml_approx$lambda[6,ind] * hml_approx$partition$u18_ub[6]) - 
-#     exp(- hml_approx$lambda[6,ind] * hml_approx$partition$u18_lb[6]))
-
-- l_k_d * upper + log(- 1 / l_k_d * (1 - exp(-l_k_d * lower + l_k_d * upper)))
-
-hml_approx$ck_3[ind]
-
 
 
 

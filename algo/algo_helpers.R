@@ -136,4 +136,62 @@ log_int_rect = function(l_d, a, b) {
 
 
 
+## logQ() function -------------------------------------------------------------
+# c_star : value whose cost function is to be evaluated
+# c_k    : L-dim vector of function evaluations in the k-th partition
+logQ = function(c_star, c_k) {
+    
+    L = length(c_k)
+    
+    log_rel_error = rep(NA, L) # store the log relative error
+    
+    for (l in 1:L) {
+        ## perform a stable calculation of log(abs(1-exp(-c_star + c_k[l])))
+        ## by considering cases when c_star > c_k[l], c_star < c_k[l] 
+        if (c_star > c_k[l])
+            log_rel_error[l] = log1mexp(c_star - c_k[l])
+        else if (c_star < c_k[l])
+            log_rel_error[l] = log1mexp(c_k[l] - c_star) - c_star + c_k[l]
+        
+        # if c_star == c_k[l_k] : do nothing; NA value will be skipped over in 
+        # final calculation
+        
+    } # end of for loop iterating over each element in k-th partition
+    
+    return(log_sum_exp(log_rel_error[!is.na(log_rel_error)]))
+    
+}
+# end of logQ() function -------------------------------------------------------
+
+
+
+
+
+## logMSE() function -------------------------------------------------------------
+# c_star : value whose cost function is to be evaluated
+# c_k    : L-dim vector of function evaluations in the k-th partition
+logMSE = function(c_star, c_k) {
+    
+    L = length(c_k)
+    
+    log_mse = rep(NA, L) # store the log mse
+    
+    for (l in 1:L) {
+        if (c_star > c_k[l]) {
+            log_mse[l] = 2 * (-c_k[l] + log1mexp(c_star - c_k[l]))
+        } else if (c_star < c_k[l]) {
+            log_mse[l] = 2 * (-c_star + log1mexp(c_k[l] - c_star))
+        }
+    }
+    
+    return(- log(L) + log_sum_exp(log_mse[!is.na(log_mse)]))
+    
+}
+# end logMSE() function --------------------------------------------------------
+# end of algo_helpers.R
+
+
+
+
+
 # end of algo_helpers.R

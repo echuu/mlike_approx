@@ -37,14 +37,10 @@ hml_const = function(N_approx, D, u_df_full, J, prior) {
         # (3.2) obtain the partition
         u_partition = extractPartition(u_rpart, param_support) 
         
-        #### TO BE MODIFIED ----------------------------------------------------
-        
         # organize all data into single data frame --> ready for approximation
         param_out = u_star(u_rpart, u_df, u_partition, D) # partition.R
         
         # ----------------------------------------------------------------------
-        
-        
         n_partitions = nrow(u_partition) # number of partitions 
         
         # ----------------------------------------------------------------------
@@ -60,11 +56,7 @@ hml_const = function(N_approx, D, u_df_full, J, prior) {
         eta_k = numeric(K) # log of the area of each partition A_k
         
         ck_1 = numeric(K)
-        
-        # star_ind will be a vector of indices -- subsetting these out of 
-        # param_out will give u_k = (u_k1, u_k2, ... , u_kD)
-        # star_ind = grep("_star", names(param_out)) 
-        
+  
         # ----------------------------------------------------------------------
         
         # (4) compute closed form integral over each partition
@@ -97,8 +89,6 @@ hml_const = function(N_approx, D, u_df_full, J, prior) {
                 
                 eta_k[k] = eta_k[k] + log(upper - lower)
                 
-                # ck_3[d] = log_int_rect(l_k[d], lower, upper)
-                
             } # end of loop computing each of 1-dim integrals
             
             const_approx[k]  = ck_1[k] + eta_k[k]
@@ -114,26 +104,6 @@ hml_const = function(N_approx, D, u_df_full, J, prior) {
         
         u_df = u_df %>% mutate(leaf_id = u_rpart$where)
         u_df = merge(u_df, psi_star_df, by = 'leaf_id')
-        
-        # partition_id = u_rpart$where %>% unique
-        # for each partition, compute the sum of squared residuals,
-        # (psi(u) - psi_tilde(u))^2
-        # for (j in 1:K) {
-        #     
-        #     k = partition_id[j]
-        #     
-        #     u_k_star = param_out %>% filter(leaf_id == k) %>%
-        #         dplyr::select(star_ind) %>% unname %>% unlist
-        #     
-        #     #### compute constant approximation for psi
-        #     # note: we actually already do this when computing e_ck_1, so
-        #     # eventually, we can just take log(e_ck_1) to recover this term
-        #     u_df[u_df$leaf_id == k,]$psi_star = psi(u_k_star, prior) %>% c()
-        # 
-        #     # compute difference between psi_u and corresponding approximation
-        #     u_df = u_df %>% mutate(psi_resid  = psi_u - psi_star)
-        #     
-        # } # end of for loop computing residuals
         
     } # end of N_approx outer loop
     

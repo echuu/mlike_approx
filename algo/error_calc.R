@@ -43,18 +43,21 @@ psi_all = merge(psi_all, psi_hat_df, by = 'leaf_id')
 
 # psi_all: leaf_id, psi_u, psi_star, psi_hat
 
-part_k = psi_all %>% dplyr::filter(leaf_id == 19)
+part_k = psi_all %>% dplyr::filter(leaf_id == 14)
 
 # compute log(Q(c_star)) for part_k
 
-L_k = nrow(part_k) # can use n_obs later
 
 c_k = part_k$psi_u               # true values of psi for partition_k
 c_star = part_k$psi_hat[1]       # choice 1: fitted value from tree
 c_star = part_k$psi_star[1]      # choice 2: max value of psi over partition
+
+c_star = part_k$psi_u %>% max    # choice 3: median value of psi over partition
 c_star = part_k$psi_u %>% median # choice 3: median value of psi over partition
 c_star = part_k$psi_u %>% mean   # choice 4: mean value of psi over partition
 
+
+L_k = nrow(part_k) # can use n_obs later
 log_rel_error = rep(NA, L_k) # store the log relative error
 
 # l_k = 6
@@ -82,6 +85,84 @@ for (l_k in 1:L_k) {
 
 
 (logQ_psi_hat = log_sum_exp(log_rel_error[!is.na(log_rel_error)])) # 5.422897
+
+
+c_k = part_k$psi_u               # true values of psi for partition_k
+c_star = part_k$psi_star[1]      # choice 2: max value of psi over partition
+
+logQ(c_star, c_k)
+
+
+c_max = 
+
+
+
+
+
+
+## logQ() function -------------------------------------------------------------
+# c_star : value whose cost function is to be evaluated
+# c_k    : L-dim vector of function evaluations in the k-th partition
+logQ = function(c_star, c_k) {
+    
+    L = length(c_k)
+    
+    log_rel_error = rep(NA, L) # store the log relative error
+    
+    for (l in 1:L) {
+        ## perform a stable calculation of log(abs(1-exp(-c_star + c_k[l])))
+        ## by considering cases when c_star > c_k[l], c_star < c_k[l] 
+        if (c_star > c_k[l]) {
+            log_rel_error[l] = log1mexp(c_star - c_k[l])
+        } else if (c_star < c_k[l]) {
+            log_rel_error[l] = log1mexp(c_k[l] - c_star) - c_star + c_k[l]
+        }
+        
+        # if c_star == c_k[l_k] : do nothing; NA value will be skipped over in 
+        # final calculation
+        
+    } # end of for loop iterating over each element in k-th partition
+    
+    return(log_sum_exp(log_rel_error[!is.na(log_rel_error)]))
+    
+}
+# end of logQ() function -------------------------------------------------------
+
+
+
+
+## logMSE() function -------------------------------------------------------------
+# c_star : value whose cost function is to be evaluated
+# c_k    : L-dim vector of function evaluations in the k-th partition
+logMSE = function(c_star, c_k) {
+    
+    L = length(c_k)
+    
+    log_mse = rep(NA, L) # store the log mse
+    
+    for (l in 1:L) {
+        if (c_star > c_k[l]) {
+            log_mse[l] = 2 * (-c_k[l] + log1mexp(c_star - c_k[l]))
+        } else if (c_star < c_k[l]) {
+            log_mse[l] = 2 * (-c_star + log1mexp(c_k[l] - c_star))
+        }
+    }
+        
+    return(- log(L) + log_sum_exp(log_mse[!is.na(log_mse)]))
+    
+}
+# end logMSE() function --------------------------------------------------------
+
+
+
+
+
+
+
+
+
+
+
 
 
 
