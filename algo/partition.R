@@ -113,6 +113,37 @@ extractPartition = function(u_tree, param_support = NULL) {
 
 
 
+#### plotPartition() -----------------------------------------------------------
+# plot the 2-d partition with psi labels
+# highest 3 value points are plotted to show areas of low probability (?)
+# TODO: modify function to plot highest 3 value points rather than just the
+# median; can plot the median value as a separate color
+#
+plotPartition = function(u_df, param_out) {
+    
+    plot(u_df[,1], u_df[,2], pch = 20, cex = 1, col = "cyan",
+         xlab = 'u1', ylab = 'u2', main = '')
+    rect(param_out$u1_lb, 
+         param_out$u2_lb, 
+         param_out$u1_ub, 
+         param_out$u2_ub)
+    
+    # add psi_hat labels for each partition
+    text(x = param_out$u1_lb + (param_out$u1_ub - param_out$u1_lb) / 2, 
+         y = param_out$u2_lb + (param_out$u2_ub - param_out$u2_lb) / 2,
+         labels = round(param_out$psi_hat, 5),
+         cex = 0.8)
+    
+    # make the 'median' points red and large
+    # points(x = param_out$u1_star, y = param_out$u2_star,
+    #        col = 'red', pch = 19, cex = 1.2)
+    
+}
+# end plotPartition() function -------------------------------------------------
+
+
+
+
 #### rpart_mse() ---------------------------------------------------------------
 # compute partition-wise MSE using the fitted values provided by the rpart
 # regression tree; each mse can be extracted using a leaf_id
@@ -172,14 +203,29 @@ u_star = function(rpart_obj, u_df, partition, n_params) {
     n_partitions = length(partition_id)
     
     # compute max for each of the partitions
-    psi_all = u_df %>% dplyr::group_by(leaf_id) %>% 
-        summarise(psi_max  = max(psi_u), 
-                  psi_med  = median(psi_u), 
-                  psi_mean = mean(psi_u),
-                  psi_85   = quantile(psi_u, 0.85),
-                  psi_90   = quantile(psi_u, 0.90),
-                  psi_95   = quantile(psi_u, 0.95)) %>% 
+    # psi_all = u_df %>% dplyr::group_by(leaf_id) %>% 
+    #     summarise(psi_max  = max(psi_u), 
+    #               psi_med  = median(psi_u), 
+    #               psi_mean = mean(psi_u),
+    #               psi_85   = quantile(psi_u, 0.85),
+    #               psi_90   = quantile(psi_u, 0.90),
+    #               psi_95   = quantile(psi_u, 0.95)) %>% 
+    #     merge(psi_hat_df, by = 'leaf_id')
+    
+    ### start updated code 4/27
+    psi_center = u_df %>% dplyr::group_by(leaf_id) %>% 
+        summarise(psi_med  = median(psi_u), 
+                  psi_mean = mean(psi_u)) %>% 
         merge(psi_hat_df, by = 'leaf_id')
+    
+    psi_quant = u_df %>% dplyr::group_by(leaf_id) %>% 
+        do(data.frame(t(quantile(.$psi_u, probs = seq(0.76, 1, 0.02)))))
+    
+    names(psi_quant) = c("leaf_id", paste('psi_', seq(76, 100, 2), sep = ''))
+    
+    psi_all = merge(psi_center, psi_quant, by = 'leaf_id') 
+    ### end updated code 4/27
+    
     
     psi_long = melt(psi_all, id.vars = c("leaf_id"), value.name = "psi_star",
                     variable.name = "psi_choice")
@@ -192,6 +238,7 @@ u_star = function(rpart_obj, u_df, partition, n_params) {
         # extract psi_u for the k-th partition
         c_k = u_df[u_df$leaf_id == partition_id[k],]$psi_u
         
+        # compute log(Q(c_star)) for each candidate psi_star
         psi_all_df = psi_all_df %>% 
             mutate(logQ_cstar = ifelse(leaf_id == partition_id[k],
                                        sapply(psi_star, logQ, c_k = c_k),
@@ -204,6 +251,11 @@ u_star = function(rpart_obj, u_df, partition, n_params) {
         group_by(leaf_id) %>% 
         slice(which.min(logQ_cstar)) %>%  # extract rows that minimize log(Q(c))
         data.frame()
+    
+    # psi_df = psi_all_df %>%
+    #     group_by(leaf_id) %>%
+    #     dplyr::filter(psi_choice == 'psi_100') %>%  # extract rows that minimize log(Q(c))
+    #     data.frame()
     
     
     ## merge with the boundary of each of the partitions

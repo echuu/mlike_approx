@@ -38,8 +38,8 @@ source("C:/Users/ericc/mlike_approx/bayes_regression/bayesLinRegHelper.R")
 # K_sims = 1               # num of simulations to run FOR EACH N in N_vec
 
 
-D = c(2) # test for smalller dimensions for now
-N = c(200) # for testing -- comment this line to perform ext. analysis
+D = c(30) # test for smalller dimensions for now
+N = c(400) # for testing -- comment this line to perform ext. analysis
 
 
 ## priors ----------------------------------------------------------------------
@@ -72,7 +72,7 @@ post = list(Q_beta = Q_beta, Q_beta_inv = Q_beta_inv, mu_beta = mu_beta, b = b)
 
 ## algorithm settings ----------------------------------------------------------
 
-J         = 500         # number of MC samples per approximation
+J         = 5000         # number of MC samples per approximation
 N_approx  = 1            # number of approximations to compute using algorithm
 K_sims    = 1            # number of simulations to run
 
@@ -94,9 +94,11 @@ hml_approx = hml_const(1, D, u_df, J, prior)
 hml_approx$param_out %>%
     dplyr::select(leaf_id, psi_choice, psi_star, logQ_cstar, n_obs)
 
-hml_approx$const_vec # -249.8994
+hml_approx$const_vec # -272.1245
 
-lil(prior, post) # -248.8395
+lil(prior, post)     # -272.1202
+
+
 
 
 
@@ -203,6 +205,28 @@ psi_merge = merge(psi_min_logQ, psi_min_logMSE, by = "leaf_id")
 psi_merge
 
 
+hml_approx$const_vec # -249.8994
+
+lil(prior, post) # -248.8395
+
+
+
+# ------------------------------------------------------------------------------
+
+
+
+## TODO: consider 2-d case, 
+
+## TODO: try the case when (# of params / # samples) = 1/3
+# D / N = 1 / 3
+# D / N = 1 / 4
+
+
+
+
+
+
+
 k = 1
 
 c_k = u_df[u_df$leaf_id == partition_id[k],]$psi_u
@@ -210,6 +234,9 @@ c_k = u_df[u_df$leaf_id == partition_id[k],]$psi_u
 c_star_k = psi_all_df[psi_all_df$leaf_id == partition_id[k],]$psi_star[1]
 
 logMSE(c_star_k, c_k)
+
+
+
 
 
 
@@ -259,13 +286,18 @@ n_partitions = length(partition_id)
 ## start new u_star() code
 
 # compute max for each of the partitions
-psi_all = u_df %>% dplyr::group_by(leaf_id) %>% 
-    summarise(psi_max  = max(psi_u), 
-              psi_med  = median(psi_u), 
+psi_center = u_df %>% dplyr::group_by(leaf_id) %>% 
+    summarise(psi_med  = median(psi_u), 
               psi_mean = mean(psi_u)) %>% 
     merge(psi_hat_df, by = 'leaf_id')
 
-library(reshape2)
+psi_quant = u_df %>% dplyr::group_by(leaf_id) %>% 
+    do(data.frame(t(quantile(.$psi_u, probs = seq(0.75, 1, 0.01)))))
+
+names(psi_quant) = c("leaf_id", paste('psi_', seq(75, 100, 1), sep = ''))
+
+psi_all = merge(psi_center, psi_quant, by = 'leaf_id') 
+
 
 psi_long = melt(psi_all, id.vars = c("leaf_id"), value.name = "psi_star",
                 variable.name = "psi_choice")

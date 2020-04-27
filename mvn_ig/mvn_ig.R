@@ -185,7 +185,14 @@ lil(y, X, prior, post)
 psi_mse %>% summarise(mean(psi_star))
 
 
-
+f = function() {
+    
+    for(i in 1:10) {
+        break
+    }
+    
+    i
+}
 
 
 

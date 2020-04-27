@@ -1,7 +1,7 @@
 
 
 
-## TODO: lil() : compute the TRUE log marginal likelihood
+## lil() : compute the TRUE log marginal likelihood
 lil = function(prior, post) {
     
     y = prior$y

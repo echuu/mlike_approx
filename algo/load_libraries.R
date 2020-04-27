@@ -15,6 +15,7 @@ library('MCMCpack')         # riwish()
 library('CholWishart')      # lmvgamma()
 library('mvtnorm')          # rmvnorm(), dmvnorm()
 library('rpart.plot')       # rpart.rules()
+library('reshape2')         # melt()
 
 options(scipen = 999)
 
@@ -23,7 +24,6 @@ options(scipen = 999)
 INSTALL_ALL = FALSE
 
 if (INSTALL_ALL) {
-    install.packages("mvtnorm")
     install.packages('mvtnorm')
     install.packages('MASS')
     install.packages('ggplot2')
@@ -37,6 +37,7 @@ if (INSTALL_ALL) {
     install.packages('MCMCpack')         
     install.packages('CholWishart')   
     install.packages('rpart.plot')
+    install.packages('reshape2')
     
 }
 
