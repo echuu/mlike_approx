@@ -2,20 +2,22 @@
 # load_libraries.R
 # load the packages required to run the algorithm
 
-library('MASS')             # misc functions
-library('ggplot2')          # visualization
-library('rpart')            # rpart()
-library('tidyr')            # data mangaement
-library('readr')            # data management
-library('stringr')          # regex functions to extract partitions from rpart
-library('dplyr')            # data mangaement
-library('VGAM')             # for log1mexp() function
-library('matrixcalc')       # trace(), is.positive.definite()
-library('MCMCpack')         # riwish()
-library('CholWishart')      # lmvgamma()
-library('mvtnorm')          # rmvnorm(), dmvnorm()
-library('rpart.plot')       # rpart.rules()
-library('reshape2')         # melt()
+library('MASS')                  # misc functions
+library('ggplot2')               # visualization
+library('rpart')                 # rpart()
+library('tidyr')                 # data mangaement
+library('readr')                 # data management
+library('stringr')               # regex functions
+library('dplyr')                 # data mangaement
+library('VGAM')                  # for log1mexp() function
+library('matrixcalc')            # trace(), is.positive.definite()
+library('MCMCpack')              # riwish()
+library('CholWishart')           # lmvgamma()
+library('mvtnorm')               # rmvnorm(), dmvnorm()
+library('rpart.plot')            # rpart.rules()
+library('reshape2')              # melt()
+library('rBayesianOptimization') # Matrix_unif()
+ 
 
 options(scipen = 999)
 
@@ -38,7 +40,7 @@ if (INSTALL_ALL) {
     install.packages('CholWishart')   
     install.packages('rpart.plot')
     install.packages('reshape2')
-    
+    install.packages('rBayesianOptimization')
 }
 
 
