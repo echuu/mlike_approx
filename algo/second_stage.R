@@ -1,7 +1,7 @@
 
 
 
-resample_K = function(hml_obj, min_index, n_samps = 10) {
+resample_K = function(hml_obj, min_index, prior, D, n_samps = 10) {
     
     
     part_0 = hml_obj$param_out %>% 
@@ -27,6 +27,7 @@ resample_K = function(hml_obj, min_index, n_samps = 10) {
     perc_thresh = sort(orig_partition$perc, decreasing = T)
     
     for (k in 1:K) {
+        # print(k)
         
         PERC_K = orig_partition[k,]$perc
         

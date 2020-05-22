@@ -145,18 +145,21 @@ logQ = function(c_star, c_k) {
     
     log_rel_error = rep(NA, L) # store the log relative error
     
-    for (l in 1:L) {
-        ## perform a stable calculation of log(abs(1-exp(-c_star + c_k[l])))
-        ## by considering cases when c_star > c_k[l], c_star < c_k[l] 
-        if (c_star > c_k[l])
-            log_rel_error[l] = log1mexp(c_star - c_k[l])
-        else if (c_star < c_k[l])
-            log_rel_error[l] = log1mexp(c_k[l] - c_star) - c_star + c_k[l]
-        
-        # if c_star == c_k[l_k] : do nothing; NA value will be skipped over in 
-        # final calculation
-        
-    } # end of for loop iterating over each element in k-th partition
+    # for (l in 1:L) {
+    #     ## perform a stable calculation of log(abs(1-exp(-c_star + c_k[l])))
+    #     ## by considering cases when c_star > c_k[l], c_star < c_k[l] 
+    #     if (c_star > c_k[l])
+    #         log_rel_error[l] = log1mexp(c_star - c_k[l])
+    #     else if (c_star < c_k[l])
+    #         log_rel_error[l] = log1mexp(c_k[l] - c_star) - c_star + c_k[l]
+    #     
+    #     # if c_star == c_k[l_k] : do nothing; NA value will be skipped over in 
+    #     # final calculation
+    #     
+    # } # end of for loop iterating over each element in k-th partition
+    
+    sign_ind = (c_star < c_k)
+    log_rel_error = log1mexp(abs(c_star - c_k)) + (c_k - c_star) * sign_ind
     
     return(log_sum_exp(log_rel_error[!is.na(log_rel_error)]))
     
@@ -173,21 +176,23 @@ logJ = function(c_star, c_k) {
     
     log_rel_error = rep(NA, L) # store the log relative error
     
-    for (l in 1:L) {
-        ## perform a stable calculation of log(abs(1-exp(-c_star + c_k[l])))
-        ## by considering cases when c_star > c_k[l], c_star < c_k[l] 
-        if (c_star < c_k[l])
-            log_rel_error[l] = log1mexp(c_k[l] - c_star)
-        else if (c_star > c_k[l])
-            log_rel_error[l] = log1mexp(c_star - c_k[l]) + c_star - c_k[l]
-        
-        # if c_star == c_k[l_k] : do nothing; NA value will be skipped over in 
-        # final calculation
-        
-    } # end of for loop iterating over each element in k-th partition
+    # for (l in 1:L) {
+    #     ## perform a stable calculation of log(abs(1-exp(-c_star + c_k[l])))
+    #     ## by considering cases when c_star > c_k[l], c_star < c_k[l] 
+    #     if (c_star < c_k[l])
+    #         log_rel_error[l] = log1mexp(c_k[l] - c_star)
+    #     else if (c_star > c_k[l])
+    #         log_rel_error[l] = log1mexp(c_star - c_k[l]) + c_star - c_k[l]
+    #     
+    #     # if c_star == c_k[l_k] : do nothing; NA value will be skipped over in 
+    #     # final calculation
+    #     
+    # } # end of for loop iterating over each element in k-th partition
+    
+    sign_ind = (c_star > c_k)
+    log_rel_error = log1mexp(abs(c_star - c_k)) + (c_star - c_k) * sign_ind
     
     return(log_sum_exp(log_rel_error[!is.na(log_rel_error)]))
-    
     
 }
 

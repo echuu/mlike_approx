@@ -14,7 +14,7 @@ source("covarIW_helper.R")  # covariance related helper functions
 
 
 N = 100                     # number of observations
-D = 6                       # num rows/cols in the covariance matrix
+D = 7                       # num rows/cols in the covariance matrix
 D_u = 0.5 * D * (D + 1)     # dimension of u that is fed into the tree
 J = 2000
 
@@ -86,8 +86,141 @@ hml_approx$param_out %>%
 (approx_logml = hml_approx$const_vec) # -1178.765
 (true_logml = lil(param_list))        # -1187.283
 
-abs(approx_logml - true_logml)
+# abs(approx_logml - true_logml)
 
+# 2nd stage sampling -----------------------------------------------------------
+
+
+# (orig_partition = hml_approx$param_out %>%
+#      dplyr::select(leaf_id, psi_choice, psi_star, logQ_cstar, n_obs) %>% 
+#      dplyr::mutate(perc = n_obs / sum(n_obs)) %>% 
+#      arrange(desc(perc)) %>% 
+#      mutate(contrib = logQ_cstar / sum(logQ_cstar)))
+
+K = nrow(orig_partition)
+
+# set.seed(1)
+
+hml_obj = hml_approx
+hml_obj = NULL
+n_samps = 10
+
+reapprox0 = resample_K(hml_approx, K, param_list, D_u)
+log_sum_exp(reapprox0$all_terms)
+# length(reapprox0$all_terms)
+
+
+# 3rd stage sampling -----------------------------------------------------------
+
+
+
+
+
+
+
+
+
+
+
+# 2nd/3rd stage sampling w/ reps -----------------------------------------------
+
+
+
+orig_approx = numeric(G)
+ss_approx   = numeric(G)
+ts_approx   = numeric(G)
+true_logml  = numeric(G)
+for (g in 1:G) {
+    
+    X = rmvnorm(N, mean = rep(0, D), sigma = Sigma) # (N x p)
+    S = t(X) %*% X                                  # (p x p)
+    
+    
+    ## store parameters in a list that can be passed into the algorithm
+    param_list = list(S = S, N = N, D = D, D_u = D_u, # S, dimension vars
+                      Omega = Omega, nu = nu)         # prior params
+    
+    
+    true_logml[g] = lil(param_list)
+    
+    ## (2) obtain posterior samples
+    postIW = sampleIW(J, N, D_u, nu, S, Omega)     # post_samps, Sigma_post, L_post
+    
+    
+    # these are the posterior samples stored as vectors (the lower cholesky factors
+    # have been collapsed into D_u dimensional vectors)
+    post_samps = postIW$post_samps                 # (J x D_u)
+    
+    
+    # u_df stores the posterior samples row-wise so that the first D_u columns 
+    # store the lower cholesky factors in vector form, and the last column is
+    # the function evaluate psi(u), so u \in R^(D_u), and psi(u) \in R
+    u_df = preprocess(post_samps, D_u, param_list) # J x (D_u + 1)
+    
+    
+    ## (3a) compute maximized likelihood (using true Sigma)
+    loglik_max = maxLogLik(Sigma, param_list)
+    
+    
+    ## (3b) compute approximation
+    hml_approx = hml_const(1, D_u, u_df, J, param_list)
+    
+    orig_partition = hml_approx$param_out %>%
+        dplyr::select(leaf_id, psi_choice, psi_star, logQ_cstar, n_obs) %>%
+        dplyr::mutate(perc = n_obs / sum(n_obs)) %>%
+        arrange(desc(perc)) %>%
+        mutate(contrib = logQ_cstar / sum(logQ_cstar))
+    
+    K = nrow(orig_partition)
+    
+    orig_approx[g] = hml_approx$const_vec 
+    
+    reapprox0 = resample_K(hml_approx, K, param_list, D_u)
+    ss_approx[g] = log_sum_exp(reapprox0$all_terms)
+    
+    
+    ts_approx_k = vector("list", K) 
+    ts_approx_terms = vector("list", K) 
+    
+    for (k in 1:K) {
+        
+        # print(paste("third stage on partition ", k, sep = ''))
+        
+        sub_part_k = reapprox0$ss_partitions[[k]]
+        
+        K_sub = nrow(sub_part_k$param_out)
+        ts_approx_k[[k]] = resample_K(sub_part_k, K_sub, param_list, D_u, 5)
+        
+        ts_approx_terms[[k]] = ts_approx_k[[k]]$all_terms
+    }
+    
+    ts_approx[g] = log_sum_exp(unlist(ts_approx_terms))
+    
+    
+    print(paste('iter ', g, '/', G, ' : ', 
+                round(ss_approx[g], 4), ' (err: ', 
+                round(abs(true_logml[g] - ss_approx[g]), 4), ', avg: ', 
+                round(mean(ss_approx[1:g]), 4), '), ',
+                round(ts_approx[g], 4), ' (err: ', 
+                round(abs(true_logml[g] - ts_approx[g]), 4), ', avg: ', 
+                round(mean(ts_approx[1:g]), 4), '), ', sep = ''))
+    
+}
+
+mean(orig_approx) # no re-partioning
+mean(ss_approx)   # second stage 
+mean(ts_approx)   # third stage
+mean(true_logml)  # true logML
+
+
+abs(mean(true_logml) - mean(orig_approx))
+abs(mean(true_logml) - mean(ss_approx))
+abs(mean(true_logml) - mean(ts_approx))
+
+
+
+
+### asymptotics ----------------------------------------------------------------
 
 # ------------------------------------------------------------------------------
 J           = 1e5                               # num of MCMC samples from post
