@@ -204,8 +204,31 @@ preprocess = function(stan_fit, D, post, prior) {
     
     
     return(u_df)
-    
+
 }
+
+
+preprocess_resample = function(u_post, D, prior) {
+    
+    psi_u = apply(u_post, 1, psi, prior = prior) %>% unname() # (J x 1)
+    
+    # (1.2) construct u_df -- this will require some automation for colnames
+    u_df_names = character(D + 1)
+    for (d in 1:D) {
+        u_df_names[d] = paste("u", d, sep = '')
+    }
+    u_df_names[D + 1] = "psi_u"
+    
+    # populate u_df
+    u_df = cbind(u_post, psi_u) # (J * N_approx) x (D + 1)
+    
+    # rename columns (needed since these are referenced explicitly in partition.R)
+    names(u_df) = u_df_names
+    
+    
+    return(u_df)
+}
+
 
 
 

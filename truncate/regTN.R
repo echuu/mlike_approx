@@ -4,14 +4,17 @@ library(TruncatedNormal)
 library(tmg)
 library(mvtnorm)
 
-LEN_PATH  = "C:/Users/ericc/mlike_approx"
-setwd(LEN_PATH)
+# LEN_PATH  = "C:/Users/ericc/mlike_approx"
+# setwd(LEN_PATH)
+# 
+# source("partition/partition.R")
+# source("extractPartition.R")
+# source("hybrid_approx.R")
 
-source("partition/partition.R")
-source("extractPartition.R")
-source("hybrid_approx.R")
-source("truncate/regTN_helper.R")
-D = 2
+setwd("C:/Users/ericc/mlike_approx/algo")
+source("setup.R")     
+source("C:/Users/ericc/mlike_approx/truncate/regTN_helper.R")
+D = 40
 N = 200
 I_D = diag(1, D)
 
@@ -58,7 +61,7 @@ post = list(Q_beta = Q_beta, Q_beta_inv = Q_beta_inv, mu_beta = mu_beta, b = b)
 # initial =  rep(1, D)   # Set initial point for the Markov chain
 
 
-J        = 100         # number of MC samples
+J        = 3000        # number of MC samples
 B        = 10          # number of batch estimates
 N_approx = 1           # number of estimates to compute per iteration b
 
@@ -72,60 +75,15 @@ N_approx = 1           # number of estimates to compute per iteration b
 # plot 2-d samples to verify truncation
 # plot(samples)
 
-samples = data.frame(rtmvnorm(J * B, c(mu_beta), Q_beta_inv, rep(0, D), rep(Inf, D)))
-# samples = data.frame(rtmvnorm(J * B, R, Q_beta_inv, rep(0, D), rep(Inf, D)))
 
-plot(samples)
-
-## TODO: be able to evaluate log-prior of each of the posterior samples
-# logprior = TruncatedNormal::dtmvnorm(samples[1,], mu = c(mu_beta),
-#                                      sigma = Q_beta_inv, lb = rep(0, D),
-#                                      ub = rep(Inf, D), log = T)
-
-# dtmvnorm(unlist(unname(samples[5,])), mu = c(mu_beta),
-#          sigma = Q_beta_inv, lb = rep(0, D),
-#          ub = rep(Inf, D), log = T)
-# 
-# dmvnorm(unlist(unname(samples[5,])), mean = c(mu_beta),
-#         sigma = Q_beta_inv, log = T)
-# 
-# 
-# ## compute probability to compare to closed form
-# 
-# TruncatedNormal::pmvnorm(c(mu_beta), Q_beta_inv, lb = rep(-Inf, D), ub = rep(Inf, D))[1]  
-# TruncatedNormal::pmvnorm(c(mu_beta), Q_beta_inv, lb = rep(0, D), ub = rep(Inf, D))[1]  
-# 
-# u = unlist(unname(samples[5,]))
-# dtmvnorm(u, mu = rep(0, D),
-#          sigma = tau / sigmasq * I_D , lb = rep(0, D),
-#          ub = rep(Inf, D), log = T)
-# 
-# dtmvnorm(u, mu = rep(0, D),
-#          sigma = tau / sigmasq * I_D , lb = rep(0, D),
-#          ub = rep(Inf, D))
-
-(lil_0 = -0.5 * N * log(2 * pi) - 0.5 * (N + D) * log(sigmasq) + 
+lil_0 = -0.5 * N * log(2 * pi) - 0.5 * (N + D) * log(sigmasq) + 
     0.5 * D * log(tau) - 0.5 * log_det(Q_beta) - 
-    1 / (2 * sigmasq) * sum(y^2) + 0.5 * sum(b * mu_beta)) 
-
+    1 / (2 * sigmasq) * sum(y^2) + 0.5 * sum(b * mu_beta)
 
 # lil_0 - log(TruncatedNormal::pmvnorm(rep(0, D), tau / sigmasq * I_D, lb = rep(0, D), ub = rep(Inf, D))[1]) 
-
-lil_0 + D * log(2) + 
+(true_logml = lil_0 + D * log(2) + 
     log(TruncatedNormal::pmvnorm(mu_beta, Q_beta_inv, 
-                                 lb = rep(0, D), ub = rep(Inf, D))[1]) 
-
-
-# psi(u, prior)
-# 
-# - sum(dnorm(y, X %*% u, sqrt(sigmasq), log = T)) - 
-#     dtmvnorm(u, mu = rep(0, D), sigma = tau / sigmasq * diag(1, D) , 
-#              lb = rep(0, D), ub = rep(Inf, D), log = T)
-# 
-
-# compute *true* log marginal likelihood ---------------------------------------
-# prob = TruncatedNormal::pmvnorm(mu, Sigma, lb = rep(0, D), ub = rep(Inf, D))     
-# prob[1] %>% log
+                                 lb = rep(0, D), ub = rep(Inf, D))[1]))
 
 # run algorithm ----------------------------------------------------------------
 
@@ -140,47 +98,171 @@ set.seed(1)
 # prod(dnorm(c(0.8210398, 0.1810452), 0, sqrt(sigmasq / tau), log = F)) * 4
 
 
-# start_time <- Sys.time()
+samples = data.frame(rtmvnorm(J * B, c(mu_beta), Q_beta_inv, rep(0, D), rep(Inf, D)))
+# samples = data.frame(rtmvnorm(J * B, R, Q_beta_inv, rep(0, D), rep(Inf, D)))
+    
 u_df = preprocess(samples, D, prior)
 
-psi_fast = u_df$psi_u
-head(psi_fast)
-
-
-sum(psi_fast != psi_slow)
-psi_fast[psi_fast != psi_slow]
-which(psi_fast != psi_slow)
-
-samples[35,]
-
-psi_slow = u_df$psi_u
-head(psi_slow)
-
-
-
-
-# end_time <- Sys.time()
-# end_time - start_time
+# plot(samples)
 
 # u_df %>% head
-source("hybrid_approx_v1.R")                   # load main algorithm functions
-source("hybrid_approx.R")                   # load main algorithm functions
+# source("hybrid_approx_v1.R") # load main algorithm functions
+# 
+# hml_approx = hml(N_approx, D, u_df, J, prior)
 
-hml_approx = hml(N_approx, D, u_df, 100, prior)
+hml_approx = hml_const(1, D, u_df, J, prior)
 
-stable_ck3 = hml_approx$ck_3
+(orig_partition = hml_approx$param_out %>%
+    dplyr::select(leaf_id, psi_choice, psi_star, logQ_cstar, n_obs) %>% 
+    dplyr::mutate(perc = n_obs / sum(n_obs)) %>% 
+    arrange(desc(perc)) %>% 
+    mutate(contrib = logQ_cstar / sum(logQ_cstar)))
 
-old_ck3 = hml_approx$ck_3
-
-cbind(stable_ck3, old_ck3)
+K = nrow(orig_partition)
 
 
+hml_approx$const_vec # -433.3092 (D = 2), -473.4021 (D = 20)
+true_logml # -478.5213
 
-hml_approx$hybrid_vec
-hml_approx$const_vec
 
-hml_approx$n_const
-hml_approx$n_taylor
+# reapprox = numeric(G)
+# for (g in 1:G) {
+#     reapprox[g] = resampleApprox(hml_approx, 8)$approx
+#     print(paste('iter ', g, ': ', reapprox[g], sep = ''))
+#     
+# }
+
+# mean(reapprox)
+
+set.seed(1)
+reapprox0 = resample_K(hml_approx, K)
+log_sum_exp(reapprox0$all_terms)
+length(reapprox0$all_terms)
+
+ts_approx_k = vector("list", K) 
+ts_approx_terms = vector("list", K) 
+
+for (k in 1:K) {
+    
+    print(paste("third stage on partition ", k, sep = ''))
+    
+    sub_part_k = reapprox0$ss_partitions[[k]]
+    
+    
+    K_sub = nrow(sub_part_k$param_out)
+    ts_approx_k[[k]] = resample_K(sub_part_k, K_sub, 5)
+    
+    ts_approx_terms[[k]] = ts_approx_k[[k]]$all_terms
+}
+
+log_sum_exp(unlist(ts_approx_terms))
+length(unlist(ts_approx_terms))
+
+orig_approx = numeric(G)
+ss_approx   = numeric(G)
+ts_approx   = numeric(G)
+for (g in 1:G) {
+    
+    samples = data.frame(rtmvnorm(J * B, c(mu_beta), Q_beta_inv, 
+                                  rep(0, D), rep(Inf, D)))
+
+    u_df = preprocess(samples, D, prior)
+    
+    hml_approx = hml_const(1, D, u_df, J, prior)
+    
+    orig_partition = hml_approx$param_out %>%
+            dplyr::select(leaf_id, psi_choice, psi_star, logQ_cstar, n_obs) %>%
+            dplyr::mutate(perc = n_obs / sum(n_obs)) %>%
+            arrange(desc(perc)) %>%
+            mutate(contrib = logQ_cstar / sum(logQ_cstar))
+    
+    K = nrow(orig_partition)
+    
+    orig_approx[g] = hml_approx$const_vec 
+    
+    reapprox0 = resample_K(hml_approx, K)
+    ss_approx[g] = log_sum_exp(reapprox0$all_terms)
+    
+    
+    ts_approx_k = vector("list", K) 
+    ts_approx_terms = vector("list", K) 
+    
+    for (k in 1:K) {
+        
+        # print(paste("third stage on partition ", k, sep = ''))
+        
+        sub_part_k = reapprox0$ss_partitions[[k]]
+        
+        
+        K_sub = nrow(sub_part_k$param_out)
+        ts_approx_k[[k]] = resample_K(sub_part_k, K_sub, 5)
+        
+        ts_approx_terms[[k]] = ts_approx_k[[k]]$all_terms
+    }
+    
+    ts_approx[g] = log_sum_exp(unlist(ts_approx_terms))
+    
+    
+    print(paste('iter ', g, '/', G, ' : ', 
+                round(ss_approx[g], 4), ' (err: ', 
+                round(abs(true_logml - ss_approx[g]), 4), ', avg: ', 
+                round(mean(ss_approx[1:g]), 4), '), ',
+                round(ts_approx[g], 4), ' (err: ', 
+                round(abs(true_logml - ts_approx[g]), 4), ', avg: ', 
+                round(mean(ts_approx[1:g]), 4), '), ', sep = ''))
+    
+    
+        
+}
+
+mean(orig_approx) # no re-partioning
+mean(ss_approx)   # second stage 
+mean(ts_approx)   # third stage
+true_logml        # true logML
+
+abs(true_logml - mean(orig_approx))
+abs(true_logml - mean(ss_approx))
+abs(true_logml - mean(ts_approx))
+
+
+
+
+
+reapprox$approx
+reapprox$subpartitions[[1]]
+reapprox$subpartitions[[K]]
+
+hml_approx$const_vec # -473.4021 (D = 20)
+reapprox$approx # -480
+true_logml # -478.5213
+
+abs(true_logml - hml_approx$const_vec)
+abs(true_logml - log_sum_exp(all_terms))
+
+set.seed(1)
+G = 50
+resample_df = data.frame(min = 1:K, opt = (K-1):0, approx = NA, err = NA)
+for (k in 1:K) {
+    
+    # approx_k = resampleApprox(hml_approx, k)
+    
+    reapprox = numeric(G)
+    for (g in 1:G) {
+        reapprox[g] = resampleApprox(hml_approx, k)$approx
+        # print(paste('iter ', g, ': ', reapprox[g], sep = ''))
+        
+    }
+    
+    approx_k = mean(reapprox)
+    
+    resample_df[k,]$approx = approx_k
+    resample_df[k,]$err = abs(true_logml - approx_k)
+    
+    print(paste('iter ', k, '/', K, ' : ', round(approx_k, 4), ' (', 
+                round(resample_df[k,]$err, 4), ')', sep = ''))
+}
+
+
 
 
 

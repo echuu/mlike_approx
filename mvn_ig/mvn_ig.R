@@ -14,18 +14,18 @@ library(rstudioapi) # running  RStan in parallel via Rstudio
 options(mc.cores = parallel::detectCores()) 
 
 
-J         = 300          # number of MC samples per approximation
-N_approx  = 1            # number of approximations
-burn_in   = 2000         # number of burn in draws
-n_chains  = 4            # number of markov chains to run
-stan_seed = 123          # seed
+J         = 5000          # number of MC samples per approximation
+N_approx  = 1             # number of approximations
+burn_in   = 2000          # number of burn in draws
+n_chains  = 4             # number of markov chains to run
+stan_seed = 123           # seed
 
 J_iter = 1 / n_chains * N_approx * J + burn_in 
 
 
 K_sims = 1               # num of simulations to run FOR EACH N in N_vec
-D = 10
-N = 100 # for testing -- comment this line to perform ext. analysis
+D = 25
+N = 500 # for testing -- comment this line to perform ext. analysis
 
 
 set.seed(123)
@@ -95,104 +95,104 @@ mvnig_fit = stan(file   = 'C:/Users/ericc/mlike_approx/mvn_ig/mvn_ig_sampler.sta
 # use special preprocess b/c we call psi_true() 
 u_df = preprocess(mvnig_fit, D, post, prior)
 
-# old version of hml()
-hml_approx = hml(1, D, u_df, J, prior) 
-hml_approx$const_vec # -230.9012
 
 # refactored version
 hml_approx = hml_const(1, D, u_df, J, prior) 
-hml_approx$const_vec # -230.9012
+hml_approx$param_out %>% 
+    dplyr::select(leaf_id, psi_choice, psi_star, logQ_cstar, n_obs) %>% 
+    dplyr::mutate(perc = n_obs / sum(n_obs))
 
-lil(y, X, prior, post)
+hml_approx$const_vec      # -256.761
+lil(y, X, prior, post)    # -256.7659
+
+abs(hml_approx$const_vec - lil(y, X, prior, post))
 
 
 # ------------------------------------------------------------------------------
 
-#### model output diagnostics
+# contains: leaf_id, u1_lb, u1_ub, ... , uD_lb, uD_ub, n_obs
+part_0 = hml_approx$param_out %>% 
+    dplyr::select(-c(psi_choice, psi_star, logQ_cstar))
 
-hml_approx$n_partitions
+part_set = part_0$leaf_id
 
-part_info = hml_approx$param_out
-u_df_info = hml_approx$u_df_fit
-
-# (1.1) for each point: fitted value, leaf_id, residual
-
-## notation: 
-# psi_u     : true value, psi(u)
-# psi_star  : psi(u_star), where u_star is the partition's representative point
-# psi_resid : psi_u - psi_star
-# psi_hat   : fitted value for psi(u) on a given partition
-##
-
-u_df_info %>% head
-
-# (1.2) for each partition: 'median' points, fitted value, upper/lower bounds,
-# number of observations in partition
-part_info 
+(orig_partition = hml_approx$param_out %>%
+    dplyr::select(leaf_id, psi_choice, psi_star, logQ_cstar, n_obs) %>% 
+    dplyr::mutate(perc = n_obs / sum(n_obs)))
 
 
-# compare the psi values from tree vs. psi values evaluated at 'representative'
-# point of each partition
-part_psi = part_info %>% 
-    dplyr::select(leaf_id, psi_hat) %>% 
-    merge(u_df_info %>% dplyr::select(leaf_id, psi_star) %>% unique, 
-          by = 'leaf_id')
+K = length(part_set)
 
-part_psi
+# initialize a list to store the vector containing the terms in exponential
+# for each of the sub-partitions
+# kth elmt is an s_k dim vector of terms that are to be exponentiated
+# at the very end, all entries are unlisted and evaluated via log-sum-exp
+exp_terms = vector("list", K) 
+ck_star_list = vector("list", K)
 
-# (2) fitted value for each partition (const_approx)
-# (2.1) look at the MSE for each of the partitions to see if there's one
-# parition where there is significantly larger discrepancy
-# (2.2) consider the number of observations in each of the partitions in
-# conjunction with the MSE for each partition
+perc_thresh = sort(orig_partition$perc, decreasing = T)
 
-library(MLmetrics)
-part_mse = u_df_info %>% 
-    dplyr::group_by(leaf_id) %>% 
-    summarise(psi_star_mse = MSE(psi_u, psi_star)) %>% 
-    merge(part_info %>% dplyr::select(leaf_id, n_obs), by = 'leaf_id')
-
-
-# for each partition, display the fitted value for psi (from tree), 
-# psi evaluated at the representative point, the mse associated with the
-# representative point, the number of observations for that partition
-psi_df = merge(part_psi, part_mse, by = 'leaf_id')
-
-psi_df %>% arrange(psi_star_mse)
-
-u_df_info %>% filter(leaf_id == 28)
-
-psi_df %>% arrange(n_obs)
-
-# compute mse for the tree's fitted values
-psi_rpart = hml_approx$u_rpart
-tree_dev = rpart_mse(psi_rpart, u_df)
-tree_mse = tree_dev %>% group_by(leaf_id) %>% 
-    summarise(psi_hat_mse = mean(dev_sq))
-
-# gather all psi approximations (tree and algo) with associated MSEs
-# into one table
-psi_mse = psi_df %>% merge(tree_mse, by = 'leaf_id') %>% 
-    dplyr::select(leaf_id, psi_hat, psi_hat_mse, psi_star, psi_star_mse, n_obs)
-
-
-psi_mse
-
-hml_approx$const_vec # 
-
-lil(y, X, prior, post)
-
-psi_mse %>% summarise(mean(psi_star))
-
-
-f = function() {
+for (k in 1:K) {
     
-    for(i in 1:10) {
-        break
+    
+    PERC_K = orig_partition[k,]$perc
+    
+    if (PERC_K >= perc_thresh[9]) {
+        print("using original partition")
+        # exp_terms[[k]] = hml_approx$const_approx[k]
+        
+        N_k_p = part_0$n_obs[k] * 10  # number of (re)samples to draw from part k
+        part_k = part_0 %>%           # set of lower/upper bounds
+            dplyr::filter(leaf_id == part_set[k]) %>%
+            dplyr::select(-c(leaf_id, n_obs))
+
+        # sample uniformly from each lower/upper bound pair to form a D-dim vector
+        part_k_long = c(unlist(part_k)) %>% matrix(ncol = 2, byrow = T)
+
+        resamp_k = Matrix_runif(N_k_p, lower = part_k_long[,1],
+                                upper = part_k_long[,2]) %>% data.frame
+
+        u_df_k = preprocess_resample(resamp_k, D, prior) # N_k_p x (D_u + 1)
+
+        c_k_approx = hml_const_mod(1, D, u_df_k, N_k_p, prior)
+
+        ck_star_list[[k]] = c_k_approx$param_out %>%
+            dplyr::select(leaf_id, psi_choice, psi_star, logQ_cstar, n_obs)
+
+        exp_terms[[k]] = c_k_approx$const_approx
+        
+    } else {
+        N_k_p = part_0$n_obs[k] * 10  # number of (re)samples to draw from part k
+        part_k = part_0 %>%           # set of lower/upper bounds
+            dplyr::filter(leaf_id == part_set[k]) %>% 
+            dplyr::select(-c(leaf_id, n_obs))
+        
+        # sample uniformly from each lower/upper bound pair to form a D-dim vector
+        part_k_long = c(unlist(part_k)) %>% matrix(ncol = 2, byrow = T)
+        
+        resamp_k = Matrix_runif(N_k_p, lower = part_k_long[,1], 
+                                upper = part_k_long[,2]) %>% data.frame
+        
+        u_df_k = preprocess_resample(resamp_k, D, prior) # N_k_p x (D_u + 1)
+        
+        c_k_approx = hml_const(1, D, u_df_k, N_k_p, prior)
+        
+        ck_star_list[[k]] = c_k_approx$param_out %>%
+            dplyr::select(leaf_id, psi_choice, psi_star, logQ_cstar, n_obs) 
+        
+        exp_terms[[k]] = c_k_approx$const_approx
     }
     
-    i
 }
+
+all_terms = exp_terms %>% unlist
+
+log_sum_exp(all_terms)    # 
+hml_approx$const_vec      # -256.761
+lil(y, X, prior, post)    # -256.7659
+
+abs(hml_approx$const_vec - lil(y, X, prior, post))
+abs(log_sum_exp(all_terms) - lil(y, X, prior, post))
 
 
 

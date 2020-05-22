@@ -1,23 +1,28 @@
 
 
+
+# setup global environment, load in algo functions
+setwd("C:/Users/ericc/mlike_approx/algo")
+source("setup.R")           
+
 library(rstan)
 library(rstudioapi) # running  RStan in parallel via Rstudio
 library("ggpmisc")
+options(mc.cores = parallel::detectCores()) 
 
 # use stan to draw from the posterior distribution -----------------------------
 
 # path for lenovo
-LEN_PATH  = "C:/Users/ericc/mlike_approx"
-setwd(LEN_PATH)
+stan_sampler = 'C:/Users/ericc/mlike_approx/singular/gamma_sample.stan'
 
 # path for dell
 # DELL_PATH = "C:/Users/chuu/mlike_approx"
 # setwd(DELL_PATH)
 
-source("partition/partition.R")         # load partition extraction functions
-source("hybrid_approx.R")               # load main algorithm functions
-source("extractPartition.R")
-source("singular/singular_helper.R")    # load psi(), lambda()
+# source("partition/partition.R")         # load partition extraction functions
+# source("hybrid_approx_v1.R")               # load main algorithm functions
+# source("extractPartition.R")
+source("C:/Users/ericc/mlike_approx/singular/singular_helper.R")    # load psi(), lambda()
 
 x11()
 
@@ -47,7 +52,7 @@ gamma_dat = list(N = N) # for STAN sampler
 prior     = list(N = N) # for evaluation of psi, lambda
 
 # (1) generate posterior samples -- should give us (J * N_approx) draws
-gamma_fit_N = stan(file    =  'singular/gamma_sample.stan', 
+gamma_fit_N = stan(file    =  stan_sampler, 
                    data    =  gamma_dat,
                    iter    =  J_iter,
                    warmup  =  burn_in,
@@ -61,12 +66,18 @@ u_post = u_samp$u %>% data.frame() # (J * N_approx) x 2
 # (2) evaluate posterior samples using psi(u)
 u_df_N = preprocess(u_post, D, prior)
 
-x11()
+# x11()
 ggplot(u_df_N, aes(u1, u2)) + geom_point()
 
 # (3) run algorithm to obtain N_approx estimates of the LIL
-approx = approx_lil(N_approx, D, u_df_N, J, prior)
-mean(approx) # -1.014113
+# approx = hml(N_approx, D, u_df_N, J, prior)
+# mean(approx) # -1.2044
+
+hml_approx = hml_const(1, D, u_df_N, J, prior)
+hml_approx$const_vec
+
+hml_approx$param_out %>%
+    dplyr::select(leaf_id, psi_choice, psi_star, logQ_cstar, n_obs)
 
 # compute true value of logZ
 n = N
@@ -74,8 +85,120 @@ library(pracma)
 result = integral2(fun, 0, 1, 0, 1, reltol = 1e-50)
 log(result$Q) # -1.223014 for n = 1000
 
-
 # ------------------------------------------------------------------------------
+
+# contains: leaf_id, u1_lb, u1_ub, ... , uD_lb, uD_ub, n_obs
+part_0 = hml_approx$param_out %>% 
+    dplyr::select(-c(psi_choice, psi_star, logQ_cstar))
+
+part_set = part_0$leaf_id
+
+(orig_partition = hml_approx$param_out %>%
+        dplyr::select(leaf_id, psi_choice, psi_star, logQ_cstar, n_obs) %>% 
+        dplyr::mutate(perc = n_obs / sum(n_obs)))
+
+
+K = length(part_set)
+
+# initialize a list to store the vector containing the terms in exponential
+# for each of the sub-partitions
+# kth elmt is an s_k dim vector of terms that are to be exponentiated
+# at the very end, all entries are unlisted and evaluated via log-sum-exp
+exp_terms = vector("list", K) 
+ck_star_list = vector("list", K)
+
+perc_thresh = sort(orig_partition$perc, decreasing = T)
+
+for (k in 1:K) {
+    
+    
+    PERC_K = orig_partition[k,]$perc
+    
+    if (PERC_K >= perc_thresh[1]) {
+        print("using original partition")
+        # exp_terms[[k]] = hml_approx$const_approx[k]
+        
+        N_k_p = part_0$n_obs[k] * 10  # number of (re)samples to draw from part k
+        part_k = part_0 %>%           # set of lower/upper bounds
+            dplyr::filter(leaf_id == part_set[k]) %>%
+            dplyr::select(-c(leaf_id, n_obs))
+        
+        # sample uniformly from each lower/upper bound pair to form a D-dim vector
+        part_k_long = c(unlist(part_k)) %>% matrix(ncol = 2, byrow = T)
+        
+        resamp_k = Matrix_runif(N_k_p, lower = part_k_long[,1],
+                                upper = part_k_long[,2]) %>% data.frame
+        
+        u_df_k = preprocess(resamp_k, D, prior) # N_k_p x (D_u + 1)
+        
+        c_k_approx = hml_const_mod(1, D, u_df_k, N_k_p, prior)
+        
+        ck_star_list[[k]] = c_k_approx$param_out %>%
+            dplyr::select(leaf_id, psi_choice, psi_star, logQ_cstar, n_obs)
+        
+        exp_terms[[k]] = c_k_approx$const_approx
+        
+    } else {
+        N_k_p = part_0$n_obs[k] * 10  # number of (re)samples to draw from part k
+        part_k = part_0 %>%           # set of lower/upper bounds
+            dplyr::filter(leaf_id == part_set[k]) %>% 
+            dplyr::select(-c(leaf_id, n_obs))
+        
+        # sample uniformly from each lower/upper bound pair to form a D-dim vector
+        part_k_long = c(unlist(part_k)) %>% matrix(ncol = 2, byrow = T)
+        
+        resamp_k = Matrix_runif(N_k_p, lower = part_k_long[,1], 
+                                upper = part_k_long[,2]) %>% data.frame
+        
+        u_df_k = preprocess(resamp_k, D, prior) # N_k_p x (D_u + 1)
+        
+        c_k_approx = hml_const(1, D, u_df_k, N_k_p, prior)
+        
+        ck_star_list[[k]] = c_k_approx$param_out %>%
+            dplyr::select(leaf_id, psi_choice, psi_star, logQ_cstar, n_obs) 
+        
+        exp_terms[[k]] = c_k_approx$const_approx
+    }
+    
+}
+
+all_terms = exp_terms %>% unlist
+
+log_sum_exp(all_terms)    # -1.215615 (3/12), -1.230866 (2/12), -1.233479 (3/10)
+hml_approx$const_vec      # -1.041315
+log(result$Q)             # -1.223014 for n = 1000
+
+abs(hml_approx$const_vec - lil(y, X, prior, post))
+abs(log_sum_exp(all_terms) - log(result$Q))
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 # library(tree)
 # u_tree = tree(psi_u ~ ., u_df_N)

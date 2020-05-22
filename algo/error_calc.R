@@ -87,14 +87,61 @@ for (l_k in 1:L_k) {
 (logQ_psi_hat = log_sum_exp(log_rel_error[!is.na(log_rel_error)])) # 5.422897
 
 
-c_k = part_k$psi_u               # true values of psi for partition_k
-c_star = part_k$psi_star[1]      # choice 2: max value of psi over partition
+psi_all = hml_approx$u_df_fit %>% dplyr::select(leaf_id, psi_u, psi_star)
+c_k = head(psi_all$psi_u, 100)    # true values of psi for partition_k
+c_star = min(c_k)                 # choice 2: max value of psi over partition
 
 logQ(c_star, c_k)
+logQ_fast(c_star, c_k)
+
+x = runif(100)
+stopifnot(all.equal(logQ(c_star, x), logQ_fast(c_star, x)))
+
+library(microbenchmark)
+microbenchmark(
+    logQ(c_star, c_k),
+    logQ_fast(c_star, c_k)
+)
 
 
-c_max = 
+x = runif(100)
+stopifnot(all.equal(logJ(c_star, x), logJ_fast(c_star, x)))
 
+microbenchmark(
+    logJ(c_star, c_k),
+    logJ_fast(c_star, c_k)
+)
+
+
+logJ(c_star, c_k)
+logJ_fast(c_star, c_k)
+
+
+logJ_fast = function(c_star, c_k) {
+    
+    L = length(c_k)
+    
+    log_rel_error = rep(NA, L) # store the log relative error
+    
+    # for (l in 1:L) {
+    #     ## perform a stable calculation of log(abs(1-exp(-c_star + c_k[l])))
+    #     ## by considering cases when c_star > c_k[l], c_star < c_k[l] 
+    #     if (c_star < c_k[l])
+    #         log_rel_error[l] = log1mexp(c_k[l] - c_star)
+    #     else if (c_star > c_k[l])
+    #         log_rel_error[l] = log1mexp(c_star - c_k[l]) + c_star - c_k[l]
+    #     
+    #     # if c_star == c_k[l_k] : do nothing; NA value will be skipped over in 
+    #     # final calculation
+    #     
+    # } # end of for loop iterating over each element in k-th partition
+    
+    sign_ind = (c_star > c_k)
+    log_rel_error = log1mexp(abs(c_star - c_k)) + (c_star - c_k) * sign_ind
+    
+    return(log_sum_exp(log_rel_error[!is.na(log_rel_error)]))
+    
+}
 
 
 
@@ -103,27 +150,30 @@ c_max =
 ## logQ() function -------------------------------------------------------------
 # c_star : value whose cost function is to be evaluated
 # c_k    : L-dim vector of function evaluations in the k-th partition
-logQ = function(c_star, c_k) {
+logQ_fast = function(c_star, c_k) {
     
     L = length(c_k)
     
     log_rel_error = rep(NA, L) # store the log relative error
     
-    for (l in 1:L) {
-        ## perform a stable calculation of log(abs(1-exp(-c_star + c_k[l])))
-        ## by considering cases when c_star > c_k[l], c_star < c_k[l] 
-        if (c_star > c_k[l]) {
-            log_rel_error[l] = log1mexp(c_star - c_k[l])
-        } else if (c_star < c_k[l]) {
-            log_rel_error[l] = log1mexp(c_k[l] - c_star) - c_star + c_k[l]
-        }
-        
-        # if c_star == c_k[l_k] : do nothing; NA value will be skipped over in 
-        # final calculation
-        
-    } # end of for loop iterating over each element in k-th partition
+    # for (l in 1:L) {
+    #     ## perform a stable calculation of log(abs(1-exp(-c_star + c_k[l])))
+    #     ## by considering cases when c_star > c_k[l], c_star < c_k[l] 
+    #     if (c_star > c_k[l]) {
+    #         log_rel_error[l] = log1mexp(c_star - c_k[l])
+    #     } else if (c_star < c_k[l]) {
+    #         log_rel_error[l] = log1mexp(c_k[l] - c_star) - c_star + c_k[l]
+    #     }
+    #     
+    #     # if c_star == c_k[l_k] : do nothing; NA value will be skipped over in 
+    #     # final calculation
+    #     
+    # } # end of for loop iterating over each element in k-th partition
     
-    return(log_sum_exp(log_rel_error[!is.na(log_rel_error)]))
+    sign_ind = (c_star < c_k)
+    log_rel_error = log1mexp(abs(c_star - c_k)) + (c_k - c_star) * sign_ind
+    
+    return(log_sum_exp(log_rel_error[!is.infinite(log_rel_error)]))
     
 }
 # end of logQ() function -------------------------------------------------------

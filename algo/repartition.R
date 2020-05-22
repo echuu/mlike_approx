@@ -37,7 +37,7 @@ c_k_approx = hml_const(1, D_u, u_df, N_k_p, param_list)
 c_k_approx$const_approx # these are the elements in the exponential that we care about
 
 
-
+# ------------------------------------------------------------------------------
 
 # contains: leaf_id, u1_lb, u1_ub, ... , uD_lb, uD_ub, n_obs
 part_0 = hml_approx$param_out %>% 
@@ -64,19 +64,19 @@ for (k in 1:K) {
     
     PERC_K = orig_partition[k,]$perc
     
-    if (PERC_K > 0.4) {
+    if (PERC_K > 0.2) {
         print("using original partition")
         exp_terms[[k]] = hml_approx$const_approx[k]
         
         # N_k_p = part_0$n_obs[k] * 10  # number of (re)samples to draw from part k
         # part_k = part_0 %>%           # set of lower/upper bounds
-        #     dplyr::filter(leaf_id == part_set[k]) %>% 
+        #     dplyr::filter(leaf_id == part_set[k]) %>%
         #     dplyr::select(-c(leaf_id, n_obs))
         # 
         # # sample uniformly from each lower/upper bound pair to form a D-dim vector
         # part_k_long = c(unlist(part_k)) %>% matrix(ncol = 2, byrow = T)
         # 
-        # resamp_k = Matrix_runif(N_k_p, lower = part_k_long[,1], 
+        # resamp_k = Matrix_runif(N_k_p, lower = part_k_long[,1],
         #                         upper = part_k_long[,2]) %>% data.frame
         # 
         # u_df_k = preprocess(resamp_k, D_u, param_list) # N_k_p x (D_u + 1)
@@ -84,7 +84,7 @@ for (k in 1:K) {
         # c_k_approx = hml_const_mod(1, D_u, u_df_k, N_k_p, param_list)
         # 
         # ck_star_list[[k]] = c_k_approx$param_out %>%
-        #     dplyr::select(leaf_id, psi_choice, psi_star, logQ_cstar, n_obs) 
+        #     dplyr::select(leaf_id, psi_choice, psi_star, logQ_cstar, n_obs)
         # 
         # exp_terms[[k]] = c_k_approx$const_approx
         
@@ -100,9 +100,9 @@ for (k in 1:K) {
         resamp_k = Matrix_runif(N_k_p, lower = part_k_long[,1], 
                                 upper = part_k_long[,2]) %>% data.frame
         
-        u_df_k = preprocess(resamp_k, D_u, params) # N_k_p x (D_u + 1)
+        u_df_k = preprocess(resamp_k, D_u, param_list) # N_k_p x (D_u + 1)
         
-        c_k_approx = hml_const(1, D_u, u_df_k, N_k_p, params)
+        c_k_approx = hml_const(1, D_u, u_df_k, N_k_p, param_list)
         
         ck_star_list[[k]] = c_k_approx$param_out %>%
             dplyr::select(leaf_id, psi_choice, psi_star, logQ_cstar, n_obs) 
@@ -117,13 +117,16 @@ exp_terms
 all_terms = exp_terms %>% unlist
 all_terms
 
+
+# -1183.447
+# -1319.849
 log_sum_exp(all_terms) # using "second-stage partitioning"
 (approx_logml = hml_approx$const_vec) # using original partitioning scheme
 (true_logml = lil(param_list))        # true log ML 
 
 
 rpart_k = rpart(psi_u ~., u_df_k, cp = 0.0001)
-rpart_k = rpart(psi_u ~., u_df_k, cp = 0.01)
+rpart_k = rpart(psi_u ~., u_df_k, cp = 0.05)
 plot(rpart_k)
 
 
@@ -145,7 +148,7 @@ hml_const_mod = function(N_approx, D, u_df_full, J, prior) {
         u_df = u_df_full[row_id:(row_id+J-1),]
         
         ## (2) fit the regression tree via rpart()
-        u_rpart = rpart(psi_u ~ ., u_df, cp = 0.0001)
+        u_rpart = rpart(psi_u ~ ., u_df)
         
         ## (3) process the fitted tree
         
@@ -157,7 +160,7 @@ hml_const_mod = function(N_approx, D, u_df_full, J, prior) {
         u_partition = extractPartition(u_rpart, param_support) 
         
         # organize all data into single data frame --> ready for approximation
-        param_out = u_star(u_rpart, u_df, u_partition, D) # partition.R
+        param_out = u_star_min(u_rpart, u_df, u_partition, D) # partition.R
         
         # ----------------------------------------------------------------------
         n_partitions = nrow(u_partition) # number of partitions 
