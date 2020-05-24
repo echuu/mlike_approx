@@ -125,14 +125,9 @@ hml_approx$const_vec # -433.3092 (D = 2), -473.4021 (D = 20)
 true_logml # -478.5213
 
 
-# reapprox = numeric(G)
-# for (g in 1:G) {
-#     reapprox[g] = resampleApprox(hml_approx, 8)$approx
-#     print(paste('iter ', g, ': ', reapprox[g], sep = ''))
-#     
-# }
 
-# mean(reapprox)
+
+
 
 set.seed(1)
 reapprox0 = resample_K(hml_approx, K)

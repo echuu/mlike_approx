@@ -12,7 +12,7 @@ source("HIW_graph.R")
 
 
 
-D = 9          # num rows/cols of the graph G and covariance/precision matrices
+D = 5          # num rows/cols of the graph G and covariance/precision matrices
 b = 3          # prior degrees of freedom
 V = diag(1, D) # prior scale matrix 
 
@@ -33,6 +33,21 @@ testG = matrix(c(1,1,0,0,1,0,0,0,0,
 
 a = c(1, 3, 2, 5, 4, 6, 7, 8, 9)
 testG = testG[a, a]
+
+
+testG  = matrix(c(1,1,0,0,0,
+                  1,1,1,1,1,
+                  0,1,1,1,1,
+                  0,1,1,1,1,
+                  0,1,1,1,1), 5,5)
+
+
+testG = matrix(c(1,1,1,0,0,
+                  1,1,1,0,0,
+                  1,1,1,1,1,
+                  0,0,1,1,1,
+                  0,0,1,1,1), 5,5)
+
 
 # logical vector determining existence of edges between vertices
 edgeInd = testG[upper.tri(testG, diag = TRUE)] %>% as.logical
@@ -125,16 +140,62 @@ gnorm_approx = - 0.5 * D * N * log(2 * pi) + gnorm(testG, b + N, V + S, iter = 1
 
 
 logmarginal(Y, testG, b, V, S)
+gnorm_approx
 hml_approx$const_vec
 
-hml_approx$param_out
+# hml_approx$param_out
+# abs(logmarginal(Y, testG, b, V, S) - hml_approx$const_vec)
+# abs(logmarginal(Y, testG, b, V, S) - gnorm_approx)
+# hml_approx$param_out %>% 
+#     dplyr::select(leaf_id, psi_choice, psi_star, logQ_cstar, n_obs)
 
-abs(logmarginal(Y, testG, b, V, S) - hml_approx$const_vec)
+(orig_partition = hml_approx$param_out %>%
+        dplyr::select(leaf_id, psi_choice, psi_star, logQ_cstar, n_obs) %>% 
+        dplyr::mutate(perc = n_obs / sum(n_obs)) %>% 
+        arrange(desc(perc)) %>% 
+        mutate(contrib = logQ_cstar / sum(logQ_cstar)))
 
-abs(logmarginal(Y, testG, b, V, S) - gnorm_approx)
+K = nrow(orig_partition)
 
-hml_approx$param_out %>% 
-    dplyr::select(leaf_id, psi_choice, psi_star, logQ_cstar, n_obs)
+
+set.seed(1)
+hml_approx = hml_const(1, D_u, u_df, J, params)
+orig_partition = hml_approx$param_out %>%
+        dplyr::select(leaf_id, psi_choice, psi_star, logQ_cstar, n_obs) %>% 
+        dplyr::mutate(perc = n_obs / sum(n_obs)) %>% 
+        arrange(desc(perc)) %>% 
+        mutate(contrib = logQ_cstar / sum(logQ_cstar))
+
+K = nrow(orig_partition)
+reapprox0 = resample_K(hml_approx, K, params, D_u)
+hml_approx$const_vec
+log_sum_exp(reapprox0$all_terms)
+length(reapprox0$all_terms)
+
+ts_approx_k = vector("list", K) 
+ts_approx_terms = vector("list", K) 
+
+for (k in 1:K) {
+    
+    print(paste("third stage on partition ", k, sep = ''))
+    
+    sub_part_k = reapprox0$ss_partitions[[k]]
+    
+    
+    K_sub = nrow(sub_part_k$param_out)
+    ts_approx_k[[k]] = resample_K(sub_part_k, K_sub, params, D_u, 5)
+    
+    ts_approx_terms[[k]] = ts_approx_k[[k]]$all_terms
+}
+
+log_sum_exp(unlist(ts_approx_terms))
+length(unlist(ts_approx_terms))
+
+
+
+
+
+
 
 
 # ------------------------------------------------------------------------------

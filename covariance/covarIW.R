@@ -14,7 +14,7 @@ source("covarIW_helper.R")  # covariance related helper functions
 
 
 N = 100                     # number of observations
-D = 7                       # num rows/cols in the covariance matrix
+D = 10                      # num rows/cols in the covariance matrix
 D_u = 0.5 * D * (D + 1)     # dimension of u that is fed into the tree
 J = 2000
 
