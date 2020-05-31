@@ -112,6 +112,13 @@ u_df = preprocess(samples, D, prior)
 
 hml_approx = hml_const(1, D, u_df, J, prior)
 
+hml_approx$const_vec
+
+(true_logml = lil_0 + D * log(2) + 
+        log(TruncatedNormal::pmvnorm(mu_beta, Q_beta_inv, 
+                                     lb = rep(0, D), ub = rep(Inf, D))[1]))
+
+
 (orig_partition = hml_approx$param_out %>%
     dplyr::select(leaf_id, psi_choice, psi_star, logQ_cstar, n_obs) %>% 
     dplyr::mutate(perc = n_obs / sum(n_obs)) %>% 
@@ -120,35 +127,84 @@ hml_approx = hml_const(1, D, u_df, J, prior)
 
 K = nrow(orig_partition)
 
+# modified second stage sampling using residuals -------------------------------
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# ------------------------------------------------------------------------------
+
+library(profvis)
+
+profvis({
+    hml_approx = hml_const(1, D, u_df, J, prior)
+})
+
+
 
 hml_approx$const_vec # -433.3092 (D = 2), -473.4021 (D = 20)
 true_logml # -478.5213
 
+set.seed(1)
+profvis({
+    reapprox0 = resample_K_simple(hml_approx, K, prior, D)
+})
+
+reapprox0 = resample_K_simple(hml_approx, K, prior, D)
+log_sum_exp(reapprox0)
 
 
 
+# testing the recursive function
+n_stages = 2
+n_samps = 10
+set.seed(1)
 
+start_time <- Sys.time()
+reapprox_recursive = resample(hml_approx, prior, n_stages, D, n_samps)
+end_time <- Sys.time()
+end_time - start_time
+
+log_sum_exp(reapprox_recursive)
+length(reapprox_recursive)
+
+
+# ------------------------------------------------------------------------------
 
 set.seed(1)
-reapprox0 = resample_K(hml_approx, K)
-log_sum_exp(reapprox0$all_terms)
-length(reapprox0$all_terms)
-
+start_time <- Sys.time()
+reapprox0 = resample_K(hml_approx, K, prior, D)
+# log_sum_exp(reapprox0$all_terms)
+# length(reapprox0$all_terms)
+# K = nrow(orig_partition)
 ts_approx_k = vector("list", K) 
 ts_approx_terms = vector("list", K) 
-
 for (k in 1:K) {
     
-    print(paste("third stage on partition ", k, sep = ''))
+    # print(paste("third stage on partition ", k, sep = ''))
     
     sub_part_k = reapprox0$ss_partitions[[k]]
     
     
     K_sub = nrow(sub_part_k$param_out)
-    ts_approx_k[[k]] = resample_K(sub_part_k, K_sub, 5)
+    ts_approx_k[[k]] = resample_K(sub_part_k, K_sub, prior, D, 5)
     
     ts_approx_terms[[k]] = ts_approx_k[[k]]$all_terms
 }
+
+end_time <- Sys.time()
+end_time - start_time
 
 log_sum_exp(unlist(ts_approx_terms))
 length(unlist(ts_approx_terms))

@@ -1,6 +1,127 @@
 
 
 
+resample = function(hml_approx, params, n_stages, D, n_samps) {
+    
+    resample_helper(hml_approx, params, n_stages, D, n_samps)
+    
+}
+
+
+resample_helper = function(hml_approx, params, n_stages, D, n_samps) {
+    
+    K = nrow(hml_approx$param_out)
+    
+    if (n_stages == 1) {       # ending condition
+        
+        # iterate through each of the K partitions and obtain the constant
+        # approximations over each of these partitions
+        # resample_K() can be called here 
+        # print(K)
+        return(resample_K_simple(hml_approx, K, params, D, n_samps))
+    }
+    
+    
+    all_terms = c()
+    
+    part_0 = hml_approx$param_out %>% 
+        dplyr::select(-c(psi_choice, psi_star, logQ_cstar))
+    
+    part_set = part_0$leaf_id
+    
+    orig_partition = hml_approx$param_out %>%
+        dplyr::select(leaf_id, psi_choice, psi_star, logQ_cstar, n_obs) %>% 
+        dplyr::mutate(perc = n_obs / sum(n_obs)) %>% 
+        arrange(desc(perc))
+    
+    for (k in 1:K) {
+        
+        N_k_p = part_0$n_obs[k] * n_samps # number of (re)samples to draw from part k
+        part_k = part_0 %>%               # set of lower/upper bounds
+            dplyr::filter(leaf_id == part_set[k]) %>%
+            dplyr::select(-c(leaf_id, n_obs))
+        
+        # sample unif from each lower/upper bound pair to form a D-dim vector
+        part_k_long = c(unlist(part_k)) %>% matrix(ncol = 2, byrow = T)
+        
+        resamp_k = Matrix_runif(N_k_p, lower = part_k_long[,1],
+                                upper = part_k_long[,2]) %>% data.frame
+        
+        u_df_k = preprocess(resamp_k, D, prior) # N_k_p x (D_u + 1)
+        
+        hml_approx_k = hml_const_mod(1, D, u_df_k, N_k_p, prior)
+        
+        all_terms = c(all_terms, 
+                      resample_helper(hml_approx_k, params, n_stages - 1, D,
+                                      n_samps / 2))
+    }
+    
+    return(all_terms)
+}
+
+
+
+resample_K_simple = function(hml_obj, min_index, prior, D, n_samps = 10) {
+    
+    part_0 = hml_obj$param_out %>% 
+        dplyr::select(-c(psi_choice, psi_star, logQ_cstar))
+    
+    part_set = part_0$leaf_id
+    
+    orig_partition = hml_obj$param_out %>%
+        dplyr::select(leaf_id, psi_choice, psi_star, logQ_cstar, n_obs) %>% 
+        dplyr::mutate(perc = n_obs / sum(n_obs)) %>% 
+        arrange(desc(perc))
+    
+    K = length(part_set)
+    
+    # initialize a list to store the vector containing the terms in exponential
+    # for each of the sub-partitions
+    # kth elmt is an s_k dim vector of terms that are to be exponentiated
+    # at the very end, all entries are unlisted and evaluated via log-sum-exp
+    
+    exp_terms = vector("list", K) 
+    ck_star_list = vector("list", K)
+    ss_partition = vector("list", K) # store each of the hml_obj objects
+    
+    perc_thresh = sort(orig_partition$perc, decreasing = T)
+    
+    for (k in 1:K) {
+
+        N_k_p = part_0$n_obs[k] * n_samps  # number of (re)samples to draw from part k
+        part_k = part_0 %>%           # set of lower/upper bounds
+            dplyr::filter(leaf_id == part_set[k]) %>%
+            dplyr::select(-c(leaf_id, n_obs))
+        
+        # sample uniformly from each lower/upper bound pair to form a D-dim vector
+        part_k_long = c(unlist(part_k)) %>% matrix(ncol = 2, byrow = T)
+        
+        resamp_k = Matrix_runif(N_k_p, lower = part_k_long[,1],
+                                upper = part_k_long[,2]) %>% data.frame
+        
+        u_df_k = preprocess(resamp_k, D, prior) # N_k_p x (D_u + 1)
+        
+        c_k_approx = hml_const_mod(1, D, u_df_k, N_k_p, prior)
+        
+        ck_star_list[[k]] = c_k_approx$param_out %>%
+            dplyr::select(leaf_id, psi_choice, psi_star, logQ_cstar, n_obs)
+        
+        ss_partition[[k]] = c_k_approx
+        
+        exp_terms[[k]] = c_k_approx$const_approx
+        
+    }
+    
+    all_terms = exp_terms %>% unlist
+    
+    return(all_terms)
+    
+}
+
+
+
+
+
 resample_K = function(hml_obj, min_index, prior, D, n_samps = 10) {
     
     
