@@ -14,7 +14,7 @@ library(mvtnorm)
 setwd("C:/Users/ericc/mlike_approx/algo")
 source("setup.R")     
 source("C:/Users/ericc/mlike_approx/truncate/regTN_helper.R")
-D = 30
+D = 50
 N = 200
 I_D = diag(1, D)
 
@@ -80,7 +80,6 @@ lil_0 = -0.5 * N * log(2 * pi) - 0.5 * (N + D) * log(sigmasq) +
     0.5 * D * log(tau) - 0.5 * log_det(Q_beta) - 
     1 / (2 * sigmasq) * sum(y^2) + 0.5 * sum(b * mu_beta)
 
-# lil_0 - log(TruncatedNormal::pmvnorm(rep(0, D), tau / sigmasq * I_D, lb = rep(0, D), ub = rep(Inf, D))[1]) 
 (true_logml = lil_0 + D * log(2) + 
     log(TruncatedNormal::pmvnorm(mu_beta, Q_beta_inv, 
                                  lb = rep(0, D), ub = rep(Inf, D))[1]))
@@ -209,6 +208,7 @@ end_time - start_time
 log_sum_exp(unlist(ts_approx_terms))
 length(unlist(ts_approx_terms))
 
+G = 50
 orig_approx = numeric(G)
 ss_approx   = numeric(G)
 ts_approx   = numeric(G)

@@ -5,137 +5,118 @@
 # for a given u *in a specified partition*, compute psi(u) - psi_hat(u)
 # where psi_hat(u) is the optimal psi value chosen in the previous layer
 
-# params that will be passed into the function eventually
-n_samps = 5
-
-# for the partition learned from prev fitted tree, extract the partition id and
-# the optimal value of psi for this partition
-prev_info = hml_approx$param_out %>% 
-    dplyr::select(-c(psi_choice, logQ_cstar))
-
-
-prev_info = sub_part
-
-# prev_info = hml_approx$param_out %>% dplyr::select(leaf_id, psi_choice, n_obs)
-part_id = prev_info$leaf_id
-
-K = length(part_id)
-k = 1
-
-
-set.seed(1)
-exp_terms = vector("list", K) 
-update_info = vector("list", K) 
-for (k in 1:K) {
-    
-    print(k)
-    N_k_p = prev_info$n_obs[k] * n_samps  # num of samples to draw from part k
-    part_k = prev_info %>%                # set of lower/upper bounds
-        dplyr::filter(leaf_id == part_id[k]) %>%
-        dplyr::select(-c(leaf_id, psi_star, n_obs))
-    
-    # sample uniformly from each lower/upper bound pair to form a D-dim vector
-    # lower bound in first column, upper bound in second column
-    part_k_long = c(unlist(part_k)) %>% matrix(ncol = 2, byrow = T)
-    
-    # sample uniformly from the D-dim partition whose lower/upper bounds
-    # are defined in part_k_long above
-    resamp_k = Matrix_runif(N_k_p, 
-                            lower = part_k_long[,1],
-                            upper = part_k_long[,2]) %>% data.frame
-    
-    # compute psi(u) for each of the samples
-    u_df_k = preprocess(resamp_k, D, prior) # N_k_p x (D_u + 1)
-    
-    ## NEW CODE 5/29 -----------------------------------------------------------
-    
-    # optimal value of psi_star of the original k-th partition
-    c_k_star = prev_info$psi_star[k] 
-    
-    # compute R(u) for each of the samples; since we're in the k-th
-    # partition, we can directly subtract from psi_star[k], which we have
-    # computed and stored from the previous (original) call to hml_approx()
-    # this will need to be modified in the (to be)-implemented function that
-    # handles fitting the residuals, rather than the function values of psi(u)
-    R_df_k = u_df_k %>% dplyr::mutate(R_u = psi_u - c_k_star) %>% 
-        dplyr::select(-psi_u)
-    
-    # fit (u, R(u)) into decision tree to obtain partition
-    resid_tree = rpart(R_u ~ ., R_df_k)
-    
-    # extract the (data-defined) support from R_df_k
-    resid_support = extractSupport(R_df_k, D)
-    
-    # extract partition from resid_tree
-    # ntoe we omit 'psi_hat' the fitted value for the residual returned from 
-    # the tree, since this value results in an underestimation of the 
-    # log marginal likelihood. instead, use our own objective function to 
-    # choose the optimal value of R(u) for each (sub-)partition
-    resid_partition = extractPartition(resid_tree, resid_support) %>% 
-        dplyr::select(-psi_hat)
-    
-    # number of sub-partitions of partition k
-    s_k = nrow(resid_partition) 
-    
-    # opt value (chosen by tree) for each sub-partition
-    e_kj_opt = partition_opt(resid_tree, R_df_k, resid_partition, D)
-    
-    resid_partition = e_kj_opt %>% dplyr::select(leaf_id, Ru_star) %>% 
-        merge(resid_partition, by = 'leaf_id')
-    
-    # compute updated value for c_k_star to be used in final appro
-
-    resid_partition = resid_partition %>% 
-        dplyr::mutate(psi_star = Ru_star + c_k_star) %>% 
-        dplyr::select(-Ru_star)
-    
-    # compute areas of A_k[j], j = 1, ... , s_k
-    # exp_terms[[k]] = compute_expterms(resid_partition, D)
-    
-    # prepare for next recursive call by formatting the df to match the input: 
-    # leaf_id, lb/ub partitions, psi_star, n_obs
-    part_tbl = table(resid_tree$where) %>% data.frame
-    names(part_tbl) = c("leaf_id", "n_obs")
-    
-    update_info[[k]] = merge(resid_partition, part_tbl, by = 'leaf_id')
-}
-
-
-# log_sum_exp(unlist(exp_terms))
-
-hml_approx$const_vec
-
-(true_logml = lil_0 + D * log(2) + 
-        log(TruncatedNormal::pmvnorm(mu_beta, Q_beta_inv, 
-                                     lb = rep(0, D), ub = rep(Inf, D))[1]))
-
-# TODO: run next recursive call:
-# renumber the partition ids to make them unique
-sub_part = do.call(rbind, update_info)
-sub_part = sub_part %>% dplyr::mutate(leaf_id = 1:nrow(sub_part))
-
-# check that the number of sub-partitions matches the number of exp terms
-# length(unlist(exp_terms)) == nrow(sub_part)
-ss_approx = log_sum_exp(unlist(compute_expterms(sub_part, D)))
-ts_approx = log_sum_exp(unlist(compute_expterms(sub_part, D)))
-
-
-
-update_info[[1]]
-
-
 ## start here
 n_samps = 10
 
 # for the partition learned from prev fitted tree, extract the partition id and
 # the optimal value of psi for this partition
-prev_info = hml_approx$param_out %>% 
+og_part = hml_approx$param_out %>% 
     dplyr::select(-c(psi_choice, logQ_cstar))
 
 set.seed(1)
-sub_part = fit_resid(prev_info, D, n_samps, prior)
+ss_part = fit_resid(og_part, D, n_samps, prior)
+ts_part = fit_resid(ss_part, D, n_samps / 2, prior)
+fs_part = fit_resid(ts_part, D, n_samps / 2, prior)
 
-log_sum_exp(unlist(compute_expterms(sub_part, D)))
+
+# truth
+(true_logml = lil_0 + D * log(2) + 
+        log(TruncatedNormal::pmvnorm(mu_beta, Q_beta_inv, 
+                                     lb = rep(0, D), ub = rep(Inf, D))[1]))
+
+# original approx
+hml_approx$const_vec
+log_sum_exp(unlist(compute_expterms(ss_part, D)))
+log_sum_exp(unlist(compute_expterms(ts_part, D)))
+log_sum_exp(unlist(compute_expterms(fs_part, D)))
+
+
+# repeat the same calculations above for G-many replications -------------------
+
+G = 50
+true_logml  = numeric(G)
+orig_approx = numeric(G)
+ss_approx   = numeric(G)
+ts_approx   = numeric(G)
+
+for (g in 1:G) {
+    
+    
+    X   = matrix(rnorm(N * D), N, D)                # (N x D) design matrix
+    eps = rnorm(N, mean = 0, sd = sqrt(sigmasq))    # (N x 1) errors vector
+    y   = X %*% beta + eps                          # (N x 1) response vector
+    
+    # compute posterior parameters ---------------------------------------------
+    Q_beta     =  1 / sigmasq * (t(X) %*% X + tau * diag(1, D))
+    Q_beta_inv =  solve(Q_beta)
+    b          =  1 / sigmasq * t(X) %*% y
+    mu_beta    =  Q_beta_inv %*% b
+    
+    # create prior, post objects to be passed into the hml algorithm 
+    prior = list(y = y, X = X, sigmasq = sigmasq, tau = tau, N = N, D = D,
+                 Q_beta = Q_beta, b = b)
+    
+    lil_0 = -0.5 * N * log(2 * pi) - 0.5 * (N + D) * log(sigmasq) + 
+        0.5 * D * log(tau) - 0.5 * log_det(Q_beta) - 
+        1 / (2 * sigmasq) * sum(y^2) + 0.5 * sum(b * mu_beta)
+    
+    true_logml[g] = lil_0 + D * log(2) + 
+        log(TruncatedNormal::pmvnorm(mu_beta, Q_beta_inv, 
+                                     lb = rep(0, D), ub = rep(Inf, D))[1])
+    
+    samples = data.frame(rtmvnorm(J, c(mu_beta), Q_beta_inv, 
+                                  rep(0, D), rep(Inf, D)))
+    
+    u_df = preprocess(samples, D, prior)
+    
+    hml_approx = hml_const(1, D, u_df, J, prior)
+    
+    og_part = hml_approx$param_out %>% 
+        dplyr::select(-c(psi_choice, logQ_cstar))
+    
+    ss_part = fit_resid(og_part, D, n_samps, prior)
+    ts_part = fit_resid(ss_part, D, n_samps / 2, prior)
+    
+    orig_approx[g] = hml_approx$const_vec 
+    
+    
+    ss_approx[g] = log_sum_exp(unlist(compute_expterms(ss_part, D)))
+    ts_approx[g] = log_sum_exp(unlist(compute_expterms(ts_part, D)))
+    
+    # print(paste('iter ', g, '/', G, ' : ', 
+    #             round(ss_approx[g], 4), ' (err: ', 
+    #             round(abs(true_logml[g] - ss_approx[g]), 4), ', avg: ', 
+    #             round(mean(ss_approx[1:g]), 4), '), ',
+    #             round(ts_approx[g], 4), ' (err: ', 
+    #             round(abs(true_logml[g] - ts_approx[g]), 4), ', avg: ', 
+    #             round(mean(ts_approx[1:g]), 4), '), ', sep = ''))
+    
+    print(paste('iter ', g, '/', G, ' : ', 
+                round(ss_approx[g], 4), ' (err: ', 
+                round(abs(true_logml[g] - ss_approx[g]), 4), '), ',
+                round(ts_approx[g], 4), ' (err: ', 
+                round(abs(true_logml[g] - ts_approx[g]), 4), '), ', 
+                sep = ''))
+    
+}
+
+mean(true_logml)  # mean of the true log ML over all partitions
+mean(orig_approx) # no re-partioning
+mean(ss_approx)   # second stage 
+mean(ts_approx)   # third stage
+
+abs(mean(true_logml) - mean(orig_approx))
+abs(mean(true_logml) - mean(ss_approx))
+abs(mean(true_logml) - mean(ts_approx))
+
+
+
+
+
+
+
+#### end of replications -------------------------------------------------------
+
 
 #### fit_resid() ---------------------------------------------------------------
 # curr_part : current partition: cols for leaf_id, psi_star, n_obs | ub/lbs
@@ -147,12 +128,12 @@ fit_resid = function(curr_part, D, n_samps, params) {
     part_id = curr_part$leaf_id        # extract partition IDs
     K = length(part_id)                # number of partitions
  
-    # exp_terms = vector("list", K)      # store terms in the exp in final approx
+    # exp_terms = vector("list", K)    # store terms in the exp in final approx
     sub_partitions = vector("list", K) # store the sub-partitions after resample
     
     for (k in 1:K) {
         
-        print(k)
+        # print(k)
         N_k_p = curr_part$n_obs[k] * n_samps  # num of samples to draw from A_k
         
         # set of lower/upper bounds corresponding to the k-th partition
