@@ -12,7 +12,7 @@ source("HIW_graph.R")
 
 
 
-D = 5          # num rows/cols of the graph G and covariance/precision matrices
+D = 9          # num rows/cols of the graph G and covariance/precision matrices
 b = 3          # prior degrees of freedom
 V = diag(1, D) # prior scale matrix 
 
@@ -157,8 +157,44 @@ hml_approx$const_vec
 
 K = nrow(orig_partition)
 
+# ------------------------------------------------------------------------------
+
+#### 2nd stage
+
+
+## start here
+n_samps = 10
+
+# for the partition learned from prev fitted tree, extract the partition id and
+# the optimal value of psi for this partition
+og_part = hml_approx$param_out %>% 
+    dplyr::select(-c(psi_choice, logQ_cstar))
 
 set.seed(1)
+ss_part = fit_resid(og_part, D_u, n_samps, params)
+ts_part = fit_resid(ss_part, D_u, n_samps / 2, params)
+fs_part = fit_resid(ts_part, D_u, n_samps / 2, params)
+
+
+# truth
+
+# original approx
+hml_approx$const_vec
+log_sum_exp(unlist(compute_expterms(ss_part, D_u)))
+log_sum_exp(unlist(compute_expterms(ts_part, D_u)))
+log_sum_exp(unlist(compute_expterms(fs_part, D_u)))
+
+gnorm_approx = - 0.5 * D * N * log(2 * pi) + gnorm(testG, b + N, V + S, iter = 100) - 
+    gnorm(testG, b, V, iter = 100)
+logmarginal(Y, testG, b, V, S) - gnorm_approx
+
+log_sum_exp(unlist(compute_expterms(ts_part, D_u))) - logmarginal(Y, testG, b, V, S)
+
+
+# ------------------------------------------------------------------------------
+
+
+set.seed(2)
 hml_approx = hml_const(1, D_u, u_df, J, params)
 orig_partition = hml_approx$param_out %>%
         dplyr::select(leaf_id, psi_choice, psi_star, logQ_cstar, n_obs) %>% 
