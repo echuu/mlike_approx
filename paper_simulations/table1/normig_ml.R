@@ -41,7 +41,7 @@ M2$ln.ML
 # ------------------------------------------------------------------------------
 library(ggplot2)
 
-N = 50
+N = 100
 D = 2
 
 
@@ -52,11 +52,11 @@ w_0 = 0.05
 r_0 = 3
 s_0 = 3
 
-prior = list(m_0 = m_0, w_0 = w_0, r_0 = r_0, s_0 = s_0, y = y)
-
 set.seed(123)
 # generate 50 samples from N(mu, sigma_sq)
 y = rnorm(N, mu, sqrt(sigma_sq))
+
+prior = list(m_0 = m_0, w_0 = w_0, r_0 = r_0, s_0 = s_0, y = y)
 
 ybar = mean(y)
 
@@ -96,6 +96,7 @@ hml_approx$param_out
 # compute the estimate for the i-th batch
 hme = numeric(B) # store the log integrated likelihood for each batch
 hyb = numeric(B) # store the log integrated likelihood for each batch
+ame = numeric(B)
 
 for (b in 1:B) {
     
@@ -121,9 +122,87 @@ for (b in 1:B) {
     
     hyb[b] = hml_approx$const_vec
     
+    # (4) compute arithmetic mean estimator
+    # sample from prior
+    sigmasq_prior = MCMCpack::rinvgamma(J, shape = r_0 / 2, scale = s_0 / 2)
+    mu_prior = rnorm(J, m_0, sqrt(sigmasq_prior / w_0))
+    lik_prior = numeric(J)
+    for (j in 1:J) {
+        # (2.1) compute the likelihood under the j-th posterior parameters
+        lik_prior[j] = prod(dnorm(y, mu_prior[j], sqrt(sigmasq_prior[j])))
+    }
+    ame[b] = mean(lik_prior)
+    
+    
 }
 
-approx_df = data.frame(mcmc = 1:B, hme = log(hme), hyb = hyb, lil = LIL)
+
+
+## arithmetic mean estimator --- pajor paper has this with 0 error ???
+ame = numeric(B)
+for (b in 1:B) {
+    # (4) compute arithmetic mean estimator
+    # sample from prior
+    sigmasq_prior = MCMCpack::rinvgamma(J, shape = r_0 / 2, scale = s_0 / 2)
+    mu_prior = rnorm(J, m_0, sqrt(sigmasq_prior / w_0))
+    lik_prior = numeric(J)
+    for (j in 1:J) {
+        # (2.1) compute the likelihood under the j-th posterior parameters
+        lik_prior[j] = prod(dnorm(y, mu_prior[j], sqrt(sigmasq_prior[j])))
+    }
+    ame[b] = log(mean(lik_prior))
+}
+
+## corrected arithmetic mean estimator
+set.seed(123)
+came = numeric(B)
+for (b in 1:B) {
+    
+    # (0) sample from mu | sigma_sq, y
+    mu_post = rnorm(J, m_n, sqrt(sigma_sq / w_n)) # (D x 1)
+    # (1) sample from sigma_sq | y
+    sigma_sq_post = MCMCpack::rinvgamma(J, shape = r_n / 2, scale = s_n / 2)
+    
+    A_mu = c(min(mu_post), max(mu_post))
+    A_sigmasq = c(min(sigma_sq_post), max(sigma_sq_post))
+    
+    # draw from the importance density N-IG
+    sigmasq_mean = mean(sigma_sq_post)
+    sigmasq_var = var(sigma_sq_post)
+    
+    # compute shape/scale parameters from posterior mean/var of sigmasq
+    r_imp = sigmasq_mean^2/sigmasq_var + 2
+    s_imp = sigmasq_mean * (1 + sigmasq_mean^2 / sigmasq_var)
+    
+    mu_s      = rnorm(J, mean(mu_post), sqrt(mean(sigma_sq_post) / w_n))
+    sigmasq_s = MCMCpack::rinvgamma(J, shape = r_imp, scale = s_imp)
+    
+    # compute 1/s(theta) -- (K x 1) vector of evaluated densities
+    s_theta = dnorm(mu_s, m_n, sqrt(sigma_sq / w_n)) * 
+        MCMCpack::dinvgamma(sigmasq_s, shape = r_n / 2, scale = s_n / 2)
+    
+    # compute prior density
+    p_theta = dnorm(mu_s, m_0, sqrt(sigma_sq / w_0)) * 
+        MCMCpack::dinvgamma(sigmasq_s, shape = r_0 / 2, scale = s_0 / 2)
+    
+    # compute likelihood
+    lik_q = numeric(J)
+    for (q in 1:J) {
+        lik_q[q] = prod(dnorm(y, mean = mu_s[q], sd = sqrt(sigmasq_s[q])))
+    }
+    
+    ind_A = (mu_s >=  A_mu[1] & mu_s <= A_mu[2]) & 
+        (sigmasq_s >= A_sigmasq[1] & sigmasq_s <= A_sigmasq[2]) # 1_A (theta)
+    
+    came_approx = 1 / s_theta * lik_q * p_theta * ind_A
+    came[b] = log(mean(came_approx))
+    
+}
+
+
+came %>% mean
+
+approx_df = data.frame(mcmc = 1:B, hme = log(hme), hyb = hyb, came = came)
 approx_long = melt(approx_df, id.vars = 'mcmc')
 
 
@@ -134,13 +213,18 @@ ggplot(approx_long, aes(x = mcmc, y = value, col = variable)) + geom_point() +
 ## compute average error, root mean squared error
 mean(hyb)
 mean(log(hme))
+mean(ame)
+mean(came)
 
-mean(LIL - log(hme))
 mean(LIL - hyb)
+mean(LIL - log(hme))
+mean(LIL - log(ame))
+mean(LIL - came)
 
-sqrt(mean((LIL - log(hme))^2))
 sqrt(mean((LIL - hyb)^2))
-
+sqrt(mean((LIL - log(hme))^2))
+sqrt(mean((LIL - log(ame))^2))
+sqrt(mean((LIL - came)^2))
 
 
 
