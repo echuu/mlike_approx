@@ -34,7 +34,7 @@ hml_const = function(N_approx, D, u_df_full, J, prior) {
         u_partition = extractPartition(u_rpart, param_support) 
         
         # organize all data into single data frame --> ready for approximation
-        param_out = u_star(u_rpart, u_df, u_partition, D) # partition.R
+        param_out = u_star_hat(u_rpart, u_df, u_partition, D) # partition.R
         
         # ----------------------------------------------------------------------
         n_partitions = nrow(u_partition) # number of partitions 
