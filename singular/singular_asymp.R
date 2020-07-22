@@ -24,10 +24,10 @@ stan_sampler = 'C:/Users/ericc/mlike_approx/singular/gamma_sample.stan'
 # source("extractPartition.R")
 source("C:/Users/ericc/mlike_approx/singular/singular_helper.R")    # load psi(), lambda()
 
-x11()
+# x11()
 
 # STAN SETTINGS ----------------------------------------------------------------
-J         = 1000         # number of MC samples per approximation
+J         = 5000         # number of MC samples per approximation
 N_approx  = 1            # number of approximations
 burn_in   = 2000         # number of burn in draws
 n_chains  = 4            # number of markov chains to run
@@ -65,6 +65,17 @@ u_post = u_samp$u %>% data.frame() # (J * N_approx) x 2
 
 # (2) evaluate posterior samples using psi(u)
 u_df_N = preprocess(u_post, D, prior)
+hml_approx = hml_const(1, D, u_df_N, J, prior)
+hml_approx$const_vec
+
+
+plot(u_df_N[,1], u_df_N[,2], pch = 20, cex = 0.3, 
+     col = rgb(0, 0, 0, alpha = 0.5),
+     xlab = '', ylab = '', main = '')
+rect(hml_approx$param_out$u1_lb, hml_approx$param_out$u2_lb,
+     hml_approx$param_out$u1_ub, hml_approx$param_out$u2_ub, lwd = 3)
+
+
 
 # x11()
 ggplot(u_df_N, aes(u1, u2)) + geom_point()
@@ -73,7 +84,7 @@ ggplot(u_df_N, aes(u1, u2)) + geom_point()
 # approx = hml(N_approx, D, u_df_N, J, prior)
 # mean(approx) # -1.2044
 
-hml_approx = hml_const(1, D, u_df_N, J, prior)
+# hml_approx = hml_const(1, D, u_df_N, J, prior)
 hml_approx$const_vec
 
 hml_approx$param_out %>%

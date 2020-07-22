@@ -38,7 +38,7 @@ source("C:/Users/ericc/mlike_approx/bayes_regression/bayesLinRegHelper.R")
 # K_sims = 1               # num of simulations to run FOR EACH N in N_vec
 
 
-D = c(10) # test for smalller dimensions for now
+D = c(2) # test for smalller dimensions for now
 N = c(400) # for testing -- comment this line to perform ext. analysis
 
 
@@ -82,7 +82,7 @@ K_sims    = 1            # number of simulations to run
 ## sample from posterior -------------------------------------------------------
 
 # true log marginal likelihood
-lil(prior, post) 
+# lil(prior, post) 
 
 u_samps = rmvnorm(J, mean = c(mu_beta), sigma = Q_beta_inv) %>% data.frame 
 u_df = preprocess(u_samps, D, prior) # J x (D + 1) -- stored row-wise 
@@ -92,12 +92,11 @@ u_df = preprocess(u_samps, D, prior) # J x (D + 1) -- stored row-wise
 
 hml_approx = hml_const(1, D, u_df, J, prior)
 
-library(microbenchmark)
-microbenchmark("hml" = hml_const(1, D, u_df, J, prior))
+# library(microbenchmark)
+# microbenchmark("hml" = hml_const(1, D, u_df, J, prior))
 
 hml_approx$param_out %>%
     dplyr::select(leaf_id, psi_choice, psi_star, logQ_cstar, n_obs)
-
 
 hml_approx$const_vec # -272.1245
 

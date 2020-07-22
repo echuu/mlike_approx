@@ -14,7 +14,7 @@ library(rstudioapi) # running  RStan in parallel via Rstudio
 options(mc.cores = parallel::detectCores()) 
 
 
-J         = 5000          # number of MC samples per approximation
+J         = 1000          # number of MC samples per approximation
 N_approx  = 1             # number of approximations
 burn_in   = 2000          # number of burn in draws
 n_chains  = 4             # number of markov chains to run
@@ -24,7 +24,7 @@ J_iter = 1 / n_chains * N_approx * J + burn_in
 
 
 K_sims = 1               # num of simulations to run FOR EACH N in N_vec
-D = 25
+D = 4
 N = 500 # for testing -- comment this line to perform ext. analysis
 
 

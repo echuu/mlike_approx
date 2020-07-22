@@ -118,14 +118,6 @@ abs(mean(true_logml) - mean(ts_approx))
 
 
 
-
-
-
-
-
-
-
-
 part_0 = hml_obj$param_out %>% 
     dplyr::select(-c(psi_choice, psi_star, logQ_cstar))
 

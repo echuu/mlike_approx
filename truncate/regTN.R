@@ -14,7 +14,7 @@ library(mvtnorm)
 setwd("C:/Users/ericc/mlike_approx/algo")
 source("setup.R")     
 source("C:/Users/ericc/mlike_approx/truncate/regTN_helper.R")
-D = 50
+D = 2
 N = 200
 I_D = diag(1, D)
 
@@ -61,7 +61,7 @@ post = list(Q_beta = Q_beta, Q_beta_inv = Q_beta_inv, mu_beta = mu_beta, b = b)
 # initial =  rep(1, D)   # Set initial point for the Markov chain
 
 
-J        = 3000        # number of MC samples
+J        = 5000        # number of MC samples
 B        = 10          # number of batch estimates
 N_approx = 1           # number of estimates to compute per iteration b
 
@@ -97,10 +97,19 @@ set.seed(1)
 # prod(dnorm(c(0.8210398, 0.1810452), 0, sqrt(sigmasq / tau), log = F)) * 4
 
 
-samples = data.frame(rtmvnorm(J * B, c(mu_beta), Q_beta_inv, rep(0, D), rep(Inf, D)))
+samples = data.frame(rtmvnorm(J, c(mu_beta), Q_beta_inv, rep(0, D), rep(Inf, D)))
 # samples = data.frame(rtmvnorm(J * B, R, Q_beta_inv, rep(0, D), rep(Inf, D)))
     
 u_df = preprocess(samples, D, prior)
+hml_approx = hml_const(1, D, u_df, J, prior)
+
+library(scales)
+
+plot(u_df[,1], u_df[,2], pch = 20, cex = 0.3, col = rgb(0, 0, 0, alpha = 0.5),
+     xlab = '', ylab = '', main = '')
+rect(hml_approx$param_out$u1_lb, hml_approx$param_out$u2_lb,
+     hml_approx$param_out$u1_ub, hml_approx$param_out$u2_ub, lwd = 3)
+
 
 # plot(samples)
 
@@ -109,7 +118,6 @@ u_df = preprocess(samples, D, prior)
 # 
 # hml_approx = hml(N_approx, D, u_df, J, prior)
 
-hml_approx = hml_const(1, D, u_df, J, prior)
 
 hml_approx$const_vec
 
