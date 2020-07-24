@@ -41,11 +41,7 @@ post = list(Q_beta = Q_beta, Q_beta_inv = Q_beta_inv, mu_beta = mu_beta, b = b)
 
 
 ## algorithm settings ----------------------------------------------------------
-
 J         = 5000         # number of MC samples per approximation
-N_approx  = 1            # number of approximations to compute using algorithm
-K_sims    = 1            # number of simulations to run
-
 # ------------------------------------------------------------------------------
 
 ## sample from posterior -------------------------------------------------------
@@ -56,38 +52,8 @@ K_sims    = 1            # number of simulations to run
 u_samps = rmvnorm(J, mean = c(mu_beta), sigma = Q_beta_inv) %>% data.frame 
 u_df = preprocess(u_samps, D, prior) # J x (D + 1) -- stored row-wise 
 
-hml_approx = hml_const(1, D, u_df, J, prior)
-
-library(microbenchmark)
-microbenchmark("hml" = hml_const(1, D, u_df, J, prior))
-
-hml_approx$param_out %>%
-    dplyr::select(leaf_id, psi_choice, psi_star, logQ_cstar, n_obs)
-
-hml_approx$const_vec # -272.1245
-
-lil(prior, post)     # -272.1202
-hme_approx = hme(u_df, prior, J, D, N)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+# library(microbenchmark)
+# microbenchmark("hml" = hml_const(1, D, u_df, J, prior))
 
 # reg_lik() function -----------------------------------------------------------
 # reformulate the likelihood so that it is of the form exp(x) so that 
@@ -126,7 +92,7 @@ reg_lik = function(u_df, prior, J, D, N) {
 # harmonic mean estimator -- this is written specifically for the MVN-IG
 # example, since the likelihood is of a form such that we can take advantage
 # of the log-sum-exp trick to stabilize the calculation of estimator
-hme = function(u_df, prior, J, D, N) {
+hme_approx = function(u_df, prior, J, D, N) {
     
     # harmonic mean estimator requires calculating the likelihood given
     # each of the J parameters (that are sampled via MCMC)
@@ -148,9 +114,69 @@ hme = function(u_df, prior, J, D, N) {
 } # end of hme() function ------------------------------------------------------
 
 
+hml_approx = hml_const(1, D, u_df, J, prior)
+hml_approx$param_out %>%
+    dplyr::select(leaf_id, psi_choice, psi_star, logQ_cstar, n_obs)
+hme = hme_approx(u_df, prior, J, D, N)
+
+
+hml_approx$const_vec       # -272.1245
+hme
+LIL = lil(prior, post)     # -272.1202
+
+
+B = 1000 # number of replications
+J = 1000 # number of MCMC samples per replication
+
+hme  = numeric(B) # store harmonic mean estiator
+hyb  = numeric(B) # store hybrid estimator
+ame  = numeric(B) # store arithmetic mean estimator
+came = numeric(B) # corrected arithmetic mean estimator
+
+# other estimators: chib's, bridge, more recent ones?
+
+for (b in 1:B) {
+    
+    # sample from posterior
+    u_samps = rmvnorm(J, mean = c(mu_beta), sigma = Q_beta_inv) %>% data.frame 
+    u_df = preprocess(u_samps, D, prior) # J x (D + 1) -- stored row-wise 
+    
+    #### (1) hybrid estimator
+    hml_approx = hml_const(1, D, u_df, J, prior)
+    hyb[b] = hml_approx$const_vec
+    
+    #### (2) harmonic mean estimator
+    hme[b] = hme_approx(u_df, prior, J, D, N)
+    
+    #### (3) corrected arithmetic mean estimator (IS)
+    
+    
+    if (b %% 100 == 0) { print(paste("iter:", b)) }
+}
 
 
 
+approx_df = data.frame(mcmc = 1:B, hme = hme, hyb = hyb)
+approx_long = melt(approx_df, id.vars = 'mcmc')
+
+ggplot(approx_long, aes(x = mcmc, y = value, col = variable)) + geom_point() +
+    geom_hline(aes(yintercept = LIL), linetype = 'dashed', size = 0.9)
+
+### mean, error
+mean(hyb)
+mean(hme)
+mean(ame)
+mean(came)
+
+mean(LIL - hyb)
+mean(LIL - hme)
+mean(LIL - ame)
+mean(LIL - came)
+
+sqrt(mean((LIL - hyb)^2))
+sqrt(mean((LIL - hme)^2))
+sqrt(mean((LIL - ame)^2))
+sqrt(mean((LIL - came)^2))
 
 
 
