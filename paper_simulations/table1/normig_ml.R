@@ -3,45 +3,11 @@
 library(BayesianTools)
 
 
-# Creating test data with quadratic relationship
-sampleSize = 30
-x <- (-(sampleSize-1)/2):((sampleSize-1)/2)
-y <-  1 * x + 1*x^2 + rnorm(n=sampleSize,mean=0,sd=10)
-# plot(x,y, main="Test Data")
-
-# likelihoods for linear and quadratic model 
-likelihood1 <- function(param){
-    pred = param[1] + param[2]*x + param[3] * x^2
-    singlelikelihoods = dnorm(y, mean = pred, sd = 1/(param[4]^2), log = TRUE)
-    return(sum(singlelikelihoods))  
-}
-likelihood2 <- function(param){
-    pred = param[1] + param[2]*x 
-    singlelikelihoods = dnorm(y, mean = pred, sd = 1/(param[3]^2), log = TRUE)
-    return(sum(singlelikelihoods))  
-}
-
-setUp1 <- createBayesianSetup(likelihood1, 
-                              lower = c(-5,-5,-5,0.01), 
-                              upper = c(5,5,5,30))
-setUp2 <- createBayesianSetup(likelihood2, 
-                              lower = c(-5,-5,0.01), 
-                              upper = c(5,5,30))
-
-out1 <- runMCMC(bayesianSetup = setUp1)
-M1 = marginalLikelihood(out1, start = 1000)
-
-out2 <- runMCMC(bayesianSetup = setUp2)
-M2 = marginalLikelihood(out2, start = 1000)
-
-M1$ln.ML
-
-M2$ln.ML
 
 # ------------------------------------------------------------------------------
 library(ggplot2)
 
-N = 100
+N = 50
 D = 2
 
 
@@ -82,15 +48,15 @@ source("C:/Users/ericc/mlike_approx/paper_simulations/table1/normig_helper.R")
 
 
 # (1) sample from sigma_sq | y
-sigma_sq_post = MCMCpack::rinvgamma(J, shape = r_n / 2, scale = s_n / 2)
-mu_post = rnorm(J, m_n, sqrt(sigma_sq_post / w_n)) # (D x 1)
-
-u_samps = data.frame(mu_post, sigma_sq_post)
-u_df = preprocess(u_samps, D, prior)
-
-hml_approx = hml_const(1, D, u_df, J, prior)
-hml_approx$const_vec
-hml_approx$param_out
+# sigma_sq_post = MCMCpack::rinvgamma(J, shape = r_n / 2, scale = s_n / 2)
+# mu_post = rnorm(J, m_n, sqrt(sigma_sq_post / w_n)) # (D x 1)
+# 
+# u_samps = data.frame(mu_post, sigma_sq_post)
+# u_df = preprocess(u_samps, D, prior)
+# 
+# hml_approx = hml_const(1, D, u_df, J, prior)
+# hml_approx$const_vec
+# hml_approx$param_out
 
 
 # compute the estimate for the i-th batch
@@ -98,6 +64,7 @@ hme = numeric(B) # store the log integrated likelihood for each batch
 hyb = numeric(B) # store the log integrated likelihood for each batch
 ame = numeric(B)
 
+J = 10000
 for (b in 1:B) {
     
     # (0) sample from sigma_sq | y
@@ -112,7 +79,7 @@ for (b in 1:B) {
         lik_j[j] = 1 /  prod(dnorm(y, mu_post[j], sqrt(sigma_sq_post[j])))
     }
     # form the b-th HM estimator for the log integrated likelihood
-    hme[b] = 1 / (1 / J * sum(lik_j))
+    hme[b] = log(1 / (1 / J * sum(lik_j)))
     
     # (3) compute hybrid estimator
     u_samps = data.frame(mu_post, sigma_sq_post)
@@ -131,7 +98,7 @@ for (b in 1:B) {
         # (2.1) compute the likelihood under the j-th posterior parameters
         lik_prior[j] = prod(dnorm(y, mu_prior[j], sqrt(sigmasq_prior[j])))
     }
-    ame[b] = mean(lik_prior)
+    ame[b] = log(mean(lik_prior))
     
     
 }
@@ -140,6 +107,7 @@ for (b in 1:B) {
 
 ## arithmetic mean estimator --- pajor paper has this with 0 error ???
 ame = numeric(B)
+J = 10000
 for (b in 1:B) {
     # (4) compute arithmetic mean estimator
     # sample from prior
@@ -202,7 +170,7 @@ for (b in 1:B) {
 
 came %>% mean
 
-approx_df = data.frame(mcmc = 1:B, hme = log(hme), hyb = hyb, came = came)
+approx_df = data.frame(mcmc = 1:B, hme = log(hme), hyb = hyb, came = came, ame)
 approx_long = melt(approx_df, id.vars = 'mcmc')
 
 
@@ -212,24 +180,74 @@ ggplot(approx_long, aes(x = mcmc, y = value, col = variable)) + geom_point() +
 
 ## compute average error, root mean squared error
 mean(hyb)
-mean(log(hme))
+mean(hme)
 mean(ame)
 mean(came)
 
 mean(LIL - hyb)
-mean(LIL - log(hme))
-mean(LIL - log(ame))
+mean(LIL - hme)
+mean(LIL - ame)
 mean(LIL - came)
 
 sqrt(mean((LIL - hyb)^2))
-sqrt(mean((LIL - log(hme))^2))
-sqrt(mean((LIL - log(ame))^2))
+sqrt(mean((LIL - hme)^2))
+sqrt(mean((LIL - ame)^2))
 sqrt(mean((LIL - came)^2))
 
 
 
 
+# chib's implementation --------------------------------------------------------
 
+#### using bayesiantools package
+
+# prior density
+density = function(par) {
+    # normal-inverse gamma density
+    d1 = dnorm(par[1], mean = m_n, sd = sqrt(par[2] / w_n))
+    d2 = MCMCpack::dinvgamma(par[2], shape = r_n / 2, scale = s_n / 2)
+    
+    return(d1 * d2)
+}
+
+
+sampler = function(n = 1) {
+    u2 = MCMCpack::rinvgamma(n, shape = r_0 / 2, scale = s_0 / 2)
+    u1 = rnorm(n, m_0, sqrt(u2 / w_0))
+    return(cbind(u1,u2))
+}
+
+prior <- createPrior(density = density, sampler = sampler, 
+                     lower = c(-100,0), upper = c(100,500), best = NULL)
+
+
+likelihood1 <- function(param){
+    # pred = param[1] + param[2]*x + param[3] * x^2
+    # singlelikelihoods = dnorm(y, mean = pred, sd = 1/(param[4]^2), log = TRUE)
+    ll = dnorm(y, mean = param[1], sd = sqrt(param[2]), log = TRUE)
+    return(sum(ll))  
+}
+
+setUp1 <- createBayesianSetup(likelihood1, prior = prior)
+out1 <- runMCMC(bayesianSetup = setUp1)
+
+out1$Z
+
+M1 = marginalLikelihood(out1, numSamples = 5000, method = "Chib")
+M1$ln.ML
+LIL
+
+
+u = getSample(out1)
+
+
+# Use this prior in an MCMC 
+
+ll <- function(x) sum(dnorm(x, log = TRUE)) # multivariate normal ll
+bayesianSetup <- createBayesianSetup(likelihood = ll, prior = prior)
+
+settings = list(iterations = 1000)
+out <- runMCMC(bayesianSetup = bayesianSetup, settings = settings)
 
 
 

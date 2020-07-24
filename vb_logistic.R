@@ -150,7 +150,30 @@ for (g in 1:G) {
 }
 
 
+approx_vb     = numeric(G)
+approx_vb_ss  = numeric(G)
+approx_vb_ts  = numeric(G)
 
+approx_mc     = numeric(G)
+approx_mc_ss  = numeric(G)
+approx_mc_ts  = numeric(G)
+
+mean(approx_vb)
+mean(approx_vb_ss)
+mean(approx_vb_ts)
+
+mean(approx_mc)
+mean(approx_mc_ss)
+mean(approx_mc_ts)
+
+mean((approx_vb + approx_vb_ss + approx_vb_ts) / 3)
+mean((approx_mc + approx_mc_ss + approx_mc_ts) / 3)
+
+mean(approx_vb_ts)
+mean(approx_mc_ts)
+
+plot(approx_vb_ts, approx_mc_ts)
+abline(0,1)
 
 
 
