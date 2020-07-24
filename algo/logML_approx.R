@@ -94,12 +94,13 @@ hml_const = function(N_approx, D, u_df_full, J, prior) {
     } # end of N_approx outer loop
     
     
-    return(list(const_vec    = const_vec, 
-                const_approx = const_approx,   # used to determine logML approx
-                n_partitions = n_partitions,
-                u_df_fit     = u_df,
-                param_out    = param_out,
-                u_rpart      = u_rpart))
+    return(list(const_vec     = const_vec, 
+                const_approx  = const_approx,   # used to determine logML approx
+                n_partitions  = n_partitions,
+                u_df_fit      = u_df,
+                param_out     = param_out,
+                u_rpart       = u_rpart,
+                param_support = param_support))
     
 } 
 # end of hml_const() function --------------------------------------------------
