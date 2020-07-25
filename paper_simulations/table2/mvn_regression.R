@@ -7,8 +7,8 @@ source("C:/Users/ericc/mlike_approx/bayes_regression/bayesLinRegHelper.R")
 source("C:/Users/ericc/mlike_approx/paper_simulations/table2/mvn_estimators.R") 
 
 
-D = c(2) # test for smalller dimensions for now
-N = c(100) # for testing -- comment this line to perform ext. analysis
+D = c(10) # test for smalller dimensions for now
+N = c(50) # for testing -- comment this line to perform ext. analysis
 
 
 ## priors ----------------------------------------------------------------------
@@ -57,14 +57,15 @@ u_df = preprocess(u_samps, D, prior) # J x (D + 1) -- stored row-wise
 # microbenchmark("hml" = hml_const(1, D, u_df, J, prior))
 
 hml_approx = hml_const(1, D, u_df, J, prior)
-hml_approx$param_out %>%
-    dplyr::select(leaf_id, psi_choice, psi_star, logQ_cstar, n_obs)
+# hml_approx$param_out %>%
+#     dplyr::select(leaf_id, psi_choice, psi_star, logQ_cstar, n_obs)
 hme = hme_approx(u_df, prior, J, D, N)
 
 
 hml_approx$const_vec       # -272.1245
 hme
-LIL = lil(prior, post)     # -272.1202
+came_approx(u_df, hml_approx, prior, post, J, D)
+(LIL = lil(prior, post))   # -272.1202
 
 
 #### begin simulations ---------------------------------------------------------
@@ -105,6 +106,8 @@ ggplot(approx_long, aes(x = mcmc, y = value, col = variable)) + geom_point() +
     geom_hline(aes(yintercept = LIL), linetype = 'dashed', size = 0.9)
 
 ### mean, error
+LIL
+
 round(mean(hyb), 3)
 round(mean(hme), 3)
 # mean(ame)
