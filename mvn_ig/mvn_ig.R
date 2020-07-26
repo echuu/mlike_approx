@@ -24,13 +24,11 @@ J_iter = 1 / n_chains * N_approx * J + burn_in
 
 
 K_sims = 1               # num of simulations to run FOR EACH N in N_vec
-D = 4
-N = 500 # for testing -- comment this line to perform ext. analysis
+D = 20
+N = 200 # for testing -- comment this line to perform ext. analysis
 
 
 set.seed(123)
-
-
 p       = D - 1            # dimension of beta
 mu_beta = rep(0, p)        # prior mean for beta
 V_beta  = diag(1, p)       # scaled precision matrix for betaV_beta
@@ -49,6 +47,7 @@ eps = rnorm(N, mean = 0, sd = sqrt(sigmasq))
 y = X %*% beta + eps # (N x 1) response vector
 # ------------------------------------------------------------------
 
+n_samps = 10
 
 ## compute posterior parameters ------------------------------------
 V_beta_inv = solve(V_beta)
@@ -81,19 +80,29 @@ post  = list(V_star  =  V_star,
              V_star_inv = V_star_inv)
 
 ## form the approximation
-post_dat = list(p = p,
-                a_n = a_n, b_n = b_n, 
-                mu_star = c(mu_star), V_star = V_star)
-
-mvnig_fit = stan(file   = 'C:/Users/ericc/mlike_approx/mvn_ig/mvn_ig_sampler.stan', 
-                 data    = post_dat,
-                 iter    = J_iter,
-                 warmup  = burn_in,
-                 chains  = n_chains,
-                 refresh = 0) # should give us J * N_approx draws
+# post_dat = list(p = p,
+#                 a_n = a_n, b_n = b_n,
+#                 mu_star = c(mu_star), V_star = V_star)
+# 
+# mvnig_fit = stan(file   = 'C:/Users/ericc/mlike_approx/mvn_ig/mvn_ig_sampler.stan',
+#                  data    = post_dat,
+#                  iter    = J_iter,
+#                  warmup  = burn_in,
+#                  chains  = n_chains,
+#                  refresh = 0) # should give us J * N_approx draws
+# 
+# stan_samp = data.frame(rstan::extract(mvnig_fit, pars = c("beta", "sigmasq"),
+#                            permuted = TRUE))
 
 # use special preprocess b/c we call psi_true() 
-u_df = preprocess(mvnig_fit, D, post, prior)
+
+sigmasq_post = MCMCpack::rinvgamma(J, shape = a_n, scale = b_n)
+beta_post = matrix(0, J, p)
+for (j in 1:J) {
+    beta_post[j,] = rmvnorm(1, mean = mu_star, sigma = sigmasq_post[j] * V_star)
+}
+u_samp = data.frame(beta_post, sigmasq_post)
+u_df = preprocess(u_samp, D, prior)
 
 
 # refactored version
@@ -103,9 +112,65 @@ hml_approx$param_out %>%
     dplyr::mutate(perc = n_obs / sum(n_obs))
 
 hml_approx$const_vec      # -256.761
+came_approx(u_df, hml_approx, prior, post, J, D)
+
 lil(y, X, prior, post)    # -256.7659
 
 abs(hml_approx$const_vec - lil(y, X, prior, post))
+
+
+#### begin simulations ---------------------------------------------------------
+
+B = 1000 # number of replications
+J = 5000 # number of MCMC samples per replication
+
+hyb_fs  = numeric(B) # store harmonic mean estiator
+hyb_ss  = numeric(B) # store harmonic mean estiator
+hyb_ts  = numeric(B) # store harmonic mean estiator
+hyb     = numeric(B) # store harmonic mean estiator
+hme     = numeric(B) # store hybrid estimator
+came    = numeric(B) # corrected arithmetic mean estimator
+
+# other estimators: chib's, bridge, more recent ones?
+
+for (b in 1:B) {
+    
+    # sample from posterior
+    sigmasq_post = MCMCpack::rinvgamma(J, shape = a_n, scale = b_n)
+    beta_post = matrix(0, J, p)
+    for (j in 1:J) {
+        beta_post[j,] = rmvnorm(1, mean = mu_star, sigma = sigmasq_post[j] * V_star)
+    }
+    u_samp = data.frame(beta_post, sigmasq_post)
+    u_df = preprocess(u_samp, D, prior)
+    
+    
+    #### (1) hybrid estimator
+    hml_approx = hml_const(1, D, u_df, J, prior)
+    og_part = hml_approx$param_out %>% 
+        dplyr::select(-c(psi_choice, logQ_cstar))
+    ss_part = fit_resid(og_part, D, n_samps, prior)
+    ts_part = fit_resid(ss_part, D, n_samps / 2, prior)
+    
+    hyb_fs[b] = hml_approx$const_vec
+    hyb_ss[b] = log_sum_exp(unlist(compute_expterms(ss_part, D)))
+    hyb_ts[b] = log_sum_exp(unlist(compute_expterms(ts_part, D)))
+    
+    hyb[b] = mean(c(hyb_fs[b], hyb_ss[b], hyb_ts[b]))
+    
+    #### (2) harmonic mean estimator
+    # hme[b] = hme_approx(u_df, prior, J, D, N)
+    
+    #### (3) corrected arithmetic mean estimator (IS)
+    came[b] = came_approx(u_df, hml_approx, prior, post, J, D)
+    
+    if (b %% 100 == 0) { print(paste("iter:", b)) }
+}
+
+LIL = lil(y, X, prior, post)
+LIL
+
+
 
 
 # ------------------------------------------------------------------------------

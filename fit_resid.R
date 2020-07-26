@@ -16,7 +16,7 @@ og_part = hml_approx$param_out %>%
 set.seed(1)
 ss_part = fit_resid(og_part, D, n_samps, prior)
 ts_part = fit_resid(ss_part, D, n_samps / 2, prior)
-fs_part = fit_resid(ts_part, D, n_samps / 2, prior)
+# fs_part = fit_resid(ts_part, D, n_samps / 2, prior)
 
 
 # truth
@@ -25,10 +25,12 @@ fs_part = fit_resid(ts_part, D, n_samps / 2, prior)
                                      lb = rep(0, D), ub = rep(Inf, D))[1]))
 
 # original approx
-hml_approx$const_vec
-log_sum_exp(unlist(compute_expterms(ss_part, D)))
-log_sum_exp(unlist(compute_expterms(ts_part, D)))
-log_sum_exp(unlist(compute_expterms(fs_part, D)))
+x1 = hml_approx$const_vec
+x2 = log_sum_exp(unlist(compute_expterms(ss_part, D)))
+x3 = log_sum_exp(unlist(compute_expterms(ts_part, D)))
+
+mean(c(x1,x2,x3))
+# log_sum_exp(unlist(compute_expterms(fs_part, D)))
 
 
 # repeat the same calculations above for G-many replications -------------------

@@ -14,7 +14,7 @@ library(mvtnorm)
 setwd("C:/Users/ericc/mlike_approx/algo")
 source("setup.R")     
 source("C:/Users/ericc/mlike_approx/truncate/regTN_helper.R")
-D = 2
+D = 
 N = 200
 I_D = diag(1, D)
 
@@ -102,6 +102,8 @@ samples = data.frame(rtmvnorm(J, c(mu_beta), Q_beta_inv, rep(0, D), rep(Inf, D))
     
 u_df = preprocess(samples, D, prior)
 hml_approx = hml_const(1, D, u_df, J, prior)
+
+hml_approx$const_vec
 
 library(scales)
 
