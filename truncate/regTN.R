@@ -14,7 +14,7 @@ library(mvtnorm)
 setwd("C:/Users/ericc/mlike_approx/algo")
 source("setup.R")     
 source("C:/Users/ericc/mlike_approx/truncate/regTN_helper.R")
-D = 
+D = 50
 N = 200
 I_D = diag(1, D)
 
