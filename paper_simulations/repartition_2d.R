@@ -92,20 +92,20 @@ log_sum_exp(unlist(compute_expterms(ss_part, D)))
 
 par(mfrow = c(1,2))
 
-plot(u_df[,1], u_df[,2], pch = 20, cex = 0, 
-     col = rgb(0, 0, 0, alpha = 0.5),
+plot(u_df[,1], u_df[,2], pch = 20, cex = 1, 
+     col = rgb(0, 0, 0, alpha = 0.08),
      xlab = '', ylab = '', main = '')
 
 rect(hml_approx$param_out$u1_lb, hml_approx$param_out$u2_lb,
      hml_approx$param_out$u1_ub, hml_approx$param_out$u2_ub, lwd = 2,
      border = 'black')
 
-plot(u_df[,1], u_df[,2], pch = 20, cex = 0, 
-     col = rgb(0, 0, 0, alpha = 0.5),
+plot(u_df[,1], u_df[,2], pch = 20, cex = 1, 
+     col = rgb(0, 0, 0, alpha = 0.05),
      xlab = '', ylab = '', main = '')
 
 rect(ss_part$u1_lb, ss_part$u2_lb,
-     ss_part$u1_ub, ss_part$u2_ub, lwd = 1, border = 'blue')
+     ss_part$u1_ub, ss_part$u2_ub, lwd = 1.8, border = 'blue')
 
 rect(hml_approx$param_out$u1_lb, hml_approx$param_out$u2_lb,
      hml_approx$param_out$u1_ub, hml_approx$param_out$u2_ub, lwd = 2,

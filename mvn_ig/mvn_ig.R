@@ -112,7 +112,7 @@ hml_approx$param_out %>%
     dplyr::mutate(perc = n_obs / sum(n_obs))
 
 hml_approx$const_vec      # -256.761
-came_approx(u_df, hml_approx, prior, post, J, D)
+# came_approx(u_df, hml_approx, prior, post, J, D)
 
 lil(y, X, prior, post)    # -256.7659
 
@@ -159,7 +159,7 @@ for (b in 1:B) {
     hyb[b] = mean(c(hyb_fs[b], hyb_ss[b], hyb_ts[b]))
     
     #### (2) harmonic mean estimator
-    # hme[b] = hme_approx(u_df, prior, J, D, N)
+    hme[b] = hme_approx(u_df, prior, J, D, N)
     
     #### (3) corrected arithmetic mean estimator (IS)
     came[b] = came_approx(u_df, hml_approx, prior, post, J, D)
@@ -170,6 +170,52 @@ for (b in 1:B) {
 LIL = lil(y, X, prior, post)
 LIL
 
+x1 = round(mean(hyb_fs), 3)
+x2 = round(mean(hyb_ss), 3)
+x3 = round(mean(hyb_ts), 3)
+mean(hyb)
+
+(mean(c(x1,x2,x3)) + median(c(x1, x2, x3)))/2
+
+pred_df = do.call(cbind, list(hyb_fs, hyb_ss, hyb_ts))
+pred_df %>% head
+
+pred_bar = apply(pred_df, 1, mean)
+pred_med = apply(pred_df, 1, median)
+
+round(mean((LIL - hyb_fs)), 3)
+mean(hyb_fs)
+
+
+
+pred_vec = (pred_bar + pred_med)/2
+mean(pred_vec)
+sd(pred_vec)
+round(mean(LIL - pred_vec), 3)
+round(sqrt(mean((LIL - pred_vec)^2)), 3)
+
+round(mean(hme), 3)
+# mean(ame)
+round(sd(came), 3)
+round(mean(hyb_fs), 3)
+round(mean(hyb_ss), 3)
+round(mean(hyb_ts), 3)
+
+
+mean(hyb_fs)
+sd(hyb_fs)
+
+round(mean(LIL - hyb), 3)
+round(mean(LIL - hyb_fs), 3)
+round(sqrt(mean((LIL - hyb_fs)^2)), 3)
+
+# mean(LIL - ame)
+round(mean(LIL - came), 3)
+
+round(sqrt(mean((LIL - hyb)^2)), 3)
+round(sqrt(mean((LIL - hme)^2)), 3)
+# sqrt(mean((LIL - ame)^2))
+round(sqrt(mean((LIL - came)^2)), 3)
 
 
 

@@ -49,6 +49,14 @@ testG = matrix(c(1,1,1,0,0,
                   0,0,1,1,1), 5,5)
 
 
+D = nrow(testG)
+b = 3          # prior degrees of freedom
+V = diag(1, D) # prior scale matrix 
+
+D_0 = 0.5 * D * (D + 1) # num entries on diagonal and upper diagonal
+J = 2000
+
+
 # logical vector determining existence of edges between vertices
 edgeInd = testG[upper.tri(testG, diag = TRUE)] %>% as.logical
 upperInd = testG[upper.tri(testG)] %>% as.logical
@@ -58,7 +66,7 @@ D_u = sum(edgeInd)
 set.seed(1)
 true_params = HIWsim(testG, b, V)
 Sigma_G = true_params$Sigma
-Omega_G = true_params$Omega
+Omega_G = true_params$Omega # precision matrix -- this is the one we work with
 
 # chol(Omega_G)
 
@@ -106,6 +114,7 @@ post_samps = postIW$post_samps                 # (J x D_u)
 # Lt_post_0[upper.tri(Lt_post_0, diag = T)] = Lt_vec_0
 # Lt_post_0
 
+# true log marginal likelihood
 logmarginal = function(Y, G, b, D, S){
     n = nrow(Y); p = ncol(Y); # S = t(Y)%*%Y
     logmarginal = -0.5*n*p*log(2*pi) + logHIWnorm(G, b, D) - 
@@ -170,30 +179,30 @@ n_samps = 10
 og_part = hml_approx$param_out %>% 
     dplyr::select(-c(psi_choice, logQ_cstar))
 
-set.seed(1)
+# set.seed(1)
 ss_part = fit_resid(og_part, D_u, n_samps, params)
 ts_part = fit_resid(ss_part, D_u, n_samps / 2, params)
-fs_part = fit_resid(ts_part, D_u, n_samps / 2, params)
+# fs_part = fit_resid(ts_part, D_u, n_samps / 2, params)
 
 
 # truth
 
 # original approx
-hml_approx$const_vec
-log_sum_exp(unlist(compute_expterms(ss_part, D_u)))
-log_sum_exp(unlist(compute_expterms(ts_part, D_u)))
-log_sum_exp(unlist(compute_expterms(fs_part, D_u)))
+x1 = hml_approx$const_vec
+x2 = log_sum_exp(unlist(compute_expterms(ss_part, D_u)))
+x3 = log_sum_exp(unlist(compute_expterms(ts_part, D_u)))
+# log_sum_exp(unlist(compute_expterms(fs_part, D_u)))
 
-gnorm_approx = - 0.5 * D * N * log(2 * pi) + gnorm(testG, b + N, V + S, iter = 100) - 
-    gnorm(testG, b, V, iter = 100)
-logmarginal(Y, testG, b, V, S) - gnorm_approx
+mean(c(x1,x2,x3))
+x2
+x3
+gnorm_approx
+logmarginal(Y, testG, b, V, S)
 
 log_sum_exp(unlist(compute_expterms(ts_part, D_u))) - logmarginal(Y, testG, b, V, S)
 
 
 # ------------------------------------------------------------------------------
-
-
 set.seed(2)
 hml_approx = hml_const(1, D_u, u_df, J, params)
 orig_partition = hml_approx$param_out %>%

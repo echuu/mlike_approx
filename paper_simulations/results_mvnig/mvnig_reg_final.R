@@ -7,9 +7,9 @@ source("C:/Users/ericc/mlike_approx/mvn_ig/mvn_ig_helper.R")
 
 
 
-J = 5000          # number of MC samples per approximation
-D = 4
-N = 100 # for testing -- comment this line to perform ext. analysis
+J = 1000          # number of MC samples per approximation
+D = 50
+N = 200 # for testing -- comment this line to perform ext. analysis
 
 
 set.seed(123)
@@ -63,12 +63,15 @@ post  = list(V_star  =  V_star,
              V_star_inv = V_star_inv)
 
 
+# sigmasq_post = MCMCpack::rinvgamma(J, shape = a_n, scale = b_n)
+# beta_post = matrix(0, J, p)
+# for (j in 1:J) {
+#     beta_post[j,] = rmvnorm(1, mean = mu_star, sigma = sigmasq_post[j] * V_star)
+# }
+
 sigmasq_post = MCMCpack::rinvgamma(J, shape = a_n, scale = b_n)
-beta_post = matrix(0, J, p)
-for (j in 1:J) {
-    beta_post[j,] = rmvnorm(1, mean = mu_star, sigma = sigmasq_post[j] * V_star)
-}
-u_samp = data.frame(beta_post, sigmasq_post)
+beta_mat = t(sapply(sigmasq_post, sample_beta, post = post))
+u_samp = data.frame(beta_mat, sigmasq_post)
 u_df = preprocess(u_samp, D, prior)
 
 # refactored version
@@ -79,6 +82,94 @@ hml_approx$param_out %>%
 
 hml_approx$const_vec      # -256.761
 lil(y, X, prior, post)    # -256.7659
+
+
+
+B = 1000 # number of replications
+# J = 5000 # number of MCMC samples per replication
+
+hyb_fs  = numeric(B) # store harmonic mean estiator
+hyb_ss  = numeric(B) # store harmonic mean estiator
+hyb_ts  = numeric(B) # store harmonic mean estiator
+hyb     = numeric(B) # store harmonic mean estiator
+hme     = numeric(B) # store hybrid estimator
+came    = numeric(B) # corrected arithmetic mean estimator
+bridge  = numeric(B) # bridge estimator (normal)
+
+# other estimators: chib's, bridge, more recent ones?
+
+sample_beta = function(s2, post) {
+   rmvnorm(1, mean = post$mu_star, sigma = s2 * post$V_star)
+}
+
+## bridge sampling specific things ## ------------------------------------------
+log_density = function(u, data) {
+    -psi(u, data)
+}
+
+lb <- c(rep(-Inf, p), 0)
+ub <- c(rep(Inf, p), Inf)
+colnames(u_samp) = names(u_df)[1:D]
+names(lb) <- names(ub) <- colnames(u_samp)
+## bridge sampling specific things ## ------------------------------------------
+
+
+B = 100
+hme     = numeric(B) # store hybrid estimator
+hyb_fs  = numeric(B) # store harmonic mean estiator
+bridge  = numeric(B) # bridge estimator (normal)
+set.seed(1)
+for (b_i in 1:B) {
+    
+    # sample from posterior
+    sigmasq_post = MCMCpack::rinvgamma(J, shape = a_n, scale = b_n)
+    beta_mat = t(sapply(sigmasq_post, sample_beta, post = post))
+    u_samp = data.frame(beta_mat, sigmasq_post)
+    u_df = preprocess(u_samp, D, prior)
+    
+    #### (1) hybrid estimator
+    hml_approx = hml_const(1, D, u_df, J, prior)
+    og_part = hml_approx$param_out %>%
+        dplyr::select(-c(psi_choice, logQ_cstar))
+    ss_part = fit_resid(og_part, D, n_samps, prior)
+    ts_part = fit_resid(ss_part, D, n_samps / 2, prior)
+    
+    hyb_fs[b_i] = hml_approx$const_vec
+    hyb_ss[b_i] = log_sum_exp(unlist(compute_expterms(ss_part, D)))
+    hyb_ts[b_i] = log_sum_exp(unlist(compute_expterms(ts_part, D)))
+    hyb[b_i] = mean(c(hyb_fs[b_i], hyb_ss[b_i], hyb_ts[b_i]))
+    
+    #### (2) harmonic mean estimator
+    # hme[b_i] = hme_approx(u_df, prior, J, D, N)
+    
+    #### (3) corrected arithmetic mean estimator (IS)
+    came[b_i] = came_approx(u_df, hml_approx, prior, post, J, D)
+    
+    #### (4) bridge sampling estimator
+    # u_samp = as.matrix(u_samp)
+    # colnames(u_samp) = names(u_df)[1:D]
+    # bridge_result = bridge_sampler(samples = u_samp, 
+    #                                log_posterior = log_density,
+    #                                data = prior, lb = lb, ub = ub, silent = TRUE)
+    # bridge[b_i] = bridge_result$logml
+    
+    if (b_i %% 10 == 0) { 
+        print(paste("iter: ", b_i, 
+                    "hyb = ", round(mean(hyb[1:b_i]), 3),
+                    "came = ", round(mean(came[1:b_i]), 3))) 
+    }
+}
+
+LIL = lil(y, X, prior, post)    # -256.7659
+approx = data.frame(bridge, hme)
+approx = data.frame(hyb, came)
+data.frame(approx = colMeans(approx), approx_sd = apply(approx, 2, sd),
+           ae = colMeans(LIL - approx),
+           rmse = sqrt(colMeans((LIL - approx)^2))) %>% round(3)
+
+mean(hyb_fs[1:B])
+
+
 
 
 
