@@ -8,7 +8,7 @@ source("C:/Users/ericc/mlike_approx/mvn_ig/mvn_ig_helper.R")
 
 
 J = 1000          # number of MC samples per approximation
-D = 50
+D = 60
 N = 200 # for testing -- comment this line to perform ext. analysis
 
 
@@ -85,7 +85,7 @@ lil(y, X, prior, post)    # -256.7659
 
 
 
-B = 1000 # number of replications
+B = 100 # number of replications
 # J = 5000 # number of MCMC samples per replication
 
 hyb_fs  = numeric(B) # store harmonic mean estiator
@@ -162,7 +162,8 @@ for (b_i in 1:B) {
 
 LIL = lil(y, X, prior, post)    # -256.7659
 approx = data.frame(bridge, hme)
-approx = data.frame(hyb, came)
+
+approx = data.frame(hyb[1:B], came[1:B])
 data.frame(approx = colMeans(approx), approx_sd = apply(approx, 2, sd),
            ae = colMeans(LIL - approx),
            rmse = sqrt(colMeans((LIL - approx)^2))) %>% round(3)
