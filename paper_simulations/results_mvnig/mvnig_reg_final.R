@@ -8,7 +8,7 @@ source("C:/Users/ericc/mlike_approx/mvn_ig/mvn_ig_helper.R")
 
 
 J = 1000          # number of MC samples per approximation
-D = 60
+D = 50
 N = 200 # for testing -- comment this line to perform ext. analysis
 
 
@@ -94,6 +94,7 @@ hyb_ts  = numeric(B) # store harmonic mean estiator
 hyb     = numeric(B) # store harmonic mean estiator
 hme     = numeric(B) # store hybrid estimator
 came    = numeric(B) # corrected arithmetic mean estimator
+came_0  = numeric(B)
 bridge  = numeric(B) # bridge estimator (normal)
 
 # other estimators: chib's, bridge, more recent ones?
@@ -129,21 +130,23 @@ for (b_i in 1:B) {
     
     #### (1) hybrid estimator
     hml_approx = hml_const(1, D, u_df, J, prior)
-    og_part = hml_approx$param_out %>%
-        dplyr::select(-c(psi_choice, logQ_cstar))
-    ss_part = fit_resid(og_part, D, n_samps, prior)
-    ts_part = fit_resid(ss_part, D, n_samps / 2, prior)
-    
-    hyb_fs[b_i] = hml_approx$const_vec
-    hyb_ss[b_i] = log_sum_exp(unlist(compute_expterms(ss_part, D)))
-    hyb_ts[b_i] = log_sum_exp(unlist(compute_expterms(ts_part, D)))
-    hyb[b_i] = mean(c(hyb_fs[b_i], hyb_ss[b_i], hyb_ts[b_i]))
+    # og_part = hml_approx$param_out %>%
+    #     dplyr::select(-c(psi_choice, logQ_cstar))
+    # ss_part = fit_resid(og_part, D, n_samps, prior)
+    # ts_part = fit_resid(ss_part, D, n_samps / 2, prior)
+    # 
+    # hyb_fs[b_i] = hml_approx$const_vec
+    # hyb_ss[b_i] = log_sum_exp(unlist(compute_expterms(ss_part, D)))
+    # hyb_ts[b_i] = log_sum_exp(unlist(compute_expterms(ts_part, D)))
+    # hyb[b_i] = mean(c(hyb_fs[b_i], hyb_ss[b_i], hyb_ts[b_i]))
     
     #### (2) harmonic mean estimator
     # hme[b_i] = hme_approx(u_df, prior, J, D, N)
     
     #### (3) corrected arithmetic mean estimator (IS)
-    came[b_i] = came_approx(u_df, hml_approx, prior, post, J, D)
+    came_result = came_approx(u_df, hml_approx, prior, post, J, D)
+    came[b_i] = came_result[1]
+    came_0[b_i] = came_result[2]
     
     #### (4) bridge sampling estimator
     # u_samp = as.matrix(u_samp)
@@ -155,15 +158,16 @@ for (b_i in 1:B) {
     
     if (b_i %% 10 == 0) { 
         print(paste("iter: ", b_i, 
-                    "hyb = ", round(mean(hyb[1:b_i]), 3),
-                    "came = ", round(mean(came[1:b_i]), 3))) 
+                    # "hyb = ", round(mean(hyb[1:b_i]), 3),
+                    "came = ", round(mean(came[1:b_i]), 3),
+                    "came0 = ", round(mean(came_0[1:b_i]), 3))) 
     }
 }
 
 LIL = lil(y, X, prior, post)    # -256.7659
 approx = data.frame(bridge, hme)
 
-approx = data.frame(hyb[1:B], came[1:B])
+approx = data.frame(hyb[1:B], came[1:B], came_0)
 data.frame(approx = colMeans(approx), approx_sd = apply(approx, 2, sd),
            ae = colMeans(LIL - approx),
            rmse = sqrt(colMeans((LIL - approx)^2))) %>% round(3)

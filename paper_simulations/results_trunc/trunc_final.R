@@ -15,7 +15,8 @@ library(mvtnorm)
 setwd("C:/Users/ericc/mlike_approx/algo")
 source("setup.R")     
 source("C:/Users/ericc/mlike_approx/truncate/regTN_helper.R")
-D = 70
+set.seed(123)
+D = 20
 N = 200
 I_D = diag(1, D)
 
@@ -132,9 +133,8 @@ for (b_i in 1:B) {
 }
 
 LIL = true_logml
-
-approx = c(mean(bridge), mean(bridge_trunc))
-approx = data.frame(bridge, bridge_trunc)
+# approx = c(mean(bridge), mean(bridge_trunc), )
+approx = data.frame(bridge, bridge_trunc, hyb_fs)
 data.frame(approx = colMeans(approx), approx_sd = apply(approx, 2, sd),
            ae = colMeans(LIL - approx),
            rmse = sqrt(colMeans((LIL - approx)^2))) %>% round(3)

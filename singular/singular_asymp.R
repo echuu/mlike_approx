@@ -15,6 +15,7 @@ options(mc.cores = parallel::detectCores())
 # path for lenovo
 stan_sampler = 'C:/Users/ericc/mlike_approx/singular/gamma_sample.stan'
 
+other_sampler = 'C:/Users/ericc/mlike_approx/singular/gamma_d.stan'
 # path for dell
 # DELL_PATH = "C:/Users/chuu/mlike_approx"
 # setwd(DELL_PATH)
@@ -46,7 +47,7 @@ fun <- function(x, y) exp(-n*x^2*y^4)
 
 # one run of the algorithm -----------------------------------------------------
 set.seed(123)
-N = 1000
+N = 100
 
 gamma_dat = list(N = N) # for STAN sampler
 prior     = list(N = N) # for evaluation of psi, lambda
@@ -59,6 +60,26 @@ gamma_fit_N = stan(file    =  stan_sampler,
                    chains  =  n_chains,                  
                    control =  list(adapt_delta = 0.99),  
                    refresh = 0)           
+
+gamma_d = stan(file    =  other_sampler, 
+               data    =  gamma_dat,
+               iter    =  J_iter,
+               warmup  =  burn_in,
+               chains  =  n_chains,                  
+               control =  list(adapt_delta = 0.99),  
+               refresh = 0)          
+
+u_samp = rstan::extract(gamma_d, pars = c("u"), permuted = TRUE)
+u_post = u_samp$u %>% data.frame() # (J * N_approx) x 2
+
+
+library(bridgesampling)
+H1.bridge = bridgesampling::bridge_sampler(gamma_fit_N, silent = FALSE)
+H1.bridge$logml
+
+H1.bridge = bridgesampling::bridge_sampler(gamma_d, silent = TRUE)
+H1.bridge$logml
+
 
 u_samp = rstan::extract(gamma_fit_N, pars = c("u"), permuted = TRUE)
 u_post = u_samp$u %>% data.frame() # (J * N_approx) x 2
@@ -389,8 +410,6 @@ lil_df = data.frame(logZ_0 = logZ_0, logZ_taylor = logZ_taylor,
 lil_df = lil_df[complete.cases(lil_df),]
 
 lil_df_long = melt(lil_df, id.vars = "logn")
-
-
 
 
 formula1 = y ~ x

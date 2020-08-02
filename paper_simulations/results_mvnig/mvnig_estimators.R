@@ -58,13 +58,18 @@ came_approx = function(u_df, hml_approx, prior, post, J, D) {
                                  log = TRUE)) + 
         log(MCMCpack::dinvgamma(sigmasq_imp, shape = r_imp, scale = s_imp))
     
-    include_d = rep(TRUE, D)
+    include_d = rep(TRUE, J)
     for (d in 1:D) {
         include_d = include_d & 
             (imp_samp[,d] >= A_supp[d,1]) & (imp_samp[,d] <= A_supp[d,2])
     }
     
-    -log(J) + log_sum_exp((-u_df_imp$psi_u - log_s_theta)[include_d])
+    Jp = sum(include_d)
+    
+    came_j = -log(J) + log_sum_exp((-u_df_imp$psi_u - log_s_theta)[include_d])
+    came_jp = -log(Jp) + log_sum_exp((-u_df_imp$psi_u - log_s_theta)[include_d])
+    
+    return(c(came_j, came_jp))
 }
 
 
