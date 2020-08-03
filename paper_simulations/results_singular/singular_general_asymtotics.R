@@ -104,7 +104,7 @@ print(length(N_vec))               # number of different sample sizes
 
 
 set.seed(1)
-for (i in 1:length(N_vec)) {
+for (i in 105:length(N_vec)) {
     
     N = N_vec[i]   # pseudo-sample size
     
@@ -146,5 +146,35 @@ for (i in 1:length(N_vec)) {
                 '; hyb = ', mean(hyb[,i]),
                 sep = ''))
 }
+
+
+
+logZ = read.csv("singulard4.csv")
+
+
+logn   = log(N_vec)
+lil_df = data.frame(bridge = colMeans(bridge[,1:106]), 
+                    hyb = colMeans(hyb[,1:106]), logn = logn[1:106],
+                    logZ = logZ$logZ[1:106])
+
+lil_df_long = melt(lil_df, id.vars = "logn")
+
+formula1 = y ~ x
+
+ggplot(lil_df_long, aes(x = logn, y = value, 
+                        color = as.factor(variable))) + geom_point(size = 0.7) + 
+    geom_smooth(method = lm, se = F, formula = formula1) +
+    labs(x = "log(n)", y = "log(Z)", 
+         title = "Bridge (Red), Hybrid (Green), True (Blue)") + 
+    stat_poly_eq(aes(label = paste(..eq.label.., sep = "~~~")), 
+                 label.x.npc = "right", label.y.npc = "top",
+                 eq.with.lhs = "logZ~`=`~",
+                 eq.x.rhs = "~logN",
+                 formula = formula1, parse = TRUE, size = 8) +
+    theme_bw(base_size = 16) + 
+    theme(legend.position = "none")
+
+
+
 
 

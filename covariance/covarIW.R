@@ -16,7 +16,7 @@ source("covarIW_helper.R")  # covariance related helper functions
 N = 100                     # number of observations
 D = 8                       # num rows/cols in the covariance matrix
 D_u = 0.5 * D * (D + 1)     # dimension of u that is fed into the tree
-J = 2000
+J = 1000
 
 
 ## wishart prior parameters
@@ -144,7 +144,7 @@ hyb     = numeric(B) # store harmonic mean estiator
 # came = numeric(B) # corrected arithmetic mean estimator
 
 # other estimators: chib's, bridge, more recent ones?
-
+set.seed(1)
 for (b_i in 1:B) {
     
     postIW = sampleIW(J, N, D_u, nu, S, Omega)     # post_samps, Sigma_post, L_post
@@ -181,10 +181,15 @@ for (b_i in 1:B) {
     
 }
 
-(true_logml = lil(param_list)) # -1692.802
+(true_logml = lil(param_list)) # true log ML
+mean(hyb_fs)                   # hybrid w/o resample
+mean(c(hyb_fs, hyb_ss))        # hybrid w/ resample
 
-
-
+LIL = true_logml
+approx = data.frame(hyb = (hyb_fs + hyb_ss)/2)
+data.frame(approx = colMeans(approx), approx_sd = apply(approx, 2, sd),
+           ae = colMeans(LIL - approx),
+           rmse = sqrt(colMeans((LIL - approx)^2))) %>% round(3)
 
 
 

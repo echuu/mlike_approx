@@ -173,6 +173,7 @@ G = 200
 approx        = numeric(G)
 approx_vb     = numeric(G)
 approx_vb_ss  = numeric(G)
+approx_vb_ts  = numeric(G)
 true_logml    = numeric(G)
 
 # d_0 = p / 2
@@ -219,15 +220,15 @@ for (g in 1:G) {
                  V_star_inv = V_star_inv)
     
     #### TRUE POSTERIOR SAMPLES
-    # sigmasq_samp = rinvgamma(J, shape = a_n, scale = b_n)
-    # beta_samp = matrix(0, J, p)
-    # for (j in 1:J) {
-    #     beta_samp[j,] = rmvnorm(1, mean = mu_star, 
-    #                             sigma =  sigmasq_samp[j] * V_star)
-    #     
-    # }
-    # u_samps = data.frame(cbind(beta_samp, sigmasq_samp))
-    # u_df = preprocess(u_samps, D, prior)
+    sigmasq_samp = rinvgamma(J, shape = a_n, scale = b_n)
+    beta_samp = matrix(0, J, p)
+    for (j in 1:J) {
+        beta_samp[j,] = rmvnorm(1, mean = mu_star,
+                                sigma =  sigmasq_samp[j] * V_star)
+
+    }
+    u_samps = data.frame(cbind(beta_samp, sigmasq_samp))
+    u_df = preprocess(u_samps, D, prior)
     
     
     #### MFVB SAMPLES
@@ -255,30 +256,38 @@ for (g in 1:G) {
     #            colMeans(u_df_mf))
     
     #### compute hybrid approximations for both set of samples
-    # hml_approx = hml_const(1, D, u_df, J, prior) 
+    hml_approx = hml_const(1, D, u_df, J, prior) 
     hml_approx_vb = hml_const(1, D, u_df_mf, J, prior) 
     
-    # approx[g] = hml_approx$const_vec
+    approx[g] = hml_approx$const_vec
     approx_vb[g] = hml_approx_vb$const_vec  
     og_part = hml_approx_vb$param_out %>% 
         dplyr::select(-c(psi_choice, logQ_cstar))
     
     ss_fit = fit_resid(og_part, D, 5, prior)
-    approx_vb_ss[g] = log_sum_exp(unlist(compute_expterms(ss_fit, D)))
+    ts_fit = fit_resid(ss_fit, D, 5, prior)
     
+    approx_vb_ss[g] = log_sum_exp(unlist(compute_expterms(ss_fit, D)))
+    approx_vb_ts[g] = log_sum_exp(unlist(compute_expterms(ts_fit, D)))
+        
     true_logml[g] = lil(y, X, prior, post)      
     
     if (g %% 10 == 0) {
         print(paste("iter: ", g, " -- ", 
-                    mean(c(approx_vb[g], approx_vb_ss[g])),
+                    mean(c(approx_vb[g], approx_vb_ss[g], approx_vb_ts[g])),
                     ' (', true_logml[g], ')', sep = ''))
     }
 }
 
 
-mean(approx)
-mean(approx_vb)
-mean(true_logml)
+i = 102
+mean(approx[1:i])
+
+mean(approx_vb[1:i])
+mean(approx_vb_ss[1:i])
+mean(approx_vb_ts[1:i])
+mean((approx_vb[1:i] + approx_vb_ss[1:i] + approx_vb_ts[1:i]) / 3)
+mean(true_logml[1:i])
 
 plot(approx, approx_vb)
 abline(0, 1)

@@ -150,71 +150,6 @@ HIW_loglik = function(u, params) {
 } # end HIW_loglik() function --------------------------------------------------
 
 
-
-
-
-# HIW_logprior_old = function(u, params) {
-#     
-#     # steps:
-#     # (1) extract upper diagonal entries
-#     # (2) extract diagonal entries
-#     # (3) compute nu = (nu_1,...,nu_p)
-#     # (4) compute upper diagonal part of log prior
-#     # (5) compute diagonal part of log prior
-#     
-#     D = params$D                # number of rows/cols in Sigma/Omega
-#     b = params$b                # degrees of freedom
-#     
-#     upperInd = params$upperInd  # indicator for present edges in the graph F
-#     
-#     
-#     Lt = matrix(0, D, D)
-#     Lt[upper.tri(Lt, diag = T)] = u # reconstruct Lt (upper tri matrix)
-#     
-#     #### (1) upper diagonal entries
-#     u_upper_all = Lt[upper.tri(Lt)] # extract upper diagonal entries
-#     u_upper = u_upper_all[upperInd] # keep only entries that have edge in G
-#     
-#     #### (2) diagonal entries
-#     u_diag = diag(Lt)               # extract diagonal entries, all included
-#     
-#     
-#     #### (3) compute nu_i, i = 1,..., d
-#     # compute nu_i (i = 1,...,D) by counting nonzero elements 
-#     # in each row of Lt - 1
-#     # recall: the i-th row of Lt has exactly nu_i 
-#     nu = rowSums(Lt != 0) - 1 
-#     nu[D] = 0
-#     # find the set {j : (v_i, v_j) \in E}
-#     # nu_def = numeric(p)
-#     # for (i in 1:p) {
-#     #     ne_i = which(testG[i,] > 0, arr.ind = T)
-#     #     nu_i = length(intersect(ne_i, (i+1):p))
-#     #     # intersect(ne_i, (i+1):p)
-#     #     nu_def[i] = nu_i
-#     # }
-#     # nu_def[p] = 0
-#     
-#     #### (4) compute upper diagonal part of log prior
-#     upper_diag_prior = sum(- 0.5 * log(2 * pi) - 0.5 * u_upper^2)
-#     
-#     #### (5) compute diagonal part of log prior
-#     diag_prior = sum(- 0.5 * (b + nu) * log(2) - lgamma(0.5 * (b + nu)) + 
-#                          (b + nu - 2) * log(u_diag) - 
-#                          0.5 * u_diag^2 + log(2 * u_diag))
-#     
-#     # log prior, as shown in (8) of 3.2.2 HW Induced Cholesky Factor Density
-#     logprior = upper_diag_prior + diag_prior
-#     
-#     return(logprior)
-#     
-#     
-# }
-
-
-
-
-
 ## HIW_logprior() function -----------------------------------------------------
 HIW_logprior = function(u, params) {
     
@@ -243,7 +178,6 @@ HIW_logprior = function(u, params) {
     
     #### (2) diagonal entries
     u_diag = diag(Lt)               # extract diagonal entries, all included
-    
     
     #### (3) compute nu_i, i = 1,..., d
     # compute nu_i (i = 1,...,D) by counting nonzero elements 

@@ -8,7 +8,7 @@ source("C:/Users/ericc/mlike_approx/mvn_ig/mvn_ig_helper.R")
 
 
 J = 1000          # number of MC samples per approximation
-D = 50
+D = 60
 N = 200 # for testing -- comment this line to perform ext. analysis
 
 

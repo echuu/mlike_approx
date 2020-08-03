@@ -37,6 +37,14 @@ p_y = pi^(-N / 2) * (w_0 / w_n)^(1/2) * gamma(r_n / 2) / gamma(r_0 / 2) *
 LIL = log(p_y) # -214.5399 (paper says -117, but difference arises from RNG)
 
 
+
+
+
+
+
+
+
+
 # generate samples from the posterior probability to form the HME estimator
 
 J = 40 # number of random draws used per estimate
@@ -89,13 +97,13 @@ log_s_theta = function(mu, sigmasq, m, w, a, b) {
 
 
 
-# store log marginal likelihood estimators for B batches
+J = 100 # number of draws from the importance function
+B = 20 # number of batch estimators
 
+
+# store log marginal likelihood estimators for B batches
 lil_came = numeric(B) # CAME estimator
 lil_hme  = numeric(B) # store the log integrated likelihood for each batch
-
-J = 40 # number of draws from the importance function
-B = 20 # number of batch estimators
 
 for (b in 1:B) {
     
@@ -110,8 +118,8 @@ for (b in 1:B) {
     A_sigmasq = c(min(sigma_sq_post), max(sigma_sq_post))
     
     # draw from the importance density N-IG
-    mu_s      = rnorm(K, m_n, sqrt(sigma_sq / w_n))
-    sigmasq_s = MCMCpack::rinvgamma(K, shape = r_n / 2, scale = s_n / 2)
+    mu_s      = rnorm(J, m_n, sqrt(sigma_sq / w_n))
+    sigmasq_s = MCMCpack::rinvgamma(J, shape = r_n / 2, scale = s_n / 2)
     
     # compute 1/s(theta) -- (K x 1) vector of evaluated densities
     s_theta = dnorm(mu_s, m_n, sqrt(sigma_sq / w_n)) * 

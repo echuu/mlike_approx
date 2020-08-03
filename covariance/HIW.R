@@ -152,6 +152,7 @@ logmarginal(Y, testG, b, V, S)
 gnorm_approx
 hml_approx$const_vec
 
+
 # hml_approx$param_out
 # abs(logmarginal(Y, testG, b, V, S) - hml_approx$const_vec)
 # abs(logmarginal(Y, testG, b, V, S) - gnorm_approx)
