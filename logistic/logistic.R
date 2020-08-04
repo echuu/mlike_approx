@@ -14,13 +14,16 @@ rstan_options(auto_write = TRUE)
 LEN_PATH  = "C:/Users/ericc/mlike_approx"
 setwd(LEN_PATH)
 
+setwd("C:/Users/ericc/mlike_approx/algo")
+source("setup.R")     
 
-source("partition/partition.R")
-source("extractPartition.R")
-source("hybrid_approx.R")
-source("logistic/logistic_helper.R")
 
-source("logistic/hme_logistic.R")
+
+# source("partition/partition.R")
+# source("extractPartition.R")
+# source("hybrid_approx.R")
+source("C:/Users/ericc/mlike_approx/logistic/logistic_helper.R")
+source("C:/Users/ericc/mlike_approx/logistic/hme_logistic.R")
 
 
 beta = sample(c(-5:5), D, replace = TRUE) # (0, 1, 3) for D = 3
