@@ -67,6 +67,10 @@ log_density = function(u, data) {
                                  (beta - mu_beta)))
 }
 
+log_density = function(u, data) {
+    -psi(u, data)
+}
+
 
 # sample from posterior
 sigmasq_post = MCMCpack::rinvgamma(J, shape = a_n, scale = b_n)
@@ -85,7 +89,7 @@ ub <- c(rep(Inf, p), Inf)
 names(lb) <- names(ub) <- colnames(u_samp)
 
 bridge_result <- bridge_sampler(samples = u_samp, log_posterior = log_density,
-                                data = NULL, lb = lb, ub = ub, silent = TRUE)
+                                data = prior, lb = lb, ub = ub, silent = TRUE)
 
 # bridge_result_warp <- bridge_sampler(samples = u_samp, 
 #                                      log_posterior = log_density,

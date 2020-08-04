@@ -71,7 +71,7 @@ Omega_G = true_params$Omega # precision matrix -- this is the one we work with
 # chol(Omega_G)
 
 # Generate data Y based on Sigma_G
-N = 200
+N = 40
 Y = matrix(0, N, D)
 for (i in 1:N) {
     Y[i, ] = t(t(chol(Sigma_G)) %*% rnorm(D, 0, 1)) # (500 x D)
@@ -151,6 +151,8 @@ gnorm_approx = - 0.5 * D * N * log(2 * pi) + gnorm(testG, b + N, V + S, iter = 1
 logmarginal(Y, testG, b, V, S)
 gnorm_approx
 hml_approx$const_vec
+
+
 
 
 # hml_approx$param_out
@@ -245,8 +247,6 @@ length(unlist(ts_approx_terms))
 
 
 # ------------------------------------------------------------------------------
-
-
 
 
 J             = 2000                              # num MCMC samples from post
