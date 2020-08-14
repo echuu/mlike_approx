@@ -1,18 +1,10 @@
 // [[Rcpp::depends(RcppEigen)]]
-
-#define EIGEN_PERMANENTLY_DISABLE_STUPID_WARNINGS
-#include <Rcpp.h>
-#include <RcppEigen.h>
-#include <cmath>
+#include "fast_psi.h"
 
 using namespace Rcpp;
-using Eigen::MatrixXd;
-
-#define MAT_TYPE MatrixXd
-float dnorm_log(float x, float mean, float sd);
 
 // [[Rcpp::export]]
-int psi(NumericVector u, List prior) {
+float psi(NumericVector u, List prior) {
 	NumericMatrix y = prior["y"];
 	NumericMatrix X = prior["X"];
 
@@ -29,7 +21,7 @@ int psi(NumericVector u, List prior) {
 	float loglik = 0;
 	
 	float sd = std::sqrt(u[d-1]);
-	for (unsigned int i	 = 0; i < X.rows(); i++) {
+	for (unsigned int i	= 0; i < X.rows(); i++) {
 		float prod = 0;
 		for (unsigned int j = 0; j < d-1; j++) {
 			prod += X(i, j) * u[j];
@@ -48,7 +40,6 @@ int psi(NumericVector u, List prior) {
 					std::lgamma(a) - (a + d / 2 + 1) * std::log(sigmasq) - 1 / sigmasq * (b + 0.5 * prod);
 	
 
-	std::cout << (-loglik - logprior) << std::endl;
 	return (-loglik - logprior);
 }
 
@@ -56,4 +47,5 @@ int psi(NumericVector u, List prior) {
 float dnorm_log(float x, float mean, float sd) {
 	return std::log((1.0/(sd * std::sqrt(2*M_PI))) * (std::exp(-std::pow(x-mean, 2)/ (2*std::pow(sd, 2)))));
 }
+
 
