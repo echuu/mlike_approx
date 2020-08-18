@@ -78,8 +78,7 @@ hml_const = function(N_approx, D, u_df_full, J, prior) {
             } # end of loop computing each of 1-dim integrals
             
             const_approx[k]  = ck_1[k] + eta_k[k]
-            # taylor_approx[k] = ck_1[k] + ck_2[k] + sum(ck_3)
-            
+
         } # end of for loop over the K partitions
         
         # update approximations
@@ -104,6 +103,94 @@ hml_const = function(N_approx, D, u_df_full, J, prior) {
     
 } 
 # end of hml_const() function --------------------------------------------------
+
+
+
+
+
+#### hml_const() ---------------------------------------------------------------
+#
+#
+hybrid_ml = function(D, u_df, J, prior) {
+  
+  # const_vec  = numeric(N_approx) # store constant approximation
+  
+  ## (2) fit the regression tree via rpart()
+  u_rpart = rpart(psi_u ~ ., u_df)
+  
+  ## (3) process the fitted tree
+  
+  # (3.1) obtain the (data-defined) support for each of the parameters
+  param_support = extractSupport(u_df, D) #
+  
+  # (3.2) obtain the partition
+  u_partition = extractPartition(u_rpart, param_support) 
+  
+  
+  param_out = u_star_cand(u_rpart, u_df, u_partition, D) # partition.R
+  # opt_part = param_out$optimal_part
+  
+  # ----------------------------------------------------------------------
+  n_partitions = nrow(u_partition) # number of partitions 
+  
+  # ----------------------------------------------------------------------
+  # K = nrow(u_partition)
+  
+  # new declarations here: additional storage for all 3 approximations
+
+  # declare terms that will be used in the log-sum-exp trick
+  # eta_k = numeric(K) # log of the area of each partition A_k
+  # ck_1 = numeric(K)
+  
+  # ----------------------------------------------------------------------
+  
+  # (4) compute closed form integral over each partition
+  # for (k in 1:n_partitions) {
+  #   # compute the following for log-sum-exp trick
+  #   # ck_1[k] = -param_out$psi_star[k]
+  #   ck_1[k] = -opt_part$psi_star[k]
+  #   # ------------------------------------------------------------------
+  #   for (d in 1:D) {
+  #     
+  #     # find column id of the first lower bound
+  #     col_id_lb = grep("u1_lb", names(opt_part)) + 2 * (d - 1)
+  #     col_id_ub = col_id_lb + 1
+  #     
+  #     # limits of integration, length of the interval for param d
+  #     upper = opt_part[k, col_id_ub]
+  #     lower = opt_part[k, col_id_lb]
+  #     
+  #     eta_k[k] = eta_k[k] + log(upper - lower)
+  #     
+  #   } # end of loop computing each of 1-dim integrals
+  #   
+  #   const_approx[k]  = ck_1[k] + eta_k[k]
+  #   
+  # } # end of for loop over the K partitions
+  
+  # candidate_approx = compute_approx(param_out)
+  
+  # psi_star_df = opt_part %>% dplyr::select(leaf_id, psi_star)
+  
+  # u_df = u_df %>% mutate(leaf_id = u_rpart$where)
+  # u_df = merge(u_df, psi_star_df, by = 'leaf_id')
+  
+  return(list(n_partitions  = n_partitions,
+              param_out     = param_out,
+              u_rpart       = u_rpart,
+              param_support = param_support))
+  
+} 
+# end of hml_const() function --------------------------------------------------
+
+
+
+
+
+
+
+
+
 
 
 ## abbreviated version of the above for vectorization ----

@@ -74,6 +74,60 @@ log(phat_new)
 lil(y, X, prior, post)    # -256.7659
 
 
+# ------------------------------------------------------------------------------
+library(BayesianTools)
+likelihood <- function(x) sum(msm::dtnorm(x, log = TRUE, lower = -1, upper = 1))
+
+prior = createUniformPrior(lower = rep(-Inf, -Inf, 0), upper = rep(Inf, Inf,15))
+bayesianSetup <- createBayesianSetup(likelihood = likelihood, prior = prior)
+out = runMCMC(bayesianSetup = bayesianSetup, settings = list(iterations = 5000))
+
+# plot(out)
+
+# theoretical value
+theory = log(1/(2^2))
+
+marginalLikelihood(out)$ln.ML - theory
+
+
+prior_density = function(u) {
+    beta = unlist(unname(u[1:p]))
+    sigmasq = unlist(unname(u[D]))
+    dnorm(beta, mean = mu_beta, sd = sqrt(sigmasq)) * 
+        dinvgamma(sigmasq, shape = a_0, scale = b_0)
+} 
+
+
+prior_sampler = function(n=1) {
+   sigmasq = MCMCpack::rinvgamma(n, shape = a_0, scale = b_0)
+   beta = rmvnorm(n, mean = mu_beta, sigma = sigmasq_post[j] * V_beta)
+   cbind(beta), sigmasq)
+}
+
+prior = createPrior(density = prior_density, sampler = prior_sampler,
+                    lower = c(rep(-10, p), 0),
+                    upper = c(rep(20, p), 20))
+
+likelihood = function(u) {
+    beta = unlist(unname(u[1:p]))
+    sigmasq = unlist(unname(u[D]))
+    sum(dnorm(y, X %*% beta, sqrt(sigmasq), log = T))
+}
+
+mvnig_setup = createBayesianSetup(likelihood = likelihood, prior = prior)
+settings = list(iterations = 1000)
+out <- runMCMC(bayesianSetup = mvnig_setup, settings = settings)
+
+
+
+
+
+
+
+
+
+
+
 
 
 

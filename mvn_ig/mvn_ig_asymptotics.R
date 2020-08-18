@@ -15,9 +15,10 @@ setwd(LEN_PATH)
 # path for dell
 # setwd(DELL_PATH)
 
-source("partition/partition.R")
-source("extractPartition.R")
-source("hybrid_approx.R")
+# source("partition/partition.R")
+# source("extractPartition.R")
+# source("hybrid_approx.R")
+source("setup.R")
 source("mvn_ig/mvn_ig_helper.R") # load this LAST to overwrite def preprocess()
 
 # install.packages("tibble")

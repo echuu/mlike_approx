@@ -115,12 +115,12 @@ post_samps = postIW$post_samps                 # (J x D_u)
 # Lt_post_0
 
 # true log marginal likelihood
-logmarginal = function(Y, G, b, D, S){
-    n = nrow(Y); p = ncol(Y); # S = t(Y)%*%Y
-    logmarginal = -0.5*n*p*log(2*pi) + logHIWnorm(G, b, D) - 
-        logHIWnorm(G, b+n, D+S)
-    return(logmarginal)
-}
+# logmarginal = function(Y, G, b, D, S){
+#     n = nrow(Y); p = ncol(Y); # S = t(Y)%*%Y
+#     logmarginal = -0.5*n*p*log(2*pi) + logHIWnorm(G, b, D) - 
+#         logHIWnorm(G, b+n, D+S)
+#     return(logmarginal)
+# }
 
 
 ## testing ---------------------------------------------------------------------

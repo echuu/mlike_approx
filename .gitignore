@@ -1,3 +1,5 @@
 old/
 research_updates/
 *.csv
+*.RData
+image_files/

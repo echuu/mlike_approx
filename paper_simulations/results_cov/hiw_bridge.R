@@ -1,5 +1,9 @@
 
 
+setwd("C:/Users/ericc/mlike_approx/algo")
+source("setup.R")           # setup global environment, load in algo functions
+setwd("C:/Users/ericc/mlike_approx/covariance")
+source("HIW_helper.R")
 
 log_density = function(u, data) {
     -psi(u, data)
@@ -96,7 +100,7 @@ data.frame(approx = colMeans(approx), approx_sd = apply(approx, 2, sd),
 
 
 LIL = logmarginal(Y, testG, b, V, S)
-approx = data.frame(bridge)
+approx = data.frame(bridge, hyb = hyb_fs)
 data.frame(approx = colMeans(approx), approx_sd = apply(approx, 2, sd),
            ae = colMeans(LIL - approx),
            rmse = sqrt(colMeans((LIL - approx)^2))) %>% round(3)

@@ -392,6 +392,78 @@ u_star = function(rpart_obj, u_df, partition, n_params) {
 
 
 
+u_star_cand = function(rpart_obj, u_df, partition, n_params) {
+    
+    u_df = u_df %>% mutate(leaf_id = rpart_obj$where)
+    
+    # extract fitted values from tree, merged with other psis later
+    psi_hat_df = partition %>% dplyr::select(leaf_id, psi_hat)
+    
+    partition_id = sort(unique(rpart_obj$where)) # row id of leaf node
+    
+    part_obs_tbl = table(rpart_obj$where) %>% data.frame
+    names(part_obs_tbl) = c("leaf_id", "n_obs")
+    
+    n_partitions = length(partition_id)
+    
+    psi_center = u_df %>% dplyr::group_by(leaf_id) %>% 
+        summarise(psi_med  = median(psi_u))
+    
+    psi_quant = u_df %>% dplyr::group_by(leaf_id) %>% 
+        do(data.frame(t(quantile(.$psi_u, probs = seq(0.85, 1, 0.05)))))
+    
+    names(psi_quant) = c("leaf_id", paste('psi_', seq(0.85, 1, 0.05), sep = ''))
+    
+    psi_all = merge(psi_center, psi_quant, by = 'leaf_id') 
+    
+    psi_long = melt(psi_all, id.vars = c("leaf_id"), value.name = "psi_star",
+                    variable.name = "psi_choice")
+    
+    psi_all_df = psi_long %>% 
+        dplyr::mutate(logQ_cstar = 0)
+    
+    
+    for (k in 1:n_partitions) {
+        # extract psi_u for the k-th partition
+        c_k = u_df[u_df$leaf_id == partition_id[k],]$psi_u
+        
+        # compute log(Q(c_star)) for each candidate psi_star
+        psi_all_df = psi_all_df %>% 
+            mutate(logQ_cstar = ifelse(leaf_id == partition_id[k],
+                                       sapply(psi_star, logQ, c_k = c_k),
+                                       logQ_cstar))
+        
+    } # end of loop extracting representative points
+    
+    # for each partition (leaf_id), subset out rows for which log(Q(c)) is min
+    psi_df = psi_all_df %>% 
+        group_by(leaf_id) %>% 
+        slice(which.min(logQ_cstar)) %>%  # extract rows that minimize log(Q(c))
+        data.frame()
+    
+    ## merge with the boundary of each of the partitions
+    partition_star = merge(psi_df, partition, by = 'leaf_id') %>% 
+        dplyr::select(-psi_hat)
+    
+    # append the number of observations for each leaf node to the right
+    # this is later used to determine the type of approximation to use
+    partition_star = merge(partition_star, part_obs_tbl, by = 'leaf_id')
+    
+    # this partition will be fed into any subsequent resampling functions;
+    # omits extra information pertaining to loss functions, optimal psi choice 
+    optimal_part = partition_star %>% 
+        dplyr::select(-c('psi_choice', 'logQ_cstar'))
+    
+    return(list(partition_star = partition_star,
+                candidate_psi  = psi_all,
+                optimal_part   = optimal_part))
+    
+}
+# end of u_star() function ----------------------------------------------------
+
+
+
+
 
 #### u_star_hat() --------------------------------------------------------------
 # updated 7/22 - choice of psi_star is the one that minimizes log(Q(c))

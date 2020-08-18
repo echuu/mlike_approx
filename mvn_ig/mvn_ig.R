@@ -3,15 +3,17 @@
 
 
 # setup global environment, load in algo functions
+
 setwd("C:/Users/ericc/mlike_approx/algo")
+
 source("setup.R")           
 
 # load this LAST to overwrite def preprocess()
 source("C:/Users/ericc/mlike_approx/mvn_ig/mvn_ig_helper.R") 
 
-library(rstan)
-library(rstudioapi) # running  RStan in parallel via Rstudio
-options(mc.cores = parallel::detectCores()) 
+# library(rstan)
+# library(rstudioapi) # running  RStan in parallel via Rstudio
+# options(mc.cores = parallel::detectCores()) 
 
 
 J         = 1000          # number of MC samples per approximation
@@ -96,14 +98,14 @@ post  = list(V_star  =  V_star,
 
 # use special preprocess b/c we call psi_true() 
 
-sigmasq_post = MCMCpack::rinvgamma(J, shape = a_n, scale = b_n)
-beta_post = matrix(0, J, p)
-for (j in 1:J) {
-    beta_post[j,] = rmvnorm(1, mean = mu_star, sigma = sigmasq_post[j] * V_star)
+sample_beta = function(s2, post) {
+    rmvnorm(1, mean = post$mu_star, sigma = s2 * post$V_star)
 }
-u_samp = data.frame(beta_post, sigmasq_post)
-u_df = preprocess(u_samp, D, prior)
 
+sigmasq_post = MCMCpack::rinvgamma(J, shape = a_n, scale = b_n)
+beta_mat = t(sapply(sigmasq_post, sample_beta, post = post))
+u_samp = data.frame(beta_mat, sigmasq_post)
+u_df = preprocess(u_samp, D, prior)
 
 # refactored version
 hml_approx = hml_const(1, D, u_df, J, prior) 

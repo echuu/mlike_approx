@@ -172,7 +172,7 @@ Xbeta_0 = c(X %*% as.matrix(mu_beta))
 loglik_0 = (y * Xbeta_0 - log(1 + exp(Xbeta_0))) %>% sum
 
 # numerical integration works for smaller range for limits of integration
-result = integral2(fun_logit, -2, 2, -5, 15, reltol = 1e-5)
+result = integral2(fun_logit, -15, 15, -15, 15, reltol = 1e-5)
 result$Q
 loglik_0 + log(result$Q) 
 

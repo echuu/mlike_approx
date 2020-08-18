@@ -16,7 +16,7 @@ setwd("C:/Users/ericc/mlike_approx/algo")
 source("setup.R")     
 source("C:/Users/ericc/mlike_approx/truncate/regTN_helper.R")
 set.seed(123)
-D = 20
+D = 70
 N = 200
 I_D = diag(1, D)
 
@@ -74,6 +74,20 @@ lil_0 = -0.5 * N * log(2 * pi) - 0.5 * (N + D) * log(sigmasq) +
         log(TruncatedNormal::pmvnorm(mu_beta, Q_beta_inv, 
                                      lb = rep(0, D), ub = rep(Inf, D))[1]))
 
+samples = rtmvnorm(J, c(mu_beta), Q_beta_inv, rep(0, D), rep(Inf, D))
+u_df = preprocess(data.frame(samples), D, prior)
+hml_approx = hml_const(1, D, u_df, J, prior)
+hml_approx$const_vec
+
+og_part = hml_approx$param_out %>%
+    dplyr::select(-c(psi_choice, logQ_cstar))
+ss_part = fit_resid(og_part, D, n_samps, prior)
+ts_part = fit_resid(ss_part, D, n_samps / 2, prior)
+
+x1 = hml_approx$const_vec
+x2 = log_sum_exp(unlist(compute_expterms(ss_part, D)))
+x3 = log_sum_exp(unlist(compute_expterms(ts_part, D)))
+(approx = c(x1, x2, x3))
 
 
 #### begin simulations ---------------------------------------------------------

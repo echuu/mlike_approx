@@ -60,10 +60,12 @@ u_df = preprocess(u_samps, D, prior) # J x (D + 1) -- stored row-wise
 
 # library(microbenchmark)
 # microbenchmark("hml" = hml_const(1, D, u_df, J, prior))
-
+start_time <- Sys.time()
 hml_approx = hml_const(1, D, u_df, J, prior)
-# hml_approx$param_out %>%
-#     dplyr::select(leaf_id, psi_choice, psi_star, logQ_cstar, n_obs)
+end_time <- Sys.time()
+
+end_time - start_time
+hml_approx$const_vec       # -272.1245
 n_samps = 10
 
 # for the partition learned from prev fitted tree, extract the partition id and

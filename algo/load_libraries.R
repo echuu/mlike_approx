@@ -5,8 +5,8 @@
 library('MASS')                  # misc functions
 library('ggplot2')               # visualization
 library('rpart')                 # rpart()
-library('tidyr')                 # data mangaement
-library('readr')                 # data management
+# library('tidyr')                 # data mangaement
+# library('readr')                 # data management
 library('stringr')               # regex functions
 library('dplyr')                 # data mangaement
 library('VGAM')                  # for log1mexp() function
@@ -17,9 +17,15 @@ library('mvtnorm')               # rmvnorm(), dmvnorm()
 library('rpart.plot')            # rpart.rules()
 library('reshape2')              # melt()
 library('rBayesianOptimization') # Matrix_unif()
+library('tmg')
+library('TruncatedNormal')
+library('BayesianTools')
+library('BDgraph')
+library('MLmetrics')
  
 
 options(scipen = 999)
+options(dplyr.summarise.inform = FALSE)
 
 ## change value of INSTALL_ALL to TRUE if you are missing the above libraries
 
@@ -41,6 +47,10 @@ if (INSTALL_ALL) {
     install.packages('rpart.plot')
     install.packages('reshape2')
     install.packages('rBayesianOptimization')
+    install.packages('tmg')
+    install.packages('TruncatedNormal')
+    install.packages("BDgraph")
+    install.packages("BayesianTools")
 }
 
 
