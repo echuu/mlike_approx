@@ -20,14 +20,14 @@ float psi(NumericVector u, List prior) {
 
 	float loglik = 0;
 	
-	// float sd = std::sqrt(sigmasq);
+	float sd = std::sqrt(sigmasq);
 	for (unsigned int i	= 0; i < X.rows(); i++) {
 		float prod = 0;
 		for (unsigned int j = 0; j < d; j++) {
 			prod += X(i, j) * u[j];
 		}
 		
-		loglik += dnorm_log(y(i, 0), prod, sigmasq);
+		loglik += dnorm_log(y(i, 0), prod, sd);
 	}
 
 	NumericVector diff = u[Range(0, d-1)]  - mu_beta;
@@ -36,23 +36,15 @@ float psi(NumericVector u, List prior) {
 	for (unsigned int i = 0; i < diff.length(); i++)
 		prod += diff[i] * diff[i];
 
-	// float logprior = a * std::log(b) - (d / 2.0) * std::log(2.0*M_PI) -
-	// 				 0.5 * std::log(V_beta.determinant()) - std::lgamma(a) -
-	// 				 (a + d / 2.0 + 1.0) * std::log(sigmasq) -
-	// 				 1.0 / sigmasq * (b + 0.5 * prod);
-	float logprior = a * std::log(b) - (d / 2.0) * std::log(2.0*M_PI) +
-					 std::lgamma(a) -
+	float logprior = a * std::log(b) - (d / 2.0) * std::log(2.0*M_PI) -
+					 0.5 * std::log(V_beta.determinant()) - std::lgamma(a) -
 					 (a + d / 2.0 + 1.0) * std::log(sigmasq) -
 					 1.0 / sigmasq * (b + 0.5 * prod);
-
 
 	return (-loglik - logprior);
 }
 
 // [[Rcpp::export]]
-float dnorm_log(float x, float mean, float sigmasq) {
-	// return std::log((1.0/(sd * std::sqrt(2.0*M_PI))) * (std::exp(-std::pow(x-mean, 2.0)/ (2.0*std::pow(sd, 2)))));
-	return std::log((1.0/(std::sqrt(2.0*M_PI*sigmasq)))) - std::pow(x-mean, 2.0) / (2.0*sigmasq);
+float dnorm_log(float x, float mean, float sd) {
+	return std::log((1.0/(sd * std::sqrt(2.0*M_PI))) * (std::exp(-std::pow(x-mean, 2.0)/ (2.0*std::pow(sd, 2)))));
 }
-
-
