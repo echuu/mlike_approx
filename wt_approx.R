@@ -1,44 +1,51 @@
 
+
+## compute_expterms() ----------------------------------------------------------
+# part_info: df containing leaf_id, psi_star, lb/ub of D-intervals that make 
+#            up each of the K partitions
+# D        : dimension of parameter
+log_part_volume = function(bounds, D) {
+    
+    log_vol = (bounds[seq(2, 2 * D, 2)] - bounds[seq(1, 2 * D, 2)]) %>% 
+        log() %>% rowSums()
+    
+    # (1) compute length of each of the D intervals for each partition
+    # (2) take log of each interval difference
+    # (3) add up each row for log volume of each partition
+    log_vol = (bounds[seq(2, 2 * D, 2)] - bounds[seq(1, 2 * D, 2)]) %>% 
+        log() %>% rowSums()
+    
+    return(log_vol) # K-dim vector
+} # end of compute_expterms() function -----------------------------------------
+
+
+n_stage = 2
+n_samps = 10
+params = prior
 param = prior
 
+# set.seed(1)
+# approx = vector("list", n_stage)
+# psi_star = data.frame(matrix(0, J, n_stage)) # don't need u_df part of it
+
+logml_approx = hybrid_ml(D, u_df, J, param)     # fit first stage
+
+prev_part = logml_approx$param_out$optimal_part # first stage partition
+psi_candidates = logml_approx$param_out$candidate_psi
+names(psi_candidates) = c('leaf_id', paste("psi_1", 1:n_cand, sep = '_'))
+
+## create psi_star column
+u_df_star = u_df %>% 
+    dplyr::mutate(leaf_id = logml_approx$u_rpart$where) %>% 
+    plyr::join(prev_part %>% dplyr::select(c('leaf_id', 'psi_star')),
+               by = 'leaf_id') %>% 
+    dplyr::select(-c('leaf_id'))
+
+
+##### perform second stage -----------------------------------------------------
 curr_part = prev_part
-drops = c('leaf_id', 'psi_star', 'n_obs')
-
-
-#### compute all of the resampled error ----------------------------------------
-
-# this has stage 1 error for 2nd stage samples
-resamp_error = function(part_fit) {
-    psi_tilde_df = part_fit$u_df_resample %>% 
-        dplyr::select(psi_tilde_1:psi_1)
-    error = apply(psi_tilde_df, 2, logQ, part_fit$u_df_resample$psi_u)
-    return(error)
-}
-
-psi_update = compute_weights(u_df, stage_s_part, s, psi_star)
-psi_update$approx_error
-psi_update$psi_tilde_df %>% head
-
-ss_error = melt(resamp_error(stage_s_part), value.name = 'error')
-
-approx_error = psi_update$approx_error %>% 
-    dplyr::mutate(ss_error = ss_error$error) %>% 
-    dplyr::mutate(tot_error = log(exp(error) + exp(ss_error)))
-
-# create a version of u_df where each row is a re-sampled point with columns:
-# (0) actual psi values for each of the points
-# (1) psi values from first stage candidates  (5 candidates)
-# (2) psi values from second stage candidates (5 candidates)
-
-# input
-stage_s_part$u_df_resample %>% head
-
-
-psi_candidates
 n_cand = 5
-params = prior
 
-### start of function here
 
 part_id = curr_part$leaf_id        # extract partition IDs
 K = length(part_id)                # number of partitions
@@ -130,9 +137,9 @@ for (k in 1:K) {
     # (2) obtain candidates: [leaf_id, psi_1, ..., psi_5]
     cand = e_kj$Ru_df_cand
     
-    #### the following calculation is superfluous since we don't go beyond 2nd stage
-    #### but keep it for now since it's low-cost and easy to compute (might need
-    #### it later at some point)
+    #### the following calculation is superfluous since we don't go beyond 
+    #### 2nd stage but keep it for now since it's low-cost and easy to compute 
+    #### (might need it later at some point)
     # compute psi_star = c_k_star + e_kj_star, e_kj_star = Ru_star
     psi_star = cbind(leaf_id  = opt$leaf_id, 
                      psi_star = opt$Ru_star + c_k_star,
@@ -153,8 +160,9 @@ for (k in 1:K) {
     psi_tilde = cbind(leaf_id = cand$leaf_id, cand[,-1] + c_k_star)
     names(psi_tilde) = c("leaf_id", 
                          paste("psi_2_", c(1:(ncol(psi_tilde)-1)), sep = ''))
+    # why do we combine this with the first stage candidates??
+    # merge so that u_df_k_cand has access to previous stage psi candidates
     psi_tilde = data.frame(psi_tilde, psi_cand_k)
-    
     
     u_df_k_cand = merge(u_df_k_cand, psi_tilde, by = 'leaf_id')
     u_df_k_cand %>% head
@@ -182,22 +190,42 @@ u_df_resample = do.call(rbind, u_df_k_list)
 K = nrow(candidate_df)
 candidate_df = candidate_df %>% dplyr::mutate(leaf_id = 1:K)
 optimal_df = optimal_df %>% dplyr::mutate(leaf_id = 1:K)
+##### end second stage ---------------------------------------------------------
+
+# ss_out = next_stage(prev_part, psi_candidates, D, n_samps, params)
+# andidate_df = ss_out$candidate_psi
+# names(candidate_df) = c("leaf_id", 
+#                         paste("psi_2_", c(1:(ncol(candidate_df)-1)), sep = ''))
+# optimal_df = ss_out$optimal_part
+# u_df_resample = ss_out$u_df_resample
 
 
+### psi_tilde       -> used to compute final approximation using each candidate
+### u_df_k_cand     -> used to compute the error + weights for each logml approx
+### resid_partition -> used to compute the volume of each of the partitions
 
-#### compute 2nd stage error ---------------------------------------------------
-all_psi = u_df_resample %>% dplyr::select(-c(paste('u', 1:D, sep = '')))
-error = apply(all_psi %>% dplyr::select(-c('psi_u')), 2, logQ, all_psi$psi_u)
+# 2nd stage candidates
+candidate_df %>% head
+candidate_df %>% dim
+
+optimal_df %>% head
+u_df_resample %>% head
 
 
-#### compute 1st stage error ---------------------------------------------------
+###### compute errors all together after both stages are finished
 
+#### compute first stage errors -------------------------------------------------
+
+#### add first stage candidate columns
+## create candidate columns
+u_df_cand = u_df %>% 
+    dplyr::mutate(leaf_id = logml_approx$u_rpart$where) %>% 
+    plyr::join(psi_candidates, by = 'leaf_id') %>% 
+    dplyr::select(-c('leaf_id'))
+
+#### add second stage candidate columns
 u_sub = u_df %>% dplyr::select(-psi_u)
-
 drops   = c('leaf_id', 'psi_star', 'n_obs')
-
-# optimal_df = part_fit$optimal_part
-# candidate_df = part_fit$candidate_psi
 
 # partitions from 2nd stage partition
 part = optimal_df[,!(names(optimal_df) %in% drops)]
@@ -218,84 +246,69 @@ names(psi_tilde_df) = names(candidate_df)[2:(n_cand+1)]
 for (i in 1:n_cand) {
     # identify the psi candidate value from candidate_df
     psi_cand_i = candidate_df[,i+1]
+    # match these with the corresponding partition ID for each point
     psi_tilde_df[,i] = psi_cand_i[part_id]
+    # for points that fall outside of a 2nd stage part, use 1st stage part
     psi_tilde_df[use_prev_id,i] = stage_1_psi_star
 }
 
+psi_tilde_df %>% head
+u_df_cand %>% head
 
-# error = apply(psi_tilde_df, 2, MAE, u_df$psi_u)
-error = apply(psi_tilde_df, 2, logQ, u_df$psi_u)
-approx = compute_approx(part_fit)
+all_psi_fs = cbind(psi_tilde_df, 
+                   u_df_cand %>% dplyr::select(-c(paste('u', 1:D, sep = ''))))
 
-approx_error = data.frame(approx = approx, error = error)
+fs_error = apply(all_psi_fs %>% dplyr::select(-c('psi_u')), 
+                 2, logQ, all_psi_fs$psi_u)
 
-u_df_star = u_df %>% 
-    dplyr::mutate(leaf_id = logml_approx$u_rpart$where) %>% 
-    plyr::join(prev_part %>% dplyr::select(c('leaf_id', 'psi_star')),
-               by = 'leaf_id') %>% 
-    dplyr::select(-c('leaf_id'))
+#### compute second stage errors -----------------------------------------------
 
-u_df_star$psi_star[use_prev_id]
+all_psi_ss = u_df_resample %>% dplyr::select(-c(paste('u', 1:D, sep = '')))
+ss_error = apply(all_psi_ss %>% dplyr::select(-c(psi_u)), 
+                 2, logQ, all_psi_ss$psi_u)
 
-# ------------------------------------------------------------------------------
-
-
-
+total_error = log(exp(melt(fs_error, value.name = 'error')) + 
+                  exp(melt(ss_error, value.name = 'error')))
 
 
+#### compute approximation for each of the candidates
+
+## compute first stage approximation (5 candidates)
+fs_part = prev_part %>% dplyr::select('u1_lb':paste('u', D, '_ub', sep = ''))
+log_vol_1 = log_part_volume(fs_part, D)
+exp_terms_mat_1 = -(psi_candidates %>% dplyr::select(-c('leaf_id'))) + log_vol_1
+logml_approx_1 = reshape2::melt((apply(exp_terms_mat_1, 2, log_sum_exp)),
+                              value.name = 'approx')
 
 
+## compute second stage approximation
+candidate_df %>% dim
+part %>% dim
+
+ss_part = part
+log_vol_2 = log_part_volume(part, D)
+exp_terms_mat_2 = -candidate_df[,2:(n_cand+1)] + log_vol_2
+# test = -ss_out$candidate_psi[,-1] + log_vol_2
+logml_approx_2 = reshape2::melt((apply(exp_terms_mat_2, 2, log_sum_exp)),
+                              value.name = 'approx')
+
+cbind(rbind(logml_approx_2, logml_approx_1), total_error)
+      
+all_approx = rbind(logml_approx_2, logml_approx_1)
+all_approx = merge(all_approx, total_error, by = 0)
+
+all_approx = all_approx %>% dplyr::mutate(wt_2d = exp(-error/(2*D))) %>% 
+    dplyr::mutate(norm_wt_2d = wt_2d / sum(wt_2d)) %>% 
+    dplyr::select(-c('wt_2d'))
+
+all_approx = all_approx %>% dplyr::mutate(wt_sqrt = exp(-error/(2*sqrt(D)))) %>% 
+    dplyr::mutate(norm_wt_sqrt = wt_sqrt / sum(wt_sqrt)) %>% 
+    dplyr::select(-c('wt_sqrt'))
+
+all_approx
+(wt_approx1 = with(all_approx, sum(approx * norm_wt_2d)))
+(wt_approx2 = with(all_approx, sum(approx * norm_wt_sqrt)))
 
 
-
-#### TODO: compute first stage errors  -----------------------------------------
-
-u_df_resample = stage_s_part$u_df_resample
-psi_tilde_df = u_df_resample %>% dplyr::select(psi_tilde_1:psi_tilde_5)
-
-error_resample = apply(psi_tilde_df, 2, logQ, u_df_resample$psi_u)
-
-compute_weights(u_df, stage_s_part, s, psi_star)
-
-part_fit = stage_s_part
-s = 2
-
-u_sub = u_df %>% dplyr::select(-psi_u)
-
-optimal_df = part_fit$optimal_part
-candidate_df = part_fit$candidate_psi
-
-part = optimal_df[,!(names(optimal_df) %in% drops)]
-part_list = lapply(split(part, seq(NROW(part))), matrix_part)
-
-# for each posterior sample, determine which partition it belongs in
-part_id = apply(u_sub, 1, query_partition, part_list = part_list)
-
-# for posterior samples that fall outside of the re-sampled partitions,
-# we will use the psi_star value obtained during the previous stage
-use_prev_id = which(is.na(part_id))
-
-n_cand = ncol(candidate_df) - 1 # subtract off the leaf_id column
-psi_tilde_df = data.frame(matrix(0, nrow(u_df), n_cand))
-for (i in 1:n_cand) {
-    # identify the psi candidate value from candidate_df
-    psi_cand_i = candidate_df[,i+1]
-    psi_tilde_df[,i] = psi_cand_i[part_id]
-    if (stage > 1) {
-        psi_tilde_df[use_prev_id,i] = psi_star[use_prev_id, stage-1]
-    }
-}
-
-
-# error = apply(psi_tilde_df, 2, MAE, u_df$psi_u)
-error = apply(psi_tilde_df, 2, logQ, u_df$psi_u)
-approx = compute_approx(part_fit)
-
-psi_star[,stage] = optimal_df$psi_star[part_id]
-if (stage > 1) {
-    psi_star[,stage][use_prev_id] = psi_star[use_prev_id, stage-1]
-}
-
-approx_error = data.frame(approx = approx, error = error)
 
 

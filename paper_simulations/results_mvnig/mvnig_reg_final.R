@@ -11,7 +11,7 @@ source("C:/Users/ericc/mlike_approx/mvn_ig/mvn_ig_helper.R")
 
 
 J = 1000          # number of MC samples per approximation
-D = 3
+D = 20
 N = 200 # for testing -- comment this line to perform ext. analysis
 n_samps = 10
 
@@ -141,7 +141,12 @@ for (b_i in 1:B) {
     # 
     # hml_approx$const_vec
     source("setup.R") 
+    # set.seed(1)
     hybrid = logml(D, u_df, J, prior)
+    
+    # hybrid$psi_cand_func %>% head
+    
+    hybrid$all_approx
     
     hybrid$all_approx %>% dplyr::select(-c(wt_2d, wt_sqrt))
     

@@ -340,13 +340,14 @@ logml = function(D, u_df, J, param) {
     psi_update = compute_weights(u_df, logml_approx$param_out, 1, psi_star)
     
     approx[[1]] = psi_update$approx_error
-    psi_star = psi_update$psi_star
+    u_df_psi_star = psi_update$psi_star
     
+    # set.seed(1)
     for (s in 2:n_stage) {
         
         stage_s_part = next_stage(prev_part, psi_candidates, D, n_samps, params)
         
-        stage_s_part$u_df_resample %>% head
+        # stage_s_part$u_df_resample %>% head
         
         psi_update = compute_weights(u_df, stage_s_part, s, psi_star)
         
@@ -371,7 +372,8 @@ logml = function(D, u_df, J, param) {
     return(list(wt_approx1 = wt_approx1,
                 wt_approx2 = wt_approx2,
                 all_approx = all_approx,
-                psi_tilde_df = psi_update$psi_tilde_df))
+                psi_tilde_df = psi_update$psi_tilde_df,
+                psi_cand_func = stage_s_part$candidate_psi))
 }
 
 
