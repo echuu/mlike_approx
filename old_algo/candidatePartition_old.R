@@ -7,16 +7,18 @@
 ### (2) candidate_df with with leaf_id and 5 candidates
 ### (3) exp terms using each of the 5 candidates
 ### (4) log ML approximation for each of the 5 candidates
-next_stage = function(curr_part, D, n_samps, params, psi_candidates) {
+
+next_stage = function(curr_part, D, n_samps, params) {
     
     part_id = curr_part$leaf_id        # extract partition IDs
     K = length(part_id)                # number of partitions
     
     candidate_psi = vector("list", K) # store the sub-partitions after resample
     opt_psi_part  = vector("list", K) # store the sub-partitions after resample
-    u_df_k_list   = vector("list", K) # store resampled points w/ psi, psi_star
+    
     for (k in 1:K) {
-
+        # print(k)
+        
         N_k_p = curr_part$n_obs[k] * n_samps  # num of samples to draw from A_k
         
         # set of lower/upper bounds corresponding to the k-th partition
@@ -92,53 +94,30 @@ next_stage = function(curr_part, D, n_samps, params, psi_candidates) {
         
         # compute psi_tilde using the candidate R(u) values
         psi_tilde = cbind(leaf_id = cand$leaf_id, cand[,-1] + c_k_star)
-        # names(psi_tilde) = c("leaf_id", 
-        #                      paste("psi_tilde_", 
-        #                            c(1:(ncol(psi_tilde)-1)), sep = ''))
         names(psi_tilde) = c("leaf_id", 
-                             paste("psi_2_", c(1:(ncol(psi_tilde)-1)), sep = ''))
+                             paste("psi_tilde_", 
+                                   c(1:(ncol(psi_tilde)-1)), sep = ''))
         resid_partition = psi_star %>% merge(resid_partition, by = 'leaf_id')
-        
-        
-        # ----------------------------------------------------------------------
-        psi_cand_k = psi_candidates %>% dplyr::filter(leaf_id == part_id[k]) %>% 
-            dplyr::select(-c('leaf_id'))
-        u_df_k_cand = u_df_k %>% dplyr::mutate(leaf_id = resid_tree$where)
-        # print(psi_cand_k)
-        psi_tilde = data.frame(psi_tilde, psi_cand_k)
-        
-        u_df_k_cand = merge(u_df_k_cand, psi_tilde, by = 'leaf_id')
-        # u_df_k_cand %>% head
-        
-        # ----------------------------------------------------------------------
         
         #### store (1) candidates, (2) optimal partition
         candidate_psi[[k]] = psi_tilde
         opt_psi_part[[k]]  = resid_partition
-        u_df_k_list[[k]]   = u_df_k_cand %>% dplyr::select(-c('leaf_id')) 
         
     } # end of for loop iterating over partitions
     
     ## all candidates
     candidate_df = do.call(rbind, candidate_psi)
     
-    # print(candidate_df %>% head)
-    
     ## all optimal
     optimal_df = do.call(rbind, opt_psi_part)
-    u_df_resample = do.call(rbind, u_df_k_list)
     
     ## re-index the leaf IDs
     K = nrow(candidate_df)
     candidate_df = candidate_df %>% dplyr::mutate(leaf_id = 1:K)
     optimal_df = optimal_df %>% dplyr::mutate(leaf_id = 1:K)
     
-    # print(optimal_df   %>%  head)
-    # print(candidate_df %>%  head)
-    
     return(list(candidate_psi = candidate_df,
-                optimal_part  = optimal_df,
-                u_df_resample = u_df_resample))
+                optimal_part  = optimal_df))
     
 }
 
@@ -178,7 +157,6 @@ compute_approx = function(part_fit) {
     # compute the final approximation via log-sum-exp trick
     logml_approx = reshape2::melt((apply(exp_terms_mat, 2, log_sum_exp)),
                                   value.name = 'approx')
-    # print(logml_approx)
     return(logml_approx)
 } # end compute_approx() function
 
@@ -206,7 +184,6 @@ compute_weights = function(u_df, part_fit, stage, psi_star) {
     
     n_cand = ncol(candidate_df) - 1 # subtract off the leaf_id column
     psi_tilde_df = data.frame(matrix(0, nrow(u_df), n_cand))
-    names(psi_tilde_df) = names(candidate_df)[-1]
     for (i in 1:n_cand) {
         # identify the psi candidate value from candidate_df
         psi_cand_i = candidate_df[,i+1]
@@ -218,21 +195,18 @@ compute_weights = function(u_df, part_fit, stage, psi_star) {
     
     
     # error = apply(psi_tilde_df, 2, MAE, u_df$psi_u)
-    # error = apply(psi_tilde_df, 2, logQ, u_df$psi_u)
-    # print(error)
-    # approx = compute_approx(part_fit)
+    error = apply(psi_tilde_df, 2, logQ, u_df$psi_u)
+    approx = compute_approx(part_fit)
     
     psi_star[,stage] = optimal_df$psi_star[part_id]
     if (stage > 1) {
         psi_star[,stage][use_prev_id] = psi_star[use_prev_id, stage-1]
     }
     
-    # approx_error = data.frame(approx = approx, error = error)
+    approx_error = data.frame(approx = approx, error = error)
     
     
-    # return(list(approx_error = approx_error, psi_star = psi_star, 
-    #             psi_tilde_df = psi_tilde_df))
-    return(list(psi_star = psi_star))
+    return(list(approx_error = approx_error, psi_star = psi_star, psi_tilde_df = psi_tilde_df))
     
 }
 
@@ -345,11 +319,8 @@ log_volume = function(part_info, drops, D) {
 
 
 
-
-
-
 ### weighted average of 3 stage partitioning
-logml_old = function(D, u_df, J, param) {
+logml = function(D, u_df, J, param) {
     
     n_stage = 2
     n_samps = 10
@@ -361,33 +332,12 @@ logml_old = function(D, u_df, J, param) {
     prev_part = logml_approx$param_out$optimal_part # first stage partition
     psi_update = compute_weights(u_df, logml_approx$param_out, 1, psi_star)
     
-    
-    
-    # --------------------------------------------------------------------------
-    
-    n_cand = 5
-    psi_candidates = logml_approx$param_out$candidate_psi
-    names(psi_candidates) = c('leaf_id', paste("psi_1", 1:n_cand, sep = '_'))
-    
-    ## create psi_star column -- using join() preserves original ordering 
-    ## of u_df, which is important when later constructing the psi_tilde 
-    ## dataframe -> psi_star is pulled from this dataframe
-    u_df_star = u_df %>% 
-        dplyr::mutate(leaf_id = logml_approx$u_rpart$where) %>% 
-        plyr::join(prev_part %>% dplyr::select(c('leaf_id', 'psi_star')),
-                   by = 'leaf_id') %>% 
-        dplyr::select(-c('leaf_id'))
-    
-    
-    # --------------------------------------------------------------------------
-    
-    # approx[[1]] = psi_update$approx_error
+    approx[[1]] = psi_update$approx_error
     psi_star = psi_update$psi_star
     
     for (s in 2:n_stage) {
-        stage_s_part = next_stage(prev_part, D, n_samps, params, psi_candidates)
+        stage_s_part = next_stage(prev_part, D, n_samps, params)
         psi_update = compute_weights(u_df, stage_s_part, s, psi_star)
-        
         
         approx[[s]] = psi_update$approx_error
         
@@ -396,12 +346,11 @@ logml_old = function(D, u_df, J, param) {
         n_samps = n_samps / 2
     }
     
-    # print(do.call(rbind, approx))
     all_approx = do.call(rbind, approx) %>% 
-        data.frame(stage = sort(rep(1:n_stage, n_cand), decreasing = TRUE))
+        data.frame(stage = sort(rep(1:n_stage, 5)))
     all_approx = all_approx %>% dplyr::mutate(wt = exp(-error/(2*D))) %>% 
         dplyr::mutate(norm_wt = wt / sum(wt))
-    all_approx = all_approx %>% dplyr::mutate(wt2 = exp(-error/(2*sqrt(D)))) %>% 
+    all_approx = all_approx %>% dplyr::mutate(wt2 = exp(-error/(2))) %>% 
         dplyr::mutate(norm_wt2 = wt2 / sum(wt2))
     
     wt_approx1 = with(all_approx, sum(approx * norm_wt))
@@ -411,223 +360,8 @@ logml_old = function(D, u_df, J, param) {
     return(list(wt_approx1 = wt_approx1, wt_approx2 = wt_approx2,
                 avg_approx = avg_approx,
                 all_approx = all_approx,
-                psi_tilde_df = psi_update$psi_tilde_df,
-                u_df_ss = stage_s_part$u_df_resample))
+                psi_tilde_df = psi_update$psi_tilde_df))
 }
-
-
-
-
-
-
-logml = function(D, u_df, J, param, n_stage = 2, n_samps = 10) {
-    
-    params = param
-    approx = vector("list", n_stage)
-    psi_star = data.frame(matrix(0, J, n_stage)) # don't need u_df part of it
-    
-    logml_approx = hybrid_ml(D, u_df, J, param)     # fit first stage
-    prev_part = logml_approx$param_out$optimal_part # first stage partition
-    # psi_update = compute_weights(u_df, logml_approx$param_out, 1, psi_star)
-    
-    # --------------------------------------------------------------------------
-    
-    n_cand = 5
-    psi_candidates = logml_approx$param_out$candidate_psi
-    names(psi_candidates) = c('leaf_id', paste("psi_1", 1:n_cand, sep = '_'))
-    
-    ## create psi_star column -- using join() preserves original ordering 
-    ## of u_df, which is important when later constructing the psi_tilde 
-    ## dataframe -> psi_star is pulled from this dataframe
-    u_df_star = u_df %>% 
-        dplyr::mutate(leaf_id = logml_approx$u_rpart$where) %>% 
-        plyr::join(prev_part %>% dplyr::select(c('leaf_id', 'psi_star')),
-                   by = 'leaf_id') %>% 
-        dplyr::select(-c('leaf_id'))
-    # psi_star = psi_update$psi_star
-    stage_s_part = next_stage(prev_part, D, n_samps, params, psi_candidates)
-    # psi_update = compute_weights(u_df, stage_s_part, s, psi_star)
-    
-    optimal_df = stage_s_part$optimal_part
-    candidate_df = stage_s_part$candidate_psi
-    
-    u_sub = u_df %>% dplyr::select(-psi_u)
-    drops   = c('leaf_id', 'psi_star', 'n_obs')
-    
-    part = optimal_df[,!(names(optimal_df) %in% drops)]
-    part_list = lapply(split(part, seq(NROW(part))), matrix_part)
-    
-    # for each posterior sample, determine which 2nd stage partition 
-    # it belongs in (note these are indexed from 1:n_partitions)
-    part_id = apply(u_sub, 1, query_partition, part_list = part_list)
-    
-    # for posterior samples that fall outside of the re-sampled partitions,
-    # we will use the psi_star value obtained during the previous stage
-    use_prev_id = which(is.na(part_id))
-    
-    n_cand = ncol(candidate_df) - 1 # subtract off the leaf_id column
-    # each row corresponds to the same row in u_df / u_df_star / u_df_cand
-    # we populate psi value for each of these rows, for each of the candidates
-    # if the point u does not fall into one of the second stage partitions, i.e., 
-    # it does not have a corresponding second stage psi_tilde value, we use the
-    # OPTIMAL PSI VALUE chosen from the previous stage. This optimal psi value is
-    # stored in u_df_star created above, where the order of u_df is preserved!
-    psi_tilde_df = data.frame(matrix(0, nrow(u_df), n_cand))
-    names(psi_tilde_df) = names(candidate_df)[-1]
-    for (i in 1:n_cand) {
-        # identify the psi candidate value from candidate_df
-        # This is a vector that has length equal to the number of partitions created
-        # as a result of the second stage. This vector will be repeatedly re-indexed
-        # depending on which (second stage) partition u falls in
-        psi_cand_i = candidate_df[,i+1]
-        
-        # populate the column using the corresponding candidate psi value
-        psi_tilde_df[,i] = psi_cand_i[part_id]
-        
-        # for those points that fall outside the 2nd stage we use previous stage's
-        # optimal psi value for that partition
-        # psi_tilde_df[use_prev_id,i] = psi_star[use_prev_id, stage-1]
-        psi_tilde_df[use_prev_id,i] = u_df_star$psi_star[use_prev_id]
-    }
-    
-    # error = apply(psi_tilde_df, 2, logQ, u_df$psi_u) %>% 
-    #     melt(value.name = 'error')
-    
-    log_vol = log_volume(optimal_df, drops, D)
-    exp_terms_mat = -candidate_df[,-1] + log_vol
-    all_approx = reshape2::melt((apply(exp_terms_mat, 2, log_sum_exp)),
-                                value.name = 'approx')
-    
-    # all_approx
-    
-    # approx_fs_error = merge(all_approx, error, by = 0)
-    # 
-    # approx_fs_error = approx_fs_error %>% dplyr::mutate(error = -log(J) + error)
-    # 
-    # approx_fs_error = approx_fs_error %>% 
-    #     dplyr::mutate(wt_2d = exp(-error/(2*D))) %>% 
-    #     dplyr::mutate(norm_wt_2d = wt_2d / sum(wt_2d)) %>% 
-    #     dplyr::select(-c('wt_2d'))
-    # 
-    # approx_fs_error = approx_fs_error %>% 
-    #     dplyr::mutate(wt_sqrt = exp(-error/(D^2))) %>% 
-    #     dplyr::mutate(norm_wt_sqrt = wt_sqrt / sum(wt_sqrt)) %>% 
-    #     dplyr::select(-c('wt_sqrt'))
-    
-    # approx_fs_error
-    # (wt_approx1 = with(approx_fs_error, sum(approx * norm_wt_2d)))
-    # (wt_approx2 = with(approx_fs_error, sum(approx * norm_wt_sqrt)))
-    # wt_approx1 = with(approx_fs_error, sum(approx * norm_wt_2d))
-    # wt_approx2 = with(approx_fs_error, sum(approx * norm_wt_sqrt))
-    
-    
-    # --------------------------------------------------------------------------
-    
-    ### combine the 1st/2nd-stage candidates together so we can compute the
-    ### error at the same time
-    
-    num_ss = nrow(stage_s_part$u_df_resample)
-    psi_ss = stage_s_part$u_df_resample[,-c(1:D)]
-    
-    all_df = rbind(psi_tilde_df, psi_ss %>% dplyr::select(-psi_u))
-    all_psi = c(u_df$psi_u, psi_ss$psi_u)
-    
-    # --------------------------------------------------------------------------
-    
-    all_error = (-log(J + num_ss) + apply(all_df, 2, logQ, all_psi)) %>% 
-        melt(value.name = 'error')
-    
-    approx_all_error =  merge(all_approx, all_error, by = 0)
-    
-    approx_all_error = approx_all_error %>% 
-        dplyr::mutate(wt_1 = exp(-error/(2*D^1.75))) %>% 
-        dplyr::mutate(norm_wt_1 = wt_1 / sum(wt_1)) %>% 
-        dplyr::select(-c('wt_1'))
-    
-    approx_all_error = approx_all_error %>% 
-        dplyr::mutate(wt_2 = exp(-error/(4*D^2))) %>% 
-        dplyr::mutate(norm_wt_2 = wt_2 / sum(wt_2)) %>% 
-        dplyr::select(-c('wt_2'))
-    
-    approx_all_error = approx_all_error %>% 
-        dplyr::mutate(wt_3 = exp(-error/(4*D^3))) %>% 
-        dplyr::mutate(norm_wt_3 = wt_3 / sum(wt_3)) %>% 
-        dplyr::select(-c('wt_3'))
-    
-    # approx_all_error
-    (wt_approx1 = with(approx_all_error, sum(approx * norm_wt_1)))
-    (wt_approx2 = with(approx_all_error, sum(approx * norm_wt_2)))
-    (wt_approx3 = with(approx_all_error, sum(approx * norm_wt_3)))
-    
-    
-    return(list(all_approx = approx_all_error,
-                wt_approx1 = wt_approx1,
-                wt_approx2 = wt_approx2,
-                wt_approx3 = wt_approx3))
-}
-
-
-
-
-# ### weighted average of 3 stage partitioning
-# logml = function(D, u_df, J, param) {
-#     
-#     n_stage = 2
-#     n_samps = 10
-#     params = param
-#     approx = vector("list", n_stage)
-#     psi_star = data.frame(matrix(0, J, n_stage)) # don't need u_df part of it
-#     
-#     logml_approx = hybrid_ml(D, u_df, J, param)     # fit first stage
-#     prev_part = logml_approx$param_out$optimal_part # first stage partition
-#     
-#     psi_candidates = logml_approx$param_out$candidate_psi
-#     names(psi_candidates) = c('leaf_id', paste("psi_1", 1:n_cand, sep = '_'))
-#     
-#     
-#     psi_update = compute_weights(u_df, logml_approx$param_out, 1, psi_star)
-#     
-#     approx[[1]] = psi_update$approx_error
-#     psi_star = psi_update$psi_star
-#     
-#     for (s in 2:n_stage) {
-#         stage_s_part = next_stage(prev_part, D, n_samps, params)
-#         psi_update = compute_weights(u_df, stage_s_part, s, psi_star)
-#         
-#         approx[[s]] = psi_update$approx_error
-#         
-#         prev_part = stage_s_part$optimal_part
-#         psi_star = psi_update$psi_star # used in next iteration
-#         n_samps = n_samps / 2
-#     }
-#     
-#     all_approx = do.call(rbind, approx) %>% 
-#         data.frame(stage = sort(rep(1:n_stage, 5)))
-#     all_approx = all_approx %>% dplyr::mutate(wt = exp(-error/(2*D))) %>% 
-#         dplyr::mutate(norm_wt = wt / sum(wt))
-#     all_approx = all_approx %>% dplyr::mutate(wt2 = exp(-error/(2))) %>% 
-#         dplyr::mutate(norm_wt2 = wt2 / sum(wt2))
-#     
-#     wt_approx1 = with(all_approx, sum(approx * norm_wt))
-#     wt_approx2 = with(all_approx, sum(approx * norm_wt2))
-#     avg_approx = mean(all_approx$approx)
-#     
-#     return(list(wt_approx1 = wt_approx1, wt_approx2 = wt_approx2,
-#                 avg_approx = avg_approx,
-#                 all_approx = all_approx,
-#                 psi_tilde_df = psi_update$psi_tilde_df))
-# }
-# 
-# 
-# 
-
-
-
-
-
-
-
-
 
 
 

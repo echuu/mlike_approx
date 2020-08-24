@@ -1,13 +1,15 @@
 setwd("C:/Users/ericc/mlike_approx/algo")
 source("setup.R")
+source("C:/Users/ericc/mlike_approx/mvn_ig/mvn_ig_helper.R") 
+
 
 library(Rcpp)
+library(RcppEigen)
 sourceCpp("C:/Users/ericc/mlike_approx/fast_psi.cpp")
 
 library(MLmetrics)
 
 # load this LAST to overwrite def preprocess()
-source("C:/Users/ericc/mlike_approx/mvn_ig/mvn_ig_helper.R") 
 
 
 J = 1000          # number of MC samples per approximation
@@ -141,17 +143,19 @@ for (b_i in 1:B) {
     # 
     # hml_approx$const_vec
     source("setup.R") 
-    # set.seed(1)
+    set.seed(1)
     hybrid = logml(D, u_df, J, prior)
-    
+    hybrid$all_approx
+    # hybrid$u_df_ss %>% head
     # hybrid$psi_cand_func %>% head
     
-    hybrid$all_approx
-    
-    hybrid$all_approx %>% dplyr::select(-c(wt_2d, wt_sqrt))
-    
+    # hybrid$all_approx
     hybrid$wt_approx1 # error / (2D)
     hybrid$wt_approx2 # error / sqrt(D)
+    hybrid$wt_approx3
+    
+    hybrid$u_df_ss
+    
     
     lil(y, X, prior, post)    # -256.7659
     
@@ -159,8 +163,7 @@ for (b_i in 1:B) {
 
     hyb_wt1[b_i] = hybrid$wt_approx1
     hyb_wt2[b_i] = hybrid$wt_approx2
-    hyb_avg[b_i] = hybrid$avg_approx
-    
+
     #### (3) corrected arithmetic mean estimator (IS)
     # came_result = came_approx(u_df, hml_approx, prior, post, J, D)
     # came[b_i] = came_result[1]
@@ -183,7 +186,6 @@ for (b_i in 1:B) {
     print(paste("iter ", b_i, ': ',
                 "hybrid_wt1 = ", round(mean(hyb_wt1[1:b_i]), 3), '; ',
                 "hybrid_wt2 = ", round(mean(hyb_wt2[1:b_i]), 3), '; ',
-                "hybrid_avg = ", round(mean(hyb_avg[1:b_i]), 3), '; ',
                 sep = '')) 
 }
 
