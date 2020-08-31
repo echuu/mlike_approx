@@ -18,8 +18,18 @@
 # of each partition
 # candidate_df is used so that we know each partition's candidate psi 
 # values
+
+# sigmasq_post = MCMCpack::rinvgamma(J, shape = a_n, scale = b_n)
+# beta_mat = t(sapply(sigmasq_post, sample_beta, post = post))
+# u_samp = data.frame(beta_mat, sigmasq_post)
+# u_df = preprocess(u_samp, D, prior)
+
+source("setup.R")
 param = prior
+# param = params
+
 set.seed(1)
+# D = D_u
 n_stage = 2
 n_samps = 10
 params = param
@@ -28,11 +38,11 @@ psi_star = data.frame(matrix(0, J, n_stage)) # don't need u_df part of it
 
 logml_approx = hybrid_ml(D, u_df, J, param)     # fit first stage
 prev_part = logml_approx$param_out$optimal_part # first stage partition
-psi_update = compute_weights(u_df, logml_approx$param_out, 1, psi_star)
+# psi_update = compute_weights(u_df, logml_approx$param_out, 1, psi_star)
 
 # --------------------------------------------------------------------------
 
-n_cand = 5
+n_cand = 8
 psi_candidates = logml_approx$param_out$candidate_psi
 names(psi_candidates) = c('leaf_id', paste("psi_1", 1:n_cand, sep = '_'))
 
@@ -44,11 +54,10 @@ u_df_star = u_df %>%
     plyr::join(prev_part %>% dplyr::select(c('leaf_id', 'psi_star')),
                by = 'leaf_id') %>% 
     dplyr::select(-c('leaf_id'))
-psi_star = psi_update$psi_star
+# psi_star = psi_update$psi_star
 stage_s_part = next_stage(prev_part, D, n_samps, params, psi_candidates)
+stage_s_part$u_df_resample %>% dim
 # psi_update = compute_weights(u_df, stage_s_part, s, psi_star)
-
-
 
 optimal_df = stage_s_part$optimal_part
 candidate_df = stage_s_part$candidate_psi
@@ -92,95 +101,91 @@ for (i in 1:n_cand) {
     psi_tilde_df[use_prev_id,i] = u_df_star$psi_star[use_prev_id]
 }
 
-error = apply(psi_tilde_df, 2, logQ, u_df$psi_u) %>% 
-    melt(value.name = 'error')
+# error = apply(psi_tilde_df, 2, logQ, u_df$psi_u) %>% 
+#     melt(value.name = 'error')
 
 log_vol = log_volume(optimal_df, drops, D)
 exp_terms_mat = -candidate_df[,-1] + log_vol
 all_approx = reshape2::melt((apply(exp_terms_mat, 2, log_sum_exp)),
-                              value.name = 'approx')
+                            value.name = 'approx')
 
-all_approx
+# all_approx
+# approx_fs_error = merge(all_approx, error, by = 0)
+# 
+# approx_fs_error = approx_fs_error %>% dplyr::mutate(error = -log(J) + error)
+# 
+# approx_fs_error = approx_fs_error %>% 
+#     dplyr::mutate(wt_2d = exp(-error/(2*D))) %>% 
+#     dplyr::mutate(norm_wt_2d = wt_2d / sum(wt_2d)) %>% 
+#     dplyr::select(-c('wt_2d'))
+# 
+# approx_fs_error = approx_fs_error %>% 
+#     dplyr::mutate(wt_sqrt = exp(-error/(D^2))) %>% 
+#     dplyr::mutate(norm_wt_sqrt = wt_sqrt / sum(wt_sqrt)) %>% 
+#     dplyr::select(-c('wt_sqrt'))
 
-approx_fs_error = merge(all_approx, error, by = 0)
+# approx_fs_error
+# (wt_approx1 = with(approx_fs_error, sum(approx * norm_wt_2d)))
+# (wt_approx2 = with(approx_fs_error, sum(approx * norm_wt_sqrt)))
+# wt_approx1 = with(approx_fs_error, sum(approx * norm_wt_2d))
+# wt_approx2 = with(approx_fs_error, sum(approx * norm_wt_sqrt))
 
-approx_fs_error = approx_fs_error %>% dplyr::mutate(error = -log(J) + error)
 
+# --------------------------------------------------------------------------
 
-approx_fs_error = approx_fs_error %>% 
-    dplyr::mutate(wt_2d = exp(-error/(2*D))) %>% 
-    dplyr::mutate(norm_wt_2d = wt_2d / sum(wt_2d)) %>% 
-    dplyr::select(-c('wt_2d'))
-
-approx_fs_error = approx_fs_error %>% 
-    dplyr::mutate(wt_sqrt = exp(-error/(2*sqrt(D)))) %>% 
-    dplyr::mutate(norm_wt_sqrt = wt_sqrt / sum(wt_sqrt)) %>% 
-    dplyr::select(-c('wt_sqrt'))
-
-approx_fs_error
-(wt_approx1 = with(approx_fs_error, sum(approx * norm_wt_2d)))
-(wt_approx2 = with(approx_fs_error, sum(approx * norm_wt_sqrt)))
-
-# ------------------------------------------------------------------------------
+### combine the 1st/2nd-stage candidates together so we can compute the
+### error at the same time
 
 num_ss = nrow(stage_s_part$u_df_resample)
 psi_ss = stage_s_part$u_df_resample[,-c(1:D)]
-# check the 1st stage candidates have the same number of unique values
-table(psi_ss$psi_2_2) %>% length 
-# check the number of 1st stage partitions == number of 1st stage values
-hml_approx$n_partitions
-
-# compute ss error
-ss_error = apply(psi_ss %>% dplyr::select(-psi_u), 2, logQ, psi_ss$psi_u) %>% 
-    melt(value.name = 'ss_error')
-total_error = error %>% merge(ss_error, by = 0)
-total_error = total_error %>% dplyr::mutate(ss_error = - log(num_ss) + ss_error)
-names(total_error)= c("psi_candidates", "fs_error", "ss_error")
-
-total_error = total_error %>% mutate(total_error = fs_error + ss_error)
-
-
-approx_tot_error =  merge(all_approx %>% 
-                              dplyr::mutate(psi_candidates = row.names(all_approx)), 
-                          total_error, by = 'psi_candidates')
-
-
-approx_tot_error = approx_tot_error %>% 
-    dplyr::mutate(wt_2d = exp(-total_error/(2*D))) %>% 
-    dplyr::mutate(norm_wt_2d = wt_2d / sum(wt_2d)) %>% 
-    dplyr::select(-c('wt_2d'))
-
-approx_tot_error = approx_tot_error %>% 
-    dplyr::mutate(wt_sqrt = exp(-total_error/(2*sqrt(D)))) %>% 
-    dplyr::mutate(norm_wt_sqrt = wt_sqrt / sum(wt_sqrt)) %>% 
-    dplyr::select(-c('wt_sqrt'))
-
-approx_tot_error
-(wt_approx1 = with(approx_tot_error, sum(approx * norm_wt_2d)))
-(wt_approx2 = with(approx_tot_error, sum(approx * norm_wt_sqrt)))
-
-
-# ------------------------------------------------------------------------------
 
 all_df = rbind(psi_tilde_df, psi_ss %>% dplyr::select(-psi_u))
 all_psi = c(u_df$psi_u, psi_ss$psi_u)
 
-all_error = (-log(J + num_ss) + apply(all_df, 2, logQ, all_psi)) %>% 
+# --------------------------------------------------------------------------
+
+
+
+# all_error = (-log(J + num_ss) + apply(all_df, 2, logQ, all_psi)) %>%
+#     melt(value.name = 'error')
+all_error = (-log(J + num_ss) + (apply(all_df, 2, logJ, all_psi) + 
+                                     apply(all_df, 2, logQ, all_psi))/2) %>% 
     melt(value.name = 'error')
+
+# apply(all_df[,1:5],  2, logJ, all_psi)
+# apply(all_df[,6:10], 2, logQ, all_psi)
+
+
+all_error = rbind(apply(all_df[,1:8], 2,  logQ, all_psi) %>%
+                      melt(value.name = 'error'),
+                  apply(all_df[,9:16], 2, logJ, all_psi) %>%
+                      melt(value.name = 'error')) -log(J + num_ss)
 
 approx_all_error =  merge(all_approx, all_error, by = 0)
 
 approx_all_error = approx_all_error %>% 
-    dplyr::mutate(wt_2d = exp(-error/(2*D))) %>% 
-    dplyr::mutate(norm_wt_2d = wt_2d / sum(wt_2d)) %>% 
-    dplyr::select(-c('wt_2d'))
+    dplyr::mutate(wt_1 = exp(-error/(6*D))) %>% 
+    dplyr::mutate(norm_wt_1 = wt_1 / sum(wt_1)) %>% 
+    dplyr::select(-c('wt_1'))
 
 approx_all_error = approx_all_error %>% 
-    dplyr::mutate(wt_sqrt = exp(-error/(2*sqrt(D)))) %>% 
-    dplyr::mutate(norm_wt_sqrt = wt_sqrt / sum(wt_sqrt)) %>% 
-    dplyr::select(-c('wt_sqrt'))
+    dplyr::mutate(wt_2 = exp(-error/(8*D))) %>% 
+    dplyr::mutate(norm_wt_2 = wt_2 / sum(wt_2)) %>% 
+    dplyr::select(-c('wt_2'))
+
+approx_all_error = approx_all_error %>% 
+    dplyr::mutate(wt_3 = exp(-error/(100*D))) %>% 
+    dplyr::mutate(norm_wt_3 = wt_3 / sum(wt_3)) %>% 
+    dplyr::select(-c('wt_3'))
 
 approx_all_error
-(wt_approx1 = with(approx_all_error, sum(approx * norm_wt_2d)))
-(wt_approx2 = with(approx_all_error, sum(approx * norm_wt_sqrt)))
+(wt_approx1 = with(approx_all_error, sum(approx * norm_wt_1)))
+(wt_approx2 = with(approx_all_error, sum(approx * norm_wt_2)))
+(wt_approx3 = with(approx_all_error, sum(approx * norm_wt_3)))
+
+
+
+
+
+
 

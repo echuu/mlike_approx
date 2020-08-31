@@ -391,7 +391,7 @@ u_star = function(rpart_obj, u_df, partition, n_params) {
  # end of u_star() function ----------------------------------------------------
 
 
-
+### 8/25 : this is the current version of u_star
 u_star_cand = function(rpart_obj, u_df, partition, n_params) {
     
     u_df = u_df %>% mutate(leaf_id = rpart_obj$where)
@@ -407,12 +407,18 @@ u_star_cand = function(rpart_obj, u_df, partition, n_params) {
     n_partitions = length(partition_id)
     
     psi_center = u_df %>% dplyr::group_by(leaf_id) %>% 
-        summarise(psi_med  = median(psi_u))
+        summarise(psi_max  = max(psi_u))
     
-    psi_quant = u_df %>% dplyr::group_by(leaf_id) %>% 
-        do(data.frame(t(quantile(.$psi_u, probs = seq(0.85, 1, 0.05)))))
+    # psi_quant = u_df %>% dplyr::group_by(leaf_id) %>% 
+    #     do(data.frame(t(quantile(.$psi_u, probs = seq(0.85, 1, 0.05)))))
+    psi_quant = u_df %>% dplyr::group_by(leaf_id) %>%
+        do(data.frame(t(quantile(.$psi_u, probs = seq(0.9996, 0.9999, 0.00005)))))
     
-    names(psi_quant) = c("leaf_id", paste('psi_', seq(0.85, 1, 0.05), sep = ''))
+    # psi_quant = u_df %>% dplyr::group_by(leaf_id) %>%
+    #     do(data.frame(t(quantile(.$psi_u, 
+    #                              probs = seq(0.5, 0.99, length.out = 7)))))
+    
+    names(psi_quant) = c("leaf_id", paste('psi_', seq(1, 7, 1), sep = ''))
     
     psi_all = merge(psi_center, psi_quant, by = 'leaf_id') 
     
@@ -430,7 +436,7 @@ u_star_cand = function(rpart_obj, u_df, partition, n_params) {
         # compute log(Q(c_star)) for each candidate psi_star
         psi_all_df = psi_all_df %>% 
             mutate(logQ_cstar = ifelse(leaf_id == partition_id[k],
-                                       sapply(psi_star, logQ, c_k = c_k),
+                                       sapply(psi_star, logJ, c_k = c_k),
                                        logQ_cstar))
         
     } # end of loop extracting representative points

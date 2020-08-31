@@ -198,8 +198,11 @@ partition_opt = function(rpart_obj, df, partition_df, D) {
     
     
     ## include more candidates Ru* to feed into objective function
-    Ru_quant = df %>% dplyr::group_by(leaf_id) %>% 
+    Ru_quant = df %>% dplyr::group_by(leaf_id) %>%
         do(data.frame(t(quantile(.$R_u, probs = seq(0.01, 0.10, 0.01)))))
+    
+    # Ru_quant = df %>% dplyr::group_by(leaf_id) %>% 
+    #     do(data.frame(t(quantile(.$R_u, probs = seq(0.01, 0.10, 0.01)))))
     
     names(Ru_quant) = c("leaf_id", paste('Ru_', seq(1, 10, 1), sep = ''))
     
