@@ -109,7 +109,8 @@ hml_const = function(N_approx, D, u_df_full, J, prior) {
 
 
 #### hml_const() ---------------------------------------------------------------
-#
+#### this function is called from the candidatePartition.R file to fit the 
+#### first stage partition
 #
 hybrid_ml = function(D, u_df, J, prior) {
   
@@ -127,6 +128,7 @@ hybrid_ml = function(D, u_df, J, prior) {
   u_partition = extractPartition(u_rpart, param_support) 
   
   
+  # param_out = u_star_cand(u_rpart, u_df, u_partition, D) # partition.R
   param_out = u_star_cand(u_rpart, u_df, u_partition, D) # partition.R
   # opt_part = param_out$optimal_part
   
@@ -182,7 +184,6 @@ hybrid_ml = function(D, u_df, J, prior) {
   
 } 
 # end of hml_const() function --------------------------------------------------
-
 
 
 

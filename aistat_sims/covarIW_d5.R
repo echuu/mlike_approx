@@ -7,11 +7,10 @@ source("covarIW_helper.R")  # covariance related helper functions
 
 sourceCpp("C:/Users/ericc/mlike_approx/speedup/fast_covIW.cpp")
 
-
 N = 100                     # number of observations
 D = 5                       # num rows/cols in the covariance matrix
 D_u = 0.5 * D * (D + 1)     # dimension of u that is fed into the tree
-J = 1000
+J = 1e4
 
 
 ## wishart prior parameters
@@ -71,15 +70,12 @@ param_list = list(S = S, N = N, D = D, D_u = D_u, # S, dimension vars
 #                                                silent = TRUE)
 # bridge_result$logml
 
-(true_logml = lil(param_list)) 
+(LIL = lil(param_list)) 
 
 B = 10 # number of replications
-hyb_wt1  = numeric(B)  # store harmonic mean estiator
-hyb_wt2  = numeric(B)  # store harmonic mean estiator
-hyb_avg  = numeric(B)  # store harmonic mean estiator
-# bridge = numeric(B)
+hyb = numeric(B)
 set.seed(1)
-for (b_i in 1:B) {
+for (i in 1:B) {
     
     postIW = sampleIW(J, N, D_u, nu, S, Omega)     # post_samps, Sigma_post, L_post
     
@@ -92,47 +88,32 @@ for (b_i in 1:B) {
     # store the lower cholesky factors in vector form, and the last column is
     # the function evaluate psi(u), so u \in R^(D_u), and psi(u) \in R
     u_df = preprocess(post_samps, D_u, param_list) # J x (D_u + 1)
+    # u_df_fast = preprocess(post_samps, D_u, param_list) # J x (D_u + 1)
     #
     # ## (3b) compute approximation
-    hybrid = logml(D_u, u_df, J, param_list)
+    # hybrid = logml(D_u, u_df, J, param_list)
+    hybrid = hybrid_ml(D_u, u_df, J, param_list)
+    if (any(is.na(hybrid))) {print(paste("error in iteration", i)); next;}
     
-    if (any(is.na(hybrid))) {print(paste("error in iteration", b_i)); next;}
+    hyb[i] = hybrid$zhat
     
-    hybrid$all_approx
-    hybrid$wt_approx1
-    hybrid$wt_approx2
-    hybrid$wt_approx3
-    
-    hyb_wt1[b_i] = hybrid$wt_approx1
-    hyb_wt2[b_i] = hybrid$wt_approx2
-    hyb_wt3[b_i] = hybrid$wt_approx3
-
-    # u_samp = as.matrix(post_samps)
-    # colnames(u_samp) = names(u_df)[1:D_u]
-    # 
-    # bridge_result = bridgesampling::bridge_sampler(samples = u_samp, 
-    #                                                log_posterior = log_density,
-    #                                                data = param_list, 
-    #                                                lb = lb, ub = ub, 
-    #                                                silent = TRUE)
-    # bridge[b_i] = bridge_result$logml
-    # 
-    # if (b_i %% 10 == 0) { 
-    #     print(paste("iter: ", b_i, ' - ',
-    #                 round(mean(bridge[1:b_i]), 3), 
-    #                 sep = '')) 
-    # }
+    avg_hyb = mean(hyb[hyb!=0])
+    print(paste("iter ", i, ': ',
+                "hybrid = ", round(avg_hyb, 3), '; ',
+                "ae = ", LIL - avg_hyb,
+                sep = '')) 
     
 }
 
-LIL = true_logml
-approx = data.frame(bridge)
+
+approx = data.frame(LIL, hyb = hyb[hyb!=0])
 data.frame(approx = colMeans(approx), approx_sd = apply(approx, 2, sd),
            ae = colMeans(LIL - approx),
            rmse = sqrt(colMeans((LIL - approx)^2))) %>% round(3)
 
-
-
+saveRDS(list(J = J, D = D, D_u = D_u, N = N, approx_df = approx), 
+        file = 'covarIW_d5.RData')
+mvnig_d20 = readRDS('covarIW_d5.RData')
 
 
 

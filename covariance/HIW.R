@@ -17,7 +17,7 @@ b = 3          # prior degrees of freedom
 V = diag(1, D) # prior scale matrix 
 
 D_0 = 0.5 * D * (D + 1) # num entries on diagonal and upper diagonal
-J = 2000
+J = 1e4
 
 
 # Given graph testG
@@ -54,7 +54,7 @@ b = 3          # prior degrees of freedom
 V = diag(1, D) # prior scale matrix 
 
 D_0 = 0.5 * D * (D + 1) # num entries on diagonal and upper diagonal
-J = 2000
+J = 1e4
 
 
 # logical vector determining existence of edges between vertices

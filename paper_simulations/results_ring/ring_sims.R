@@ -2,7 +2,7 @@ library(rstan)
 library(rstudioapi) # running  RStan in parallel via Rstudio
 library("ggpmisc")
 options(mc.cores = parallel::detectCores()) 
-
+rstan_options(auto_write = TRUE)
 
 
 setwd("C:/Users/ericc/mlike_approx/algo")
@@ -64,15 +64,15 @@ hml_approx = hml_const(N_approx, D, u_df[1:2000,], J/B, params)
 hml_approx$const_vec
 
 n_samps = 10
-og_part = hml_approx$param_out %>%
-    dplyr::select(-c(psi_choice, logQ_cstar))
-ss_part = fit_resid(og_part, D, n_samps, params)
-ts_part = fit_resid(ss_part, D, n_samps / 2, params)
-log_sum_exp(unlist(compute_expterms(ss_part, D)))
-log_sum_exp(unlist(compute_expterms(ts_part, D)))
-mean(c(hml_approx$const_vec, 
-       log_sum_exp(unlist(compute_expterms(ss_part, D))),
-       log_sum_exp(unlist(compute_expterms(ts_part, D)))))
+# og_part = hml_approx$param_out %>%
+#     dplyr::select(-c(psi_choice, logQ_cstar))
+# ss_part = fit_resid(og_part, D, n_samps, params)
+# ts_part = fit_resid(ss_part, D, n_samps / 2, params)
+# log_sum_exp(unlist(compute_expterms(ss_part, D)))
+# log_sum_exp(unlist(compute_expterms(ts_part, D)))
+# mean(c(hml_approx$const_vec, 
+#        log_sum_exp(unlist(compute_expterms(ss_part, D))),
+#        log_sum_exp(unlist(compute_expterms(ts_part, D)))))
 
 
 # ------------------------------------------------------------------------------

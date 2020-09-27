@@ -331,20 +331,20 @@ u_star = function(rpart_obj, u_df, partition, n_params) {
     #     merge(psi_hat_df, by = 'leaf_id')
     
     ### start updated code 4/27
-    psi_center = u_df %>% dplyr::group_by(leaf_id) %>% 
-        summarise(psi_med  = median(psi_u), 
-                  psi_mean = mean(psi_u),
-                  psi_min  = min(psi_u)) %>% 
-        merge(psi_hat_df, by = 'leaf_id')
+    # psi_center = u_df %>% dplyr::group_by(leaf_id) %>% 
+    #     summarise(psi_med  = median(psi_u), 
+    #               psi_mean = mean(psi_u),
+    #               psi_min  = min(psi_u)) %>% 
+    #     merge(psi_hat_df, by = 'leaf_id')
     
     psi_quant = u_df %>% dplyr::group_by(leaf_id) %>% 
-        do(data.frame(t(quantile(.$psi_u, probs = seq(0.76, 1, 0.02)))))
+        do(data.frame(t(quantile(.$psi_u, probs = seq(0.5, 1, 0.05)))))
     
-    names(psi_quant) = c("leaf_id", paste('psi_', seq(76, 100, 2), sep = ''))
+    names(psi_quant) = c("leaf_id", paste('psi_', seq(50, 100, 5), sep = ''))
     
-    psi_all = merge(psi_center, psi_quant, by = 'leaf_id') 
+    # psi_all = merge(psi_center, psi_quant, by = 'leaf_id') 
+    psi_all = psi_quant
     ### end updated code 4/27
-    
     
     psi_long = melt(psi_all, id.vars = c("leaf_id"), value.name = "psi_star",
                     variable.name = "psi_choice")

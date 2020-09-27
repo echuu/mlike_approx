@@ -1,3 +1,4 @@
+
 setwd("C:/Users/ericc/mlike_approx/algo")
 source("setup.R")
 source("C:/Users/ericc/mlike_approx/mvn_ig/mvn_ig_helper.R") 
@@ -7,12 +8,12 @@ library(Rcpp)
 library(RcppEigen)
 sourceCpp("C:/Users/ericc/mlike_approx/fast_psi.cpp")
 
-library(MLmetrics)
+# library(MLmetrics)
 
 # load this LAST to overwrite def preprocess()
 
 
-J = 1000          # number of MC samples per approximation
+J = 10000          # number of MC samples per approximation
 D = 20
 N = 200 # for testing -- comment this line to perform ext. analysis
 n_samps = 10
@@ -98,6 +99,7 @@ hml_approx$param_out %>%
     dplyr::mutate(perc = n_obs / sum(n_obs))
 
 hml_approx$const_vec      # -256.761
+
 lil(y, X, prior, post)    # -256.7659
 
 
@@ -105,7 +107,7 @@ B = 50 # number of replications
 
 hyb_wt1  = numeric(B)  # store harmonic mean estiator
 hyb_wt2  = numeric(B)  # store harmonic mean estiator
-hyb_avg  = numeric(B)  # store harmonic mean estiator
+hyb_wt3  = numeric(B)  # store harmonic mean estiator
 # hme     = numeric(B) # store hybrid estimator
 # came    = numeric(B) # corrected arithmetic mean estimator
 # came_0  = numeric(B)
@@ -130,7 +132,7 @@ names(lb) <- names(ub) <- colnames(u_samp)
 # hyb_fs  = numeric(B) # store harmonic mean estiator
 # bridge  = numeric(B) # bridge estimator (normal)
 set.seed(1)
-for (b_i in 1:B) {
+for (b_i in 1:10) {
     
     # sample from posterior
     sigmasq_post = MCMCpack::rinvgamma(J, shape = a_n, scale = b_n)
@@ -142,27 +144,41 @@ for (b_i in 1:B) {
     # hml_approx = hml_const(1, D, u_df, J, prior)
     # 
     # hml_approx$const_vec
-    source("setup.R") 
-    set.seed(1)
+    # source("setup.R") 
+    # set.seed(1)
     hybrid = logml(D, u_df, J, prior)
-    hybrid$all_approx
-    # hybrid$u_df_ss %>% head
-    # hybrid$psi_cand_func %>% head
+    
+    if (any(is.na(hybrid))) {print(paste("error in iteration", b_i)); next;}
     
     # hybrid$all_approx
-    hybrid$wt_approx1 # error / (2D)
-    hybrid$wt_approx2 # error / sqrt(D)
-    hybrid$wt_approx3
+    # # hybrid$u_df_ss %>% head
+    # # hybrid$psi_cand_func %>% head
+    # 
+    # hybrid$approx_error
+    # hybrid$wt_approx1    # error / (2D)
+    # hybrid$wt_approx2    # error / sqrt(D)
+    # hybrid$wt_approx3
     
-    hybrid$u_df_ss
+    # hybrid$psi_approx %>% head
+    # hybrid$psi_true %>% head
+    # hybrid$approx_cand
+    # 
+    # hybrid$approx_cand %>% head
     
+    wt_approx = compute_error(hybrid, D)
+    wt_approx$all_approx
+    wt_approx$wt_approx1
+    wt_approx$wt_approx2
+    wt_approx$wt_approx3
     
-    lil(y, X, prior, post)    # -256.7659
-    
-    hybrid$wt_approx1
+    # 
+    # lil(y, X, prior, post)    # -256.7659
+    # 
+    # hybrid$wt_approx1
 
     hyb_wt1[b_i] = hybrid$wt_approx1
     hyb_wt2[b_i] = hybrid$wt_approx2
+    hyb_wt3[b_i] = hybrid$wt_approx3
 
     #### (3) corrected arithmetic mean estimator (IS)
     # came_result = came_approx(u_df, hml_approx, prior, post, J, D)
@@ -184,22 +200,20 @@ for (b_i in 1:B) {
     #                 sep = '')) 
     # }
     print(paste("iter ", b_i, ': ',
-                "hybrid_wt1 = ", round(mean(hyb_wt1[1:b_i]), 3), '; ',
-                "hybrid_wt2 = ", round(mean(hyb_wt2[1:b_i]), 3), '; ',
+                "hybrid_wt1 = ", round(mean(hyb_wt1[hyb_wt1!=0]), 3), '; ',
+                "hybrid_wt2 = ", round(mean(hyb_wt2[hyb_wt2!=0]), 3), '; ',
+                "hybrid_wt3 = ", round(mean(hyb_wt3[hyb_wt3!=0]), 3), '; ',
                 sep = '')) 
 }
 
-LIL = lil(y, X, prior, post)    # -256.7659
-approx = data.frame(LIL, hyb_wt1, hyb_wt2, hyb_avg)
+LIL = lil(y, X, prior, post)
+approx = data.frame(LIL, 
+                    hyb_wt1 = hyb_wt1[hyb_wt1!=0], 
+                    hyb_wt2 = hyb_wt2[hyb_wt2!=0], 
+                    hyb_wt3 = hyb_wt3[hyb_wt3!=0])
 data.frame(approx = colMeans(approx), approx_sd = apply(approx, 2, sd),
            ae = colMeans(LIL - approx),
            rmse = sqrt(colMeans((LIL - approx)^2))) %>% round(3)
-
-
-
-
-
-
 
 
 

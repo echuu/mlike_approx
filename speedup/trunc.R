@@ -5,8 +5,10 @@ source("setup.R")
 # look in this file for psi()
 source("C:/Users/ericc/mlike_approx/truncate/regTN_helper.R")
 
+sourceCpp("C:/Users/ericc/mlike_approx/speedup/trunc_psi.cpp")
+
 set.seed(123)
-D = 5
+D = 20
 N = 200
 I_D = diag(1, D)
 
@@ -48,14 +50,22 @@ prior = list(y = y, X = X, sigmasq = sigmasq, tau = tau, N = N, D = D,
 
 
 samples = rtmvnorm(J, c(mu_beta), Q_beta_inv, rep(0, D), rep(Inf, D))
+
 u_df = preprocess(data.frame(samples), D, prior)
 
+u_df_fast = preprocess(data.frame(samples), D, prior)
+
+all.equal(u_df_fast$psi_u, u_df$psi_u, tolerance = 1e-4)
 
 head(u_df)
+head(u_df_fast)
 
 hml_approx = hml_const(1, D, u_df, J, prior)
 hml_approx$const_vec ## check this output after doing slow vs. fast psi
 
+
+hml_approx = hml_const(1, D, u_df_fast, J, prior)
+hml_approx$const_vec ## check this output after doing slow vs. fast psi
 
 
 

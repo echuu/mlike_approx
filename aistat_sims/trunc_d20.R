@@ -1,20 +1,26 @@
 
+
+library(TruncatedNormal)
+library(tmg)
+library(mvtnorm)
+
+
 setwd("C:/Users/ericc/mlike_approx/algo")
-source("setup.R")
+source("setup.R")     
 source("C:/Users/ericc/mlike_approx/truncate/regTN_helper.R")
 
-# setwd("/home/grad/ericchuu/mlike_approx/algo")
-# source("setup.R")           # setup global environment, load in algo functions
-# source("/home/grad/ericchuu/mlike_approx/truncate/regTN_helper.R")
+sourceCpp("C:/Users/ericc/mlike_approx/speedup/trunc_psi.cpp")
+
+
 
 set.seed(123)
-D = 2
-N = 200
+D = 20
+N = 500
 I_D = diag(1, D)
 
 n_samps = 10
-J       = 1000
-B       = 1000 # number of replications
+J       = 5000
+B       = 100 # number of replications
 
 hyb_fs  = numeric(B) # store harmonic mean estiator
 hyb_ss  = numeric(B) # store harmonic mean estiator
@@ -26,7 +32,6 @@ hyb     = numeric(B) # store harmonic mean estiator
 
 # prior mean
 mu_0 = rep(0, D)
-
 tau     = 1 / 4          # precision: inverse of variance
 sigmasq = 4              # true variance (1 x 1) 
 
@@ -62,49 +67,54 @@ lil_0 = -0.5 * N * log(2 * pi) - 0.5 * (N + D) * log(sigmasq) +
     0.5 * D * log(tau) - 0.5 * log_det(Q_beta) - 
     1 / (2 * sigmasq) * sum(y^2) + 0.5 * sum(b * mu_beta)
 
-(true_logml  = lil_0 + D * log(2) + 
+(LIL  = lil_0 + D * log(2) + 
         log(TruncatedNormal::pmvnorm(mu_beta, Q_beta_inv, 
                                      lb = rep(0, D), ub = rep(Inf, D))[1]))
 
+# samples = rtmvnorm(J, c(mu_beta), Q_beta_inv, rep(0, D), rep(Inf, D))
+# u_df = preprocess(data.frame(samples), D, prior)
+# hml_approx = hml_const(1, D, u_df, J, prior)
+# hml_approx$const_vec
 
-B = 50 # number of replications
 
-hyb_wt1  = numeric(B)  # store harmonic mean estiator
-hyb_wt2  = numeric(B)  # store harmonic mean estiator
-hyb_avg  = numeric(B)  # store harmonic mean estiator
-
+B = 100
+hyb = numeric(B)
 set.seed(1)
-for (b_i in 1:B) {
+
+for (i in 1:10) {
     
     # sample from posterior
     samples = rtmvnorm(J, c(mu_beta), Q_beta_inv, rep(0, D), rep(Inf, D))
-    
     u_df = preprocess(data.frame(samples), D, prior)
-    # hml_approx = hml_const(1, D, u_df, J, prior)
     
-    hybrid = logml(D, u_df, J, prior)
+    #### (1) hybrid estimator
+    hybrid = hybrid_ml(D, u_df, J, prior)
     
-    hybrid$all_approx %>% dplyr::select(-c(wt, wt2))
-    hybrid$wt_approx2
-    hybrid$wt_approx1
+    if (any(is.na(hybrid))) {print(paste("error in iteration", i)); next;}
     
-    hyb_wt1[b_i] = hybrid$wt_approx1
-    hyb_wt2[b_i] = hybrid$wt_approx2
-    hyb_avg[b_i] = hybrid$avg_approx
+    hyb[i] = hybrid$zhat
     
-    print(paste("iter ", b_i, ': ',
-                "hybrid_wt1 = ", round(mean(hyb_wt1[1:b_i]), 3), '; ',
-                "hybrid_wt2 = ", round(mean(hyb_wt2[1:b_i]), 3), '; ',
-                "hybrid_avg = ", round(mean(hyb_avg[1:b_i]), 3), '; ',
+    avg_hyb = mean(hyb[hyb!=0])
+    print(paste("iter ", i, ': ',
+                "hybrid = ", round(avg_hyb, 3), '; ',
+                "ae = ", LIL - avg_hyb,
                 sep = '')) 
 }
 
-LIL = true_logml
-
-approx = data.frame(LIL, hyb_wt1, hyb_wt2, hyb_avg)
+approx = data.frame(LIL, hyb = hyb[hyb!=0])
 data.frame(approx = colMeans(approx), approx_sd = apply(approx, 2, sd),
            ae = colMeans(LIL - approx),
            rmse = sqrt(colMeans((LIL - approx)^2))) %>% round(3)
+
+saveRDS(list(J = J, D = D, N = N, approx_df = approx), 
+        file = 'trunc_d20.RData')
+mvnig_d20 = readRDS('trunc_d20.RData')
+
+
+
+
+
+
 
 
 

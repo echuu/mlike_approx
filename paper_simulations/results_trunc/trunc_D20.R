@@ -1,6 +1,5 @@
 
 
-
 library(TruncatedNormal)
 library(tmg)
 library(mvtnorm)
@@ -25,7 +24,7 @@ I_D = diag(1, D)
 
 n_samps = 10
 J       = 5000
-B       = 100 # number of replications
+B       = 1000 # number of replications
 
 hyb_fs  = numeric(B) # store harmonic mean estiator
 hyb_ss  = numeric(B) # store harmonic mean estiator
@@ -110,22 +109,22 @@ for (b_i in 1:B) {
     
     # sample from posterior
     samples = rtmvnorm(J, c(mu_beta), Q_beta_inv, rep(0, D), rep(Inf, D))
-
+    
     u_df = preprocess(data.frame(samples), D, prior)
     # hml_approx = hml_const(1, D, u_df, J, prior)
     
     hybrid = logml(D, u_df, J, prior)
     
-    if (any(is.na(hybrid))) {print(paste("error in iteration", i)); next;}
+    if (any(is.na(hybrid))) {print(paste("error in iteration", b_i)); next;}
     
-    hybrid$all_approx
+    # hybrid$all_approx
     # hybrid$u_df_ss %>% head
     # hybrid$psi_cand_func %>% head
     
     # hybrid$all_approx
-    hybrid$wt_approx1 # error / (2D)
-    hybrid$wt_approx2 # error / sqrt(D)
-    hybrid$wt_approx3
+    # hybrid$wt_approx1 # error / (2D)
+    # hybrid$wt_approx2 # error / sqrt(D)
+    # hybrid$wt_approx3
     
     hyb_wt1[b_i] = hybrid$wt_approx1
     hyb_wt2[b_i] = hybrid$wt_approx2
@@ -165,7 +164,7 @@ for (b_i in 1:B) {
 }
 
 
-LIL = lil(y, X, prior, post)
+LIL = true_logml
 approx = data.frame(LIL, 
                     hyb_wt1 = hyb_wt1[hyb_wt1!=0], 
                     hyb_wt2 = hyb_wt2[hyb_wt2!=0], 
@@ -175,50 +174,10 @@ data.frame(approx = colMeans(approx), approx_sd = apply(approx, 2, sd),
            rmse = sqrt(colMeans((LIL - approx)^2))) %>% round(3)
 
 
-LIL = true_logml
+# LIL = true_logml
 # approx = c(mean(bridge), mean(bridge_trunc), )
-approx = data.frame(bridge, bridge_trunc, hyb_fs)
-data.frame(approx = colMeans(approx), approx_sd = apply(approx, 2, sd),
-           ae = colMeans(LIL - approx),
-           rmse = sqrt(colMeans((LIL - approx)^2))) %>% round(3)
-           
-
-
-round((mean(hyb) + median(hyb))/2, 3)
-# round(mean(hme), 3)
-# mean(ame)
-# round(mean(came), 3)
-
-x1 = round(mean(hyb_fs), 3)
-x2 = round(mean(hyb_ss), 3)
-x3 = round(mean(hyb_ts), 3)
-mean(hyb)
-
-(mean(c(x1,x2,x3)) + median(c(x1, x2, x3)))/2
-
-pred_df = do.call(cbind, list(hyb_fs, hyb_ss, hyb_ts))
-pred_df %>% head
-
-pred_bar = apply(pred_df, 1, mean)
-pred_med = apply(pred_df, 1, median)
-
-pred_vec = (pred_bar + pred_med)/2
-mean(pred_vec)
-sd(pred_vec)
-round(mean(LIL - pred_vec), 3)
-round(sqrt(mean((LIL - pred_vec)^2)), 3)
-
-# round(mean(LIL - hme), 3)
-# mean(LIL - ame)
-round(mean(LIL - came), 3)
-
-round(sqrt(mean((LIL - hyb)^2)), 3)
-round(sqrt(mean((LIL - hme)^2)), 3)
-# sqrt(mean((LIL - ame)^2))
-round(sqrt(mean((LIL - came)^2)), 3)
-
-
-
-
-
+# approx = data.frame(bridge, bridge_trunc, hyb_fs)
+# data.frame(approx = colMeans(approx), approx_sd = apply(approx, 2, sd),
+#            ae = colMeans(LIL - approx),
+#            rmse = sqrt(colMeans((LIL - approx)^2))) %>% round(3)
 
