@@ -31,6 +31,7 @@ float cov_loglik (Rcpp::NumericVector& u, Rcpp::List& params) {
 	return loglik;
 }
 
+
 float cov_logprior(Rcpp::NumericVector& u, Rcpp::List& params) {
 	arma::mat Omega = params["Omega"];
 	unsigned int nu = params["nu"];
@@ -42,7 +43,6 @@ float cov_logprior(Rcpp::NumericVector& u, Rcpp::List& params) {
 	
 	float logC = 0.5 * nu * log_det(Omega).real() - 0.5 * (nu * D) * log(2) - 
 				logmultigamma(D, nu / 2);
-
 
 	/**** Computing log of Jacobian term ****/
 	float jac = 0;
@@ -57,19 +57,20 @@ float cov_logprior(Rcpp::NumericVector& u, Rcpp::List& params) {
 	return logprior;
 }
 
-/* Populars lower diagonal of N x N matrix L with values from u
-  and returns log of diagonal terms of L
-	param:
+/* Populars lower diagonal of N x N matrix L with values from u,
+	params:
 		L: N x N arma matrix
 		u: numeric vector
+	returns:
+		sum of log diag values
 */
 float create_loTriag(arma::mat& L, Rcpp::NumericVector& u) {
 	if (L.n_rows != L.n_cols)
 		throw std::invalid_argument("Unequal dimensions");
 
-	float logDiagL = 1;
 	unsigned int D = L.n_rows;
 	unsigned int k = 0;	
+	float logDiagL = 1;
 
 	for (unsigned int j = 0; j < D; j++) {
 		logDiagL *= u[k];
@@ -77,16 +78,15 @@ float create_loTriag(arma::mat& L, Rcpp::NumericVector& u) {
 			L(i, j) = u[k++];	
 		}
 	}
-
 	return std::log(logDiagL);
 }
 
 /* log multivariate gamma function
-
+	params:
 */
 inline float logmultigamma (unsigned int p, float a) {
 	float f = 0.25 * p * (p - 1) * std::log(M_PI);
-	for (unsigned int i = 0; i < p; i++)
+	for (unsigned int i = 1; i <= p; i++)
 		f += lgamma(a+0.5-(0.5 * i));
 	return f;
 }
