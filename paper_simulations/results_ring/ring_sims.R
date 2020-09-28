@@ -25,7 +25,7 @@ psi = function(u, prior) {
 
 
 
-B = 100
+B = 250
 J         = B * 2000     # number of MC samples per approximation
 N_approx  = 1            # number of approximations
 burn_in   = 3000         # number of burn in draws
@@ -57,10 +57,10 @@ u_samp = rstan::extract(ring_fit, pars = c("u"), permuted = TRUE)
 u_post = u_samp$u %>% data.frame() # (J * N_approx) x 2
 u_post %>% dim
 u_df = preprocess(u_post, D, params)
-getwd()
-save.image()
+# getwd()
+# save.image()
 
-hml_approx = hml_const(N_approx, D, u_df[1:2000,], J/B, params)
+hml_approx = hml_const(N_approx, D, u_df_list[[9]], J/B, params)
 hml_approx$const_vec
 
 n_samps = 10
@@ -101,11 +101,7 @@ u_df_list = split.data.frame(u_df, xsplit)
 
 i = 1
 hyb     = numeric(B) # store hybrid estimator
-hyb_fs  = numeric(B) # store fs estimator
-hyb_ss  = numeric(B) # store ss estimator
-hyb_ts  = numeric(B) # store ts estimator
 set.seed(1)
-n_samps = 10
 for(i in 104:B) {
     
     # hml_approx = hml_const(N_approx, D, u_df_list[[i]], J/B, params)

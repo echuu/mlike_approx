@@ -1,6 +1,7 @@
 
 setwd("C:/Users/ericc/mlike_approx/algo")
-source("setup.R")         
+source("setup.R")  
+library(rstan)
 
 rstan_options(auto_write = TRUE)
 
@@ -25,7 +26,8 @@ psi = function(u, prior) {
 
 
 # STAN SETTINGS ----------------------------------------------------------------
-J         = 2000 * B     # number of MC samples per approximation
+B = 10
+J         = 5000 * B     # number of MC samples per approximation
 N_approx  = 1            # number of approximations
 burn_in   = 5000         # number of burn in draws
 n_chains  = 8            # number of markov chains to run
@@ -77,7 +79,7 @@ mean(c(hml_approx$const_vec,
 B = 100
 bridge  = numeric(B) # bridge estimator (normal)
 
-J         = 2000 * B     # number of MC samples per approximation
+J         = 5000 * B     # number of MC samples per approximation
 N_approx  = 1            # number of approximations
 burn_in   = 5000         # number of burn in draws
 n_chains  = 8            # number of markov chains to run
