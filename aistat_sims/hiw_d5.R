@@ -19,7 +19,7 @@ b = 3          # prior degrees of freedom
 V = diag(1, D) # prior scale matrix 
 
 D_0 = 0.5 * D * (D + 1) # num entries on diagonal and upper diagonal
-J = 5000
+J = 30
 
 
 # logical vector determining existence of edges between vertices
@@ -60,8 +60,26 @@ u_df = preprocess(post_samps, D_u, params)     # J x (D_u + 1)
 hybrid = hybrid_ml(D_u, u_df, J, params)
 hybrid$zhat
 
+u_samp = as.matrix(post_samps)
+colnames(u_samp) = names(u_df)[1:D_u]
+# prepare bridge_sampler input()
+lb = rep(-Inf, D_u)
+ub = rep(Inf, D_u)
+names(lb) <- names(ub) <- colnames(u_samp)
+
+bridge_result = bridgesampling::bridge_sampler(samples = u_samp, 
+                                               log_posterior = log_density,
+                                               data = params, 
+                                               lb = lb, ub = ub, 
+                                               silent = TRUE)
+bridge_result$logml
+
+
+
+
 B = 10 # number of replications
 hyb = numeric(B)
+bridge = numeric(B)
 set.seed(1)
 
 for (i in 1:B) {
@@ -77,13 +95,26 @@ for (i in 1:B) {
     
     hyb[i] = hybrid$zhat
     
+    u_samp = as.matrix(post_samps)
+    colnames(u_samp) = names(u_df)[1:D_u]
+    lb = rep(-Inf, D_u)
+    ub = rep(Inf, D_u)
+    names(lb) <- names(ub) <- colnames(u_samp)
+    bridge_result = bridgesampling::bridge_sampler(samples = u_samp, 
+                                                   log_posterior = log_density,
+                                                   data = params, 
+                                                   lb = lb, ub = ub, 
+                                                   silent = TRUE)
+    bridge[i] = bridge_result$logml
+    
+    
     avg_hyb = mean(hyb[hyb!=0])
     print(paste("iter ", i, ': ',
                 "hybrid = ", round(avg_hyb, 3), '; ',
                 "ae = ", LIL - avg_hyb,
                 sep = '')) 
 }
-approx = data.frame(LIL, hyb = hyb[hyb!=0])
+approx = data.frame(LIL, hyb = hyb[hyb!=0], bridge = bridge[bridge!=0])
 data.frame(approx = colMeans(approx), approx_sd = apply(approx, 2, sd),
            ae = colMeans(LIL - approx),
            rmse = sqrt(colMeans((LIL - approx)^2))) %>% round(3)

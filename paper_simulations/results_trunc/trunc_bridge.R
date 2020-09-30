@@ -33,12 +33,15 @@ u_samp = rtmvnorm(J, c(mu_beta), Q_beta_inv, rep(0, D), rep(Inf, D))
 colnames(u_samp) = names(u_df)[1:D]
 
 # prepare bridge_sampler input()
-lb = rep(-Inf, D)
+lb = rep(0, D)
 ub = rep(Inf, D)
-names(lb) <- names(ub) <- colnames(u_samp)
+colnames(samples) = names(u_df)[1:D]
+names(lb) <- names(ub) <- colnames(samples)
 
-bridge_result <- bridgesampling::bridge_sampler(samples = u_samp, log_posterior = log_density,
+bridge_result <- bridgesampling::bridge_sampler(samples = samples, 
+                                                log_posterior = log_density,
                                 data = prior, lb = lb, ub = ub, silent = TRUE)
+bridge_result$logml
 
 # bridge_result <- bridgesampling::bridge_sampler(samples = u_samp, log_posterior = log_density,
 #                                                 data = prior, lb = lb, ub = ub, silent = TRUE)

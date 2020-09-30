@@ -15,7 +15,7 @@ sourceCpp("C:/Users/ericc/mlike_approx/fast_psi.cpp")
 
 J = 10000          # number of MC samples per approximation
 D = 20
-N = 200 # for testing -- comment this line to perform ext. analysis
+N = 100 # for testing -- comment this line to perform ext. analysis
 n_samps = 10
 
 set.seed(123)
@@ -181,9 +181,9 @@ for (b_i in 1:10) {
     hyb_wt3[b_i] = hybrid$wt_approx3
 
     #### (3) corrected arithmetic mean estimator (IS)
-    # came_result = came_approx(u_df, hml_approx, prior, post, J, D)
-    # came[b_i] = came_result[1]
-    # came_0[b_i] = came_result[2]
+    came_result = came_approx(u_df, hml_approx, prior, post, J, D)
+    came[b_i] = came_result[1]
+    came_0[b_i] = came_result[2]
     
     #### (4) bridge sampling estimator
     # u_samp = as.matrix(u_samp)

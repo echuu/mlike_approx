@@ -63,7 +63,7 @@ hyb = numeric(B)
 set.seed(1)
 for (i in 1:B) {
     
-    hybrid = hybrid_ml(D, u_df_list[[i]], J/B, params)
+    hybrid = hybrid_ml(D, u_df_list[[4]], J/B, params)
     
     if (any(is.na(hybrid))) {print(paste("error in iteration", i)); next;}
     

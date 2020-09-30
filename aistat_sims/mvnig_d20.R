@@ -14,8 +14,8 @@ sourceCpp("C:/Users/ericc/mlike_approx/fast_psi.cpp")
 
 
 J = 10000          # number of MC samples per approximation
-D = 25
-N = 500
+D = 20
+N = 100
 
 
 set.seed(123)

@@ -133,3 +133,8 @@ hme_approx = function(u_df, prior, J, D, N) {
     return(hme_estimate)
     
 } # end of hme() function ------------------------------------------------------
+
+
+
+
+

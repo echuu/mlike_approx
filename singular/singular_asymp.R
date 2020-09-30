@@ -23,7 +23,7 @@ other_sampler = 'C:/Users/ericc/mlike_approx/singular/gamma_d.stan'
 # source("partition/partition.R")         # load partition extraction functions
 # source("hybrid_approx_v1.R")               # load main algorithm functions
 # source("extractPartition.R")
-source("C:/Users/ericc/mlike_approx/singular/singular_helper.R")    # load psi(), lambda()
+source("C:/Users/ericc/mlike_approx/singular/singular_helper.R")
 
 # x11()
 

@@ -25,8 +25,8 @@ psi = function(u, prior) {
 
 
 
-B = 250
-J         = B * 2000     # number of MC samples per approximation
+B = 100
+J         = B * 5000     # number of MC samples per approximation
 N_approx  = 1            # number of approximations
 burn_in   = 3000         # number of burn in draws
 n_chains  = 8            # number of markov chains to run
@@ -60,8 +60,10 @@ u_df = preprocess(u_post, D, params)
 # getwd()
 # save.image()
 
-hml_approx = hml_const(N_approx, D, u_df_list[[9]], J/B, params)
+hml_approx = hml_const(N_approx, D, u_df_list[[3]], J/B, params)
 hml_approx$const_vec
+hybrid = hybrid_ml(D, u_df_list[[7]], J/B, params)
+hybrid$zhat
 
 n_samps = 10
 # og_part = hml_approx$param_out %>%

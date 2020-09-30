@@ -23,7 +23,7 @@ N = 200
 I_D = diag(1, D)
 
 n_samps = 10
-J       = 5000
+J       = 100
 B       = 1000 # number of replications
 
 hyb_fs  = numeric(B) # store harmonic mean estiator

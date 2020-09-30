@@ -67,10 +67,10 @@ N_vec     = floor(exp(N_vec_log))   # sample size to use to generate data
 logZ_0    = numeric(length(N_vec))  # store true value of log normalizing const
 print(length(N_vec))                # number of different sample sizes
 
-
+n_reps = 100
 J = 1e4 * n_reps         # number of total MC samples
 J_iter = 1 / n_chains * N_approx * J + burn_in 
-n_reps = 100
+
 
 approx_hybrid = matrix(NA, n_reps, length(N_vec))
 

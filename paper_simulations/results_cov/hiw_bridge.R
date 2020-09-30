@@ -28,6 +28,8 @@ bridge_result = bridgesampling::bridge_sampler(samples = u_samp,
                                                lb = lb, ub = ub, 
                                                silent = TRUE)
 bridge_result$logml
+
+
 logmarginal(Y, testG, b, V, S)
 gnorm_approx
 hml_approx$const_vec
