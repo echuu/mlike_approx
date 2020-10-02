@@ -19,8 +19,10 @@ N = 100
 I_D = diag(1, D)
 
 n_samps = 10
-J       = 10000
+J       = 50
 B       = 100 # number of replications
+
+source("C:/Users/ericc/mlike_approx/paper_simulations/table2/mvn_estimators.R") 
 
 
 #### generate data -------------------------------------------------------------
@@ -76,11 +78,42 @@ ub = rep(Inf, D)
 colnames(samples) = names(u_df)[1:D]
 names(lb) <- names(ub) <- colnames(samples)
 
-bridge_result <- bridgesampling::bridge_sampler(samples = samples, 
-                                                log_posterior = log_density,
-                                                data = prior, lb = lb, ub = ub, silent = TRUE)
+log_density = function(u, data) {
+    -psi(u, data)
+}
+
+bridge_result <- bridge_sampler(samples = samples, log_posterior = log_density,
+                                data = prior, lb = lb, ub = ub, silent = TRUE)
 bridge_result$logml
 
+hme_approx(u_df, prior, J, D, N)
+
+
+# ------------------------------------------------------------------------------
+# CAME function
+# param_support = extractSupport(u_df, D) #
+came_approx = function(u_df, prior, post, J, D) {
+    
+    A_beta = extractSupport(u_df, D) # data defined support (D x 2)
+    post_mean = unlist(unname(colMeans(u_df[,1:D])))
+    post_cov = cov(u_df[,1:D])
+    # imp_samp = rmvnorm(J, mean = post_mean, sigma = post$Q_beta_inv) 
+    
+    imp_samp = rtmvnorm(J, c(post_mean), post_cov, rep(0, D), rep(Inf, D))
+    
+    u_df_imp = preprocess(data.frame(imp_samp), D, prior)
+    
+    log_s_theta = dtmvnorm(imp_samp, post_mean, post_cov, 
+                           lb, ub, log = T, type = c("mc", "qmc"), B = 10000)
+    
+    include_d = rep(TRUE, J)
+    for (d in 1:D) {
+        include_d = include_d & 
+            (imp_samp[,d] >= A_beta[d,1]) & (imp_samp[,d] <= A_beta[d,2])
+    }
+    
+    -log(sum(include_d)) + log_sum_exp((-u_df_imp$psi_u - log_s_theta)[include_d])
+}
 
 # samples = rtmvnorm(J, c(mu_beta), Q_beta_inv, rep(0, D), rep(Inf, D))
 # u_df = preprocess(data.frame(samples), D, prior)
@@ -91,6 +124,9 @@ bridge_result$logml
 B = 100
 hyb = numeric(B)
 bridge = numeric(B)
+hme = numeric(B)
+came = numeric(B)
+came0 = numeric(B)
 set.seed(1)
 
 for (i in 1:B) {
@@ -99,45 +135,70 @@ for (i in 1:B) {
     samples = rtmvnorm(J, c(mu_beta), Q_beta_inv, rep(0, D), rep(Inf, D))
     u_df = preprocess(data.frame(samples), D, prior)
     
-    #### (1) hybrid estimator
+    # #### (1) hybrid estimator
     # hybrid = hybrid_ml(D, u_df, J, prior)
     # if (any(is.na(hybrid))) {print(paste("error in iteration", i)); next;}
     # hyb[i] = hybrid$zhat
+    # 
+    # lb = rep(0, D)
+    # ub = rep(Inf, D)
+    # colnames(samples) = names(u_df)[1:D]
+    # names(lb) <- names(ub) <- colnames(samples)
+    # 
+    # # bridge_result <- bridge_approx(samples, log_density, prior, lb, ub)
+    # # if (!is.na(bridge_result)) {
+    # #     bridge[i] = bridge_result
+    # # }
+    # 
+    # bridge_result <- bridgesampling::bridge_sampler(samples = samples, 
+    #                                                 log_posterior = log_density,
+    #                                                 data = prior, 
+    #                                                 lb = lb, ub = ub, 
+    #                                                 silent = TRUE)
+    # bridge[i] = bridge_result$logml
     
-    lb = rep(0, D)
-    ub = rep(Inf, D)
-    colnames(samples) = names(u_df)[1:D]
-    names(lb) <- names(ub) <- colnames(samples)
+    # hme[i] = hme_approx(u_df, prior, J, D, N)
+    came[i] = came_approx(u_df, prior, post, J, D)
     
-    bridge_result <- bridgesampling::bridge_sampler(samples = samples, 
-                                                    log_posterior = log_density,
-                                                    data = prior, 
-                                                    lb = lb, ub = ub, 
-                                                    silent = TRUE)
-    bridge[i] = bridge_result$logml
-    
-    
-    
-    # avg_hyb = mean(hyb[hyb!=0])
-    avg_bridge = mean(bridge[bridge!=0])
     print(paste("iter ", i, ': ',
-                # "hybrid = ", round(avg_hyb, 3), '; ', "ae = ", LIL - avg_hyb, ' // ',
-                "bridge = ", round(bridge, 3), '; ', "ae = ", LIL - avg_bridge,
+                # "hybrid = ", round(mean(hyb[hyb!=0]), 3), 
+                # '; ', "mae = ", round(mean(abs(LIL - hyb[hyb!=0])), 4),
+                # ' // ',
+                # "bridge = ", round(mean(bridge[bridge!=0]), 3), '; ', 
+                # "mae = ", round(mean(abs(LIL - bridge[bridge!=0])), 4),
+                "came = ", round(mean(came[came!=0]), 3), '; ', 
+                "mae = ", round(mean(abs(LIL - came[came!=0])), 4),
                 sep = '')) 
 }
 
 approx = data.frame(LIL, hyb = hyb[hyb!=0], bridge = bridge[bridge!=0])
-data.frame(approx = colMeans(approx), approx_sd = apply(approx, 2, sd),
-           ae = colMeans(LIL - approx),
+approx = data.frame(LIL, came = came[came!=0])
+data.frame(approx = colMeans(approx), 
+           approx_sd = apply(approx, 2, sd),
+           mae = colMeans(abs(LIL - approx)),
            rmse = sqrt(colMeans((LIL - approx)^2))) %>% round(3)
+
+
+approx_long = (approx[,-1] - LIL) %>% melt()
+ggplot(approx_long, aes(x = variable, y = value)) + geom_boxplot() +
+    geom_hline(yintercept = 0) + 
+    scale_y_continuous(breaks = seq(-4, 12, 0.5))
+
 
 saveRDS(list(J = J, D = D, N = N, approx_df = approx), 
         file = 'trunc_d20.RData')
 mvnig_d20 = readRDS('trunc_d20.RData')
 
 
-# bridge stuff
 
+approx = approx %>% mutate(iter = 1:B)
+approx_long = approx %>% melt(id.vars = 'iter')
+ggplot(approx_long, aes(x = iter, y = value, col = variable)) + geom_point() +
+    geom_hline(aes(yintercept = LIL), linetype = 'dashed', size = 0.9) + 
+    theme(legend.position = c(.2,.85))
+
+
+# bridge stuff
 approx = data.frame(LIL, bridge = bridge[bridge!=0])
 
 trunc = readRDS('trunc_d20_n100.RData')

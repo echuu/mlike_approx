@@ -122,14 +122,21 @@ saveRDS(list(J = J, lil_df = lil_df, approx_df = approx_hybrid),
 singular_d2 = readRDS('singular_d2.RData')
 
 
+## read in singular data
+setwd("C:/Users/ericc/Dropbox/eric chuu research/aistats/rdata_files")
+singular = readRDS("singular_d2.RData")
+singular$lil_df %>% head
 
+lil_df_long = melt(singular$lil_df, id.vars = 'logn')
+lil_df_long %>% head
 formula1 = y ~ x
+library(ggpmisc)
 
 ggplot(lil_df_long, aes(x = logn, y = value, 
                         color = as.factor(variable))) + geom_point(size = 0.7) + 
     geom_smooth(method = lm, se = F, formula = formula1) +
     labs(x = "log(n)", y = "log(Z)", 
-         title = "True (Red), Hybrid (Blue), Taylor (Green), Constant (Purple)") + 
+         title = "True (Red), Hybrid (Blue)") + 
     stat_poly_eq(aes(label = paste(..eq.label.., sep = "~~~")), 
                  label.x.npc = "right", label.y.npc = "top",
                  eq.with.lhs = "logZ~`=`~",

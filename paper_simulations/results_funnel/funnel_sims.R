@@ -1,16 +1,16 @@
 
+setwd("C:/Users/ericc/Dropbox/eric chuu research/aistats/rdata_files")
+funnel_mat = read.csv("funnel.csv")[,-1] %>% as.matrix
+funnel = read.csv("funnel.csv")[,-1] %>% data.frame()
+
 setwd("C:/Users/ericc/mlike_approx/algo")
-source("setup.R")  
-library(rstan)
-
-rstan_options(auto_write = TRUE)
-
+source("setup.R")
 
 # sample data
 a = 1
 b = 0.5
-d = 16
-params = list(a = a, b = b, D = d)
+D = 16
+params = list(a = a, b = b, D = D)
 psi = function(u, prior) {
     
     # log prior
@@ -23,6 +23,29 @@ psi = function(u, prior) {
     
     return(- logprior - loglik)
 }
+
+
+u_df = preprocess(funnel, D, params)
+J = u_df %>% nrow
+
+hybrid = hybrid_ml(D, u_df[sample(1:J, 100),], 100, params)
+hybrid$zhat
+
+
+log_density = function(u, data) {
+    -psi(u, data)
+}
+
+lb <- c(-4, rep(-30, D-1))
+ub <- c(4, rep(30, D-1))
+colnames(funnel_mat) = names(u_df)[1:D]
+names(lb) <- names(ub) <- colnames(funnel_mat)
+
+bridge_result = bridge_sampler(samples = funnel_mat,
+                               log_posterior = log_density,
+                               data = params, lb = lb, ub = ub, 
+                               silent = TRUE)
+bridge_result$logml
 
 
 # STAN SETTINGS ----------------------------------------------------------------

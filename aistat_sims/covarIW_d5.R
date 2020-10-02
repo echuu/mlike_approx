@@ -10,7 +10,7 @@ sourceCpp("C:/Users/ericc/mlike_approx/speedup/fast_covIW.cpp")
 N = 100                     # number of observations
 D = 5                       # num rows/cols in the covariance matrix
 D_u = 0.5 * D * (D + 1)     # dimension of u that is fed into the tree
-J = 100
+J = 50
 
 
 ## wishart prior parameters
@@ -42,38 +42,39 @@ S = t(X) %*% X                                  # (p x p)
 param_list = list(S = S, N = N, D = D, D_u = D_u, # S, dimension vars
                   Omega = Omega, nu = nu)         # prior params
 
-# log_density = function(u, data) {
-#     -psi(u, data)
-# }
+log_density = function(u, data) {
+    -psi(u, data)
+}
 
 
-# ## (2) obtain posterior samples
-# postIW = sampleIW(J, N, D_u, nu, S, Omega)     # post_samps, Sigma_post, L_post
-# 
-# # these are the posterior samples stored as vectors (the lower cholesky factors
-# # have been collapsed into D_u dimensional vectors)
-# post_samps = postIW$post_samps                 # (J x D_u)
-# u_samp = as.matrix(post_samps)
-# colnames(u_samp) = names(u_df)[1:D_u]
-# # prepare bridge_sampler input()
-# lb = rep(-Inf, D_u)
-# ub = rep(Inf, D_u)
-# 
+## (2) obtain posterior samples
+postIW = sampleIW(J, N, D_u, nu, S, Omega)     # post_samps, Sigma_post, L_post
+
+# these are the posterior samples stored as vectors (the lower cholesky factors
+# have been collapsed into D_u dimensional vectors)
+post_samps = postIW$post_samps                 # (J x D_u)
+u_df = preprocess(post_samps, D_u, param_list)
+u_samp = as.matrix(post_samps)
+colnames(u_samp) = names(u_df)[1:D_u]
+# prepare bridge_sampler input()
+lb = rep(-Inf, D_u)
+ub = rep(Inf, D_u)
+
 # diag_ind = getDiagIndex(D, D_u) # obtain column index of the diagonal entries
 # lb[diag_ind] = 0                # diagonal entries are positive
-# names(lb) <- names(ub) <- colnames(u_samp)
-# 
-# bridge_result = bridgesampling::bridge_sampler(samples = u_samp, 
-#                                                log_posterior = log_density,
-#                                                data = param_list, 
-#                                                lb = lb, ub = ub, 
-#                                                silent = TRUE)
-# bridge_result$logml
+names(lb) <- names(ub) <- colnames(u_samp)
+
+bridge_result = bridgesampling::bridge_sampler(samples = u_samp,
+                                               log_posterior = log_density,
+                                               data = param_list,
+                                               lb = lb, ub = ub,
+                                               silent = TRUE)
+bridge_result$logml
 
 (LIL = lil(param_list)) 
-postIW = sampleIW(J, N, D_u, nu, S, Omega)     # post_samps, Sigma_post, L_post
-post_samps = postIW$post_samps                 # (J x D_u)
-u_df = preprocess(post_samps, D_u, param_list) # J x (D_u + 1)
+# postIW = sampleIW(J, N, D_u, nu, S, Omega)     # post_samps, Sigma_post, L_post
+# post_samps = postIW$post_samps                 # (J x D_u)
+# u_df = preprocess(post_samps, D_u, param_list) # J x (D_u + 1)
 hybrid = hybrid_ml(D_u, u_df, J, param_list)
 hybrid$zhat
 

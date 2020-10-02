@@ -7,7 +7,6 @@ source("HIW_helper.R")      # covariance related helper functions
 source("HIW_graph.R")
 
 
-
 testG  = matrix(c(1,1,0,0,0,
                   1,1,1,1,1,
                   0,1,1,1,1,
@@ -20,6 +19,25 @@ V = diag(1, D) # prior scale matrix
 
 D_0 = 0.5 * D * (D + 1) # num entries on diagonal and upper diagonal
 J = 30
+
+
+
+log_density = function(u, data) {
+    -psi(u, data)
+}
+
+hme_exp_term = function(u) {
+    Lt = matrix(0, D, D)     # (D x D) lower triangular matrix
+    Lt_vec_0 = numeric(D_0)  # (D_0 x 1) vector to fill upper triangular, Lt
+    Lt_vec_0[edgeInd] = u
+    Lt[upper.tri(Lt, diag = T)] = Lt_vec_0   # populate lower triangular terms
+    
+    - N * log_det(Lt) + 0.5 * matrix.trace(t(Lt) %*% Lt %*% S)
+    
+}
+
+
+
 
 
 # logical vector determining existence of edges between vertices
@@ -36,7 +54,7 @@ Omega_G = true_params$Omega # precision matrix -- this is the one we work with
 # chol(Omega_G)
 
 # Generate data Y based on Sigma_G
-N = 40
+N = 100
 Y = matrix(0, N, D)
 for (i in 1:N) {
     Y[i, ] = t(t(chol(Sigma_G)) %*% rnorm(D, 0, 1)) # (500 x D)
@@ -75,12 +93,25 @@ bridge_result = bridgesampling::bridge_sampler(samples = u_samp,
 bridge_result$logml
 
 
+hme_approx = function(u_df, params, J, D, N) {
+    
+    N   = params$N
+    D   = params$D
+    D_0 = params$D_0
+    S   = params$S
+    
+    tmp_J = apply(u_df[,1:D_u], 1, hme_exp_term) # term in the exponential
+    log(J) - 0.5 * N * D * log(2 * pi) - log_sum_exp(tmp_J)
+    
+}
+
+hme_approx(u_df, params, J, D, N)
 
 
-B = 10 # number of replications
+aB = 100 # number of replications
 hyb = numeric(B)
 bridge = numeric(B)
-set.seed(1)
+set.seed(123)
 
 for (i in 1:B) {
     
@@ -109,17 +140,25 @@ for (i in 1:B) {
     
     
     avg_hyb = mean(hyb[hyb!=0])
+    avg_bridge = mean(bridge[bridge!=0])
+    
     print(paste("iter ", i, ': ',
-                "hybrid = ", round(avg_hyb, 3), '; ',
-                "ae = ", LIL - avg_hyb,
+                "hybrid = ", round(avg_hyb, 3), 
+                '; ', "mae = ", round(mean(abs(LIL - hyb[hyb!=0])), 4),
+                ' // ',
+                "bridge = ", round(avg_bridge, 3), '; ', 
+                "mae = ", round(mean(abs(LIL - bridge[bridge!=0])), 4),
                 sep = '')) 
 }
 approx = data.frame(LIL, hyb = hyb[hyb!=0], bridge = bridge[bridge!=0])
-data.frame(approx = colMeans(approx), approx_sd = apply(approx, 2, sd),
-           ae = colMeans(LIL - approx),
+error = data.frame(approx = colMeans(approx), approx_sd = apply(approx, 2, sd),
+           mae = colMeans(abs(LIL - approx)),
            rmse = sqrt(colMeans((LIL - approx)^2))) %>% round(3)
 
 
+saveRDS(list(J = J, D = D, D_u = D_u, N = N, approx_df = approx, error = error), 
+        file = 'covarIW_d5_j5000.RData')
+mvnig_d20 = readRDS('covarIW_d5.RData')
 
 
 

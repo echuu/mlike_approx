@@ -143,7 +143,7 @@ HIW_loglik = function(u, params) {
     # recall: Sigma^(-1) = LL'
     
     logprior = - 0.5 * N * D * log(2 * pi) + N * log_det(Lt) - 
-        0.5 * matrix.trace(t(Lt) %*% Lt %*% S)
+        0.5 * matrix.trace(solve(t(Lt) %*% Lt) %*% S)
     
     return(logprior)
     

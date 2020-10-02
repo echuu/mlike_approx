@@ -196,6 +196,36 @@ hybrid_ml <- function(D, u_df, J, param) {
 
 
 
+bridge_approx <- function(samples, log_density, prior, lb, ub) {
+    out <- tryCatch(
+        {
+            
+            bridge_result <- bridgesampling::bridge_sampler(samples = samples, 
+                                                            log_posterior = log_density,
+                                                            data = prior, lb = lb, ub = ub, silent = TRUE)
+            bridge_result$logml
+            # The return value of `readLines()` is the actual value 
+            # that will be returned in case there is no condition 
+            # (e.g. warning or error). 
+            # You don't need to state the return value via `return()` as code 
+            # in the "try" part is not wrapped insided a function (unlike that
+            # for the condition handlers for warnings and error below)
+        },
+        error=function(cond) {
+            message(paste("bridge error"))
+            message(cond)
+            return(NA)
+        },
+        warning=function(cond) {
+            # message("Here's the original warning message:")
+            message(cond)
+        },
+        finally={
+        }
+    )    
+    return(out)
+} # end of logml() function ----------------------------------------------------
+
 
 
 

@@ -1,4 +1,46 @@
 
+
+
+# pd.DataFrame(rec.get().logp).to_csv("funnel_loglike.csv")
+# pd.DataFrame(rec.get().samples).to_csv("funnel.csv")
+
+setwd("C:/Users/ericc/Dropbox/eric chuu research/aistats/rdata_files")
+banana_mat = read.csv("banana.csv")[,-1] %>% as.matrix
+banana = read.csv("banana.csv")[,-1] %>% data.frame()
+banana_psi = read.csv("banana_loglike.csv")[,-1]
+
+setwd("C:/Users/ericc/mlike_approx/algo")
+source("setup.R")
+
+
+
+D = 32
+Q = 0.01
+banana_dat = list(Q = Q, D = D) # for STAN sampler
+
+psi = function(u, prior) {
+    
+    # log prior
+    logprior = sum(dunif(u, -15, 15, log = TRUE)) 
+    
+    # log-likelihood
+    odd = seq(1, prior$D, by = 2)
+    even = seq(2, prior$D, by = 2)
+    loglik = -sum((u[odd]^2 - u[even])^2 / Q + (u[odd] - 1)^2)
+    
+    return(- logprior - loglik)
+}
+params = list(Q = Q, D = D)
+
+
+u_df = banana %>% mutate(psi_u = -banana_psi)
+names(u_df)[1:D] = paste('u', 1:D, sep = '_')
+banana_psi %>% head
+
+hybrid = hybrid_ml(D, u_df[sample(1:J, 1000),], 1000, banana_dat)
+hybrid$zhat
+
+
 B = 5
 # STAN SETTINGS ----------------------------------------------------------------
 J         = 2000 * B     # number of MC samples per approximation
@@ -8,9 +50,9 @@ n_chains  = 8            # number of markov chains to run
 stan_seed = 123          # seed
 
 J_iter = 1 / n_chains * N_approx * J + burn_in 
-D = 32
-Q = 0.01
-banana_dat = list(Q = Q, D = D) # for STAN sampler
+
+
+
 
 # (1) generate posterior samples -- should give us (J * N_approx) draws
 banana_sampler = "C:/Users/ericc/mlike_approx/paper_simulations/results_banana/banana_stan.stan"
