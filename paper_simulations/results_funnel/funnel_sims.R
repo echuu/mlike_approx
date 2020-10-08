@@ -2,6 +2,7 @@
 setwd("C:/Users/ericc/Dropbox/eric chuu research/aistats/rdata_files")
 funnel_mat = read.csv("funnel.csv")[,-1] %>% as.matrix
 funnel = read.csv("funnel.csv")[,-1] %>% data.frame()
+funnel_psi = read.csv("funnel_loglike.csv")[,-1]
 
 setwd("C:/Users/ericc/mlike_approx/algo")
 source("setup.R")
@@ -9,7 +10,7 @@ source("setup.R")
 # sample data
 a = 1
 b = 0.5
-D = 16
+D = 10
 params = list(a = a, b = b, D = D)
 psi = function(u, prior) {
     
@@ -27,6 +28,9 @@ psi = function(u, prior) {
 
 u_df = preprocess(funnel, D, params)
 J = u_df %>% nrow
+
+u_df$psi_u %>% head
+funnel_psi %>% head
 
 hybrid = hybrid_ml(D, u_df[sample(1:J, 100),], 100, params)
 hybrid$zhat

@@ -12,8 +12,8 @@ source("C:/Users/ericc/mlike_approx/paper_simulations/table2/mvn_estimators.R")
 # source("/mlike_approx/paper_simulations/table2/mvn_estimators.R")
 
 
-D = c(2) # test for smalller dimensions for now
-N = c(50) # for testing -- comment this line to perform ext. analysis
+D = c(20) # test for smalller dimensions for now
+N = c(100) # for testing -- comment this line to perform ext. analysis
 
 
 ## priors ----------------------------------------------------------------------
@@ -47,7 +47,7 @@ post = list(Q_beta = Q_beta, Q_beta_inv = Q_beta_inv, mu_beta = mu_beta, b = b)
 
 
 ## algorithm settings ----------------------------------------------------------
-J         = 5000         # number of MC samples per approximation
+J = 1000         # number of MC samples per approximation
 # ------------------------------------------------------------------------------
 
 ## sample from posterior -------------------------------------------------------
@@ -58,51 +58,69 @@ J         = 5000         # number of MC samples per approximation
 u_samps = rmvnorm(J, mean = c(mu_beta), sigma = Q_beta_inv) %>% data.frame 
 u_df = preprocess(u_samps, D, prior) # J x (D + 1) -- stored row-wise 
 
-# library(microbenchmark)
-# microbenchmark("hml" = hml_const(1, D, u_df, J, prior))
 
-hml_approx = hml_const(1, D, u_df, J, prior)
-# hml_approx$param_out %>%
-#     dplyr::select(leaf_id, psi_choice, psi_star, logQ_cstar, n_obs)
-hme = hme_approx(u_df, prior, J, D, N)
+hme_approx(u_df, prior, J, D, N)
+came_approx(u_df, prior, post, J, D)
+hml_simple(D, u_df, J, prior)$zhat
+hybrid_ml(D, u_df, J, prior)$zhat
 
 
-hml_approx$const_vec       # -272.1245
-hme
-came_approx(u_df, hml_approx, prior, post, J, D)
 (LIL = lil(prior, post))   # -272.1202
+
 
 
 #### begin simulations ---------------------------------------------------------
 
-B = 1000 # number of replications
-J = 5000 # number of MCMC samples per replication
+B = 100 # number of replications
+J = 1000 # number of MCMC samples per replication
 
-hme  = numeric(B) # store harmonic mean estiator
-hyb  = numeric(B) # store hybrid estimator
-ame  = numeric(B) # store arithmetic mean estimator
-came = numeric(B) # corrected arithmetic mean estimator
+hme     = numeric(B) # store harmonic mean estiator
+hyb     = numeric(B) # store hybrid estimator
+bridge  = numeric(B) # store arithmetic mean estimator
+came    = numeric(B) # corrected arithmetic mean estimator
 
-# other estimators: chib's, bridge, more recent ones?
-
-for (b in 1:B) {
+set.seed(1)
+for (i in 1:B) {
     
     # sample from posterior
     u_samps = rmvnorm(J, mean = c(mu_beta), sigma = Q_beta_inv) %>% data.frame 
     u_df = preprocess(u_samps, D, prior) # J x (D + 1) -- stored row-wise 
     
     #### (1) hybrid estimator
-    hml_approx = hml_const(1, D, u_df, J, prior)
-    hyb[b] = hml_approx$const_vec
+    hybrid_v0 = hml_simple(D, u_df, J, prior)
+    # hybrid_v0$param_out
+    # hybrid_v0$zhat
+    hyb[i] = hybrid_v0$zhat
     
     #### (2) harmonic mean estimator
-    hme[b] = hme_approx(u_df, prior, J, D, N)
+    hme[i] = hme_approx(u_df, prior, J, D, N)
     
     #### (3) corrected arithmetic mean estimator (IS)
-    came[b] = came_approx(u_df, hml_approx, prior, post, J, D)
+    came[i] = came_approx(u_df, prior, post, J, D)
     
-    if (b %% 100 == 0) { print(paste("iter:", b)) }
+    lb <- c(rep(-Inf, D))
+    ub <- c(rep(Inf, D))
+    u_samp = as.matrix(u_samps)
+    colnames(u_samp) = names(u_df)[1:D]
+    names(lb) <- names(ub) <- colnames(u_samp)
+    bridge_result = bridge_sampler(samples = u_samp,
+                                   log_posterior = log_density,
+                                   data = prior, lb = lb, ub = ub, silent = TRUE)
+    bridge[i] = bridge_result$logml
+    
+    if (i %% 10 == 0) { print(paste("iter:", i)) }
 }
+
+approx = data.frame(LIL, 
+                    hme = hme[hme!=0],
+                    hyb = hyb[hyb!=0],
+                    bridge = bridge[bridge!=0],
+                    came = came[came!=0])
+
+(error = data.frame(approx = colMeans(approx), approx_sd = apply(approx, 2, sd),
+                    mae = colMeans(abs(LIL - approx)),
+                    rmse = sqrt(colMeans((LIL - approx)^2))) %>% round(3))
+
 
 approx_df = data.frame(mcmc = 1:B, hme = hme, came = came, hyb = hyb)
 approx_long = melt(approx_df, id.vars = 'mcmc')

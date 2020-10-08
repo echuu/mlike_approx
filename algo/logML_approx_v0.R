@@ -110,6 +110,51 @@ hml_const = function(N_approx, D, u_df_full, J, prior) {
 
 
 
+hml_simple = function(D, u_df, J, prior) {
+    
+
+    ## (2) fit the regression tree via rpart()
+    u_rpart = rpart(psi_u ~ ., u_df)
+    
+    ## (3) process the fitted tree
+    
+    # (3.1) obtain the (data-defined) support for each of the parameters
+    param_support = extractSupport(u_df, D) #
+    
+    # (3.2) obtain the partition
+    u_partition = extractPartition(u_rpart, param_support) 
+    
+    
+    # param_out = u_star_cand(u_rpart, u_df, u_partition, D) # partition.R
+    param_out = u_star_hat(u_rpart, u_df, u_partition, D) # partition.R
+    # opt_part = param_out$optimal_part
+    
+    # ----------------------------------------------------------------------
+    n_partitions = nrow(u_partition) # number of partitions 
+    
+    # ----------------------------------------------------------------------
+    
+    psi_partition = param_out %>% 
+        dplyr::select(-c('leaf_id', 'psi_choice', 'logQ_cstar', 'n_obs'))
+    
+    bounds = psi_partition %>% dplyr::select(-c("psi_star"))
+    
+    log_vol_vec = (bounds[seq(2, 2 * D, 2)] - bounds[seq(1, 2 * D, 2)]) %>% 
+        log() %>% rowSums()
+    
+    zhat = (-psi_partition$psi_star + log_vol_vec) %>% log_sum_exp
+    
+    return(list(n_partitions  = n_partitions,
+                param_out     = param_out,
+                u_rpart       = u_rpart,
+                param_support = param_support,
+                zhat          = zhat))
+}
+
+
+
+
+
 #### hml_const() ---------------------------------------------------------------
 #### this function is called from the candidatePartition.R file to fit the 
 #### first stage partition

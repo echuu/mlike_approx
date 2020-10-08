@@ -33,7 +33,6 @@ hme_exp_term = function(u) {
     Lt[upper.tri(Lt, diag = T)] = Lt_vec_0   # populate lower triangular terms
     
     - N * log_det(Lt) + 0.5 * matrix.trace(t(Lt) %*% Lt %*% S)
-    
 }
 
 
@@ -102,15 +101,15 @@ hme_approx = function(u_df, params, J, D, N) {
     
     tmp_J = apply(u_df[,1:D_u], 1, hme_exp_term) # term in the exponential
     log(J) - 0.5 * N * D * log(2 * pi) - log_sum_exp(tmp_J)
-    
 }
 
 hme_approx(u_df, params, J, D, N)
 
 
-aB = 100 # number of replications
+B = 100 # number of replications
 hyb = numeric(B)
 bridge = numeric(B)
+hme = numeric(B)
 set.seed(123)
 
 for (i in 1:B) {
@@ -120,48 +119,57 @@ for (i in 1:B) {
     
     u_df = preprocess(post_samps, D_u, params)     # J x (D_u + 1)
     
-    hybrid = hybrid_ml(D_u, u_df, J, param_list)
-
-    if (any(is.na(hybrid))) {print(paste("error in iteration", i)); next;}
+    # hybrid = hybrid_ml(D_u, u_df, J, param_list)
+    # 
+    # if (any(is.na(hybrid))) {print(paste("error in iteration", i)); next;}
+    # 
+    # hyb[i] = hybrid$zhat
+    # 
+    # u_samp = as.matrix(post_samps)
+    # colnames(u_samp) = names(u_df)[1:D_u]
+    # lb = rep(-Inf, D_u)
+    # ub = rep(Inf, D_u)
+    # names(lb) <- names(ub) <- colnames(u_samp)
+    # bridge_result = bridgesampling::bridge_sampler(samples = u_samp, 
+    #                                                log_posterior = log_density,
+    #                                                data = params, 
+    #                                                lb = lb, ub = ub, 
+    #                                                silent = TRUE)
+    # bridge[i] = bridge_result$logml
+    # 
+    # 
+    # avg_hyb = mean(hyb[hyb!=0])
+    # avg_bridge = mean(bridge[bridge!=0])
     
-    hyb[i] = hybrid$zhat
     
-    u_samp = as.matrix(post_samps)
-    colnames(u_samp) = names(u_df)[1:D_u]
-    lb = rep(-Inf, D_u)
-    ub = rep(Inf, D_u)
-    names(lb) <- names(ub) <- colnames(u_samp)
-    bridge_result = bridgesampling::bridge_sampler(samples = u_samp, 
-                                                   log_posterior = log_density,
-                                                   data = params, 
-                                                   lb = lb, ub = ub, 
-                                                   silent = TRUE)
-    bridge[i] = bridge_result$logml
-    
-    
-    avg_hyb = mean(hyb[hyb!=0])
-    avg_bridge = mean(bridge[bridge!=0])
+    hme[i] = hme_approx(u_df, params, J, D, N)
+    avg_hme = mean(hme[hme!=0])
     
     print(paste("iter ", i, ': ',
-                "hybrid = ", round(avg_hyb, 3), 
-                '; ', "mae = ", round(mean(abs(LIL - hyb[hyb!=0])), 4),
-                ' // ',
-                "bridge = ", round(avg_bridge, 3), '; ', 
-                "mae = ", round(mean(abs(LIL - bridge[bridge!=0])), 4),
+                # "hybrid = ", round(avg_hyb, 3), 
+                # '; ', "mae = ", round(mean(abs(LIL - hyb[hyb!=0])), 4),
+                # ' // ',
+                # "bridge = ", round(avg_bridge, 3), '; ', 
+                # "mae = ", round(mean(abs(LIL - bridge[bridge!=0])), 4),
+                # ' // ',
+                "hme = ", round(avg_hme, 3), '; ', 
+                "mae = ", round(mean(abs(LIL - hme[hme!=0])), 4),
                 sep = '')) 
 }
 approx = data.frame(LIL, hyb = hyb[hyb!=0], bridge = bridge[bridge!=0])
+approx = data.frame(LIL, hme = hme[hme!=0])
+
 error = data.frame(approx = colMeans(approx), approx_sd = apply(approx, 2, sd),
            mae = colMeans(abs(LIL - approx)),
            rmse = sqrt(colMeans((LIL - approx)^2))) %>% round(3)
-
+error
 
 saveRDS(list(J = J, D = D, D_u = D_u, N = N, approx_df = approx, error = error), 
         file = 'covarIW_d5_j5000.RData')
 mvnig_d20 = readRDS('covarIW_d5.RData')
 
 
-
+test = readRDS("C:/Users/ericc/Dropbox/eric chuu research/aistats/rdata_files/HIW_d5_j5000.RData")
 
 
 

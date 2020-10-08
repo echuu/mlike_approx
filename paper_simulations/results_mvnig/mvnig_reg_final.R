@@ -13,7 +13,7 @@ sourceCpp("C:/Users/ericc/mlike_approx/fast_psi.cpp")
 # load this LAST to overwrite def preprocess()
 
 
-J = 10000          # number of MC samples per approximation
+J = 100          # number of MC samples per approximation
 D = 20
 N = 100 # for testing -- comment this line to perform ext. analysis
 n_samps = 10
@@ -86,17 +86,17 @@ beta_mat = t(sapply(sigmasq_post, sample_beta, post = post))
 u_samp = data.frame(beta_mat, sigmasq_post)
 u_df = preprocess(u_samp, D, prior)
 
-u_df_fast = preprocess(u_samp, D, prior)
+# u_df_fast = preprocess(u_samp, D, prior)
 
 
 
 # refactored version
 hml_approx = hml_const(1, D, u_df, J, prior) 
-hml_approx = hml_const(1, D, u_df_fast, J, prior) 
+# hml_approx = hml_const(1, D, u_df_fast, J, prior) 
 
-hml_approx$param_out %>% 
-    dplyr::select(leaf_id, psi_choice, psi_star, logQ_cstar, n_obs) %>% 
-    dplyr::mutate(perc = n_obs / sum(n_obs))
+# hml_approx$param_out %>% 
+#     dplyr::select(leaf_id, psi_choice, psi_star, logQ_cstar, n_obs) %>% 
+#     dplyr::mutate(perc = n_obs / sum(n_obs))
 
 hml_approx$const_vec      # -256.761
 

@@ -9,6 +9,23 @@ library(rstudioapi) # running  RStan in parallel via Rstudio
 options(mc.cores = parallel::detectCores()) 
 rstan_options(auto_write = TRUE)
 
+
+
+# pd.DataFrame(rec.get().logp).to_csv("funnel_loglike.csv")
+# pd.DataFrame(rec.get().samples).to_csv("funnel.csv")
+
+setwd("C:/Users/ericc/Dropbox/eric chuu research/aistats/rdata_files")
+cauchy_mat = read.csv("cauchy.csv")[,-1] %>% as.matrix
+cauchy = read.csv("cauchy.csv")[,-1] %>% data.frame()
+cauchy_psi = read.csv("cauchy_loglike.csv")[,-1]
+
+cauchy %>% head
+cauchy_psi %>% head
+
+cauchy_dat$D * log(0.5) + 
+    sum(log(dcauchy(unlist(unname(cauchy[1,])), cauchy_dat$mu, cauchy_dat$sigma) + 
+                dcauchy(unlist(unname(cauchy[1,])), -cauchy_dat$mu, cauchy_dat$sigma)))
+
 psi = function(u, prior) {
     
     # log prior
@@ -22,6 +39,21 @@ psi = function(u, prior) {
     return(- logprior - loglik)
 }
 
+D = 10
+mu = 5
+sigma = 1
+cauchy_dat = list(mu = mu, sigma = sigma, D = D) # for STAN sampler
+params = list(mu = mu, sigma = sigma, D = D)     # for hybrid algo
+
+u_df = preprocess(cauchy, D, params)
+
+u_df$psi_u %>% head
+cauchy_psi %>% head
+
+J = nrow(u_df)
+hybrid = hybrid_ml(D, u_df[sample(1:J, 5000),], 5000, params)
+hybrid$zhat
+
 
 
 B = 1
@@ -32,7 +64,7 @@ stan_seed = 123          # seed
 J_iter = 1 / n_chains * B * J + burn_in 
 
 
-D = 48
+D = 16
 mu = 5
 sigma = 1
 cauchy_dat = list(mu = mu, sigma = sigma, D = D) # for STAN sampler
@@ -56,20 +88,7 @@ u_samp = rstan::extract(cauchy_fit, pars = c("u"), permuted = TRUE)
 u_post = u_samp$u %>% data.frame() # (J * N_approx) x 2
 u_post %>% dim
 u_df = preprocess(u_post, D, params)
-hml_approx = hml_const(N_approx, D, u_df, J/B, params)
-hml_approx$const_vec
-n_samps = 10
-og_part = hml_approx$param_out %>%
-    dplyr::select(-c(psi_choice, logQ_cstar))
-ss_part = fit_resid(og_part, D, n_samps, params)
-ts_part = fit_resid(ss_part, D, n_samps / 2, params)
 
-log_sum_exp(unlist(compute_expterms(ss_part, D)))
-log_sum_exp(unlist(compute_expterms(ts_part, D)))
-
-mean(c(hml_approx$const_vec,
-       log_sum_exp(unlist(compute_expterms(ss_part, D))),
-       log_sum_exp(unlist(compute_expterms(ts_part, D)))))
 
 
 #### compute bridge sample estimate --------------------------------------------

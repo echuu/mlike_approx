@@ -32,9 +32,14 @@ psi = function(u, prior) {
 }
 params = list(Q = Q, D = D)
 
+u_df = preprocess(banana, D, params)
+u_df$psi_u %>% head
+banana_psi %>% head
+
 
 u_df = banana %>% mutate(psi_u = -banana_psi)
 names(u_df)[1:D] = paste('u', 1:D, sep = '_')
+
 banana_psi %>% head
 
 hybrid = hybrid_ml(D, u_df[sample(1:J, 1000),], 1000, banana_dat)

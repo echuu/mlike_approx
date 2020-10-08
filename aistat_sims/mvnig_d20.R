@@ -13,7 +13,7 @@ sourceCpp("C:/Users/ericc/mlike_approx/fast_psi.cpp")
 # load this LAST to overwrite def preprocess()
 
 
-J = 10000          # number of MC samples per approximation
+J = 1e4          # number of MC samples per approximation
 D = 20
 N = 100
 
@@ -68,7 +68,14 @@ sample_beta = function(s2, post) {
 
 B = 100
 hyb = numeric(B)
+bridge = numeric(B)
 set.seed(1)
+
+library(bridgesampling)
+log_density = function(u, data) {
+    -psi(u, data)
+}
+
 
 for (i in 1:B) {
     
@@ -78,6 +85,18 @@ for (i in 1:B) {
     u_samp = data.frame(beta_mat, sigmasq_post)
     u_df = preprocess(u_samp, D, prior)
     
+    
+    lb <- c(rep(-Inf, p), 0)
+    ub <- c(rep(Inf, p), Inf)
+    u_samp = as.matrix(u_samp)
+    colnames(u_samp) = names(u_df)[1:D]
+    names(lb) <- names(ub) <- colnames(u_samp)
+    bridge_result = bridge_sampler(samples = u_samp,
+                                   log_posterior = log_density,
+                                   data = prior, lb = lb, ub = ub, silent = TRUE)
+    bridge[i] = bridge_result$logml
+    
+    
     #### (1) hybrid estimator
     hybrid = hybrid_ml(D, u_df, J, prior)
     
@@ -85,16 +104,21 @@ for (i in 1:B) {
     
     hyb[i] = hybrid$zhat
     
-    avg_hyb = mean(hyb[hyb!=0])
+    # avg_hyb = mean(hyb[hyb!=0])
     print(paste("iter ", i, ': ',
-                "hybrid = ", round(avg_hyb, 3), '; ',
-                "ae = ", LIL - avg_hyb,
+                "hybrid = ", round(mean(hyb[hyb!=0]), 3),
+                '; ', "mae = ", round(mean(abs(LIL - hyb[hyb!=0])), 4),
+                ' // ',
+                "bridge = ", round(mean(bridge[bridge!=0]), 3), '; ',
+                "mae = ", round(mean(abs(LIL - bridge[bridge!=0])), 4),
+                # "came = ", round(mean(came[came!=0]), 3), '; ', 
+                # "mae = ", round(mean(abs(LIL - came[came!=0])), 4),
                 sep = '')) 
 }
 
-approx = data.frame(LIL, hyb = hyb[hyb!=0])
+approx = data.frame(LIL, hyb = hyb[hyb!=0], bridge = bridge[bridge!=0])
 data.frame(approx = colMeans(approx), approx_sd = apply(approx, 2, sd),
-           ae = colMeans(LIL - approx),
+           ae = colMeans(abs(LIL - approx)),
            rmse = sqrt(colMeans((LIL - approx)^2))) %>% round(3)
 
 saveRDS(list(J = J, D = D, N = N, approx_df = approx), 

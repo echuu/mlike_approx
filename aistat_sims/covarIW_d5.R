@@ -8,9 +8,9 @@ source("covarIW_helper.R")  # covariance related helper functions
 sourceCpp("C:/Users/ericc/mlike_approx/speedup/fast_covIW.cpp")
 
 N = 100                     # number of observations
-D = 5                       # num rows/cols in the covariance matrix
+D = 4                       # num rows/cols in the covariance matrix
 D_u = 0.5 * D * (D + 1)     # dimension of u that is fed into the tree
-J = 50
+J = 25
 
 
 ## wishart prior parameters
@@ -71,6 +71,8 @@ bridge_result = bridgesampling::bridge_sampler(samples = u_samp,
                                                silent = TRUE)
 bridge_result$logml
 
+
+
 (LIL = lil(param_list)) 
 # postIW = sampleIW(J, N, D_u, nu, S, Omega)     # post_samps, Sigma_post, L_post
 # post_samps = postIW$post_samps                 # (J x D_u)
@@ -78,10 +80,11 @@ bridge_result$logml
 hybrid = hybrid_ml(D_u, u_df, J, param_list)
 hybrid$zhat
 
-B = 10 # number of replications
+B = 100 # number of replications
 hyb = numeric(B)
+bridge = numeric(B)
 set.seed(1)
-for (i in 1:B) {
+for (i in 24:B) {
     
     postIW = sampleIW(J, N, D_u, nu, S, Omega)     # post_samps, Sigma_post, L_post
     
@@ -103,18 +106,44 @@ for (i in 1:B) {
     
     hyb[i] = hybrid$zhat
     
+    
+    u_samp = as.matrix(post_samps)
+    colnames(u_samp) = names(u_df)[1:D_u]
+    # prepare bridge_sampler input()
+    lb = rep(-Inf, D_u)
+    ub = rep(Inf, D_u)
+    
+    # diag_ind = getDiagIndex(D, D_u) # obtain column index of the diagonal entries
+    # lb[diag_ind] = 0                # diagonal entries are positive
+    names(lb) <- names(ub) <- colnames(u_samp)
+    
+    bridge_result = bridgesampling::bridge_sampler(samples = u_samp,
+                                                   log_posterior = log_density,
+                                                   data = param_list,
+                                                   lb = lb, ub = ub,
+                                                   silent = TRUE)
+    bridge[i] = bridge_result$logml
+    
+    
     avg_hyb = mean(hyb[hyb!=0])
     print(paste("iter ", i, ': ',
-                "hybrid = ", round(avg_hyb, 3), '; ',
-                "ae = ", LIL - avg_hyb,
+                "hybrid = ", round(mean(hyb[hyb!=0]), 3),
+                '; ', "mae = ", round(mean((LIL - hyb[hyb!=0])), 4),
+                ' // ',
+                "bridge = ", round(mean(bridge[bridge!=0]), 3), '; ',
+                "mae = ", round(mean((LIL - bridge[bridge!=0])), 4),
+                # "came = ", round(mean(came[came!=0]), 3), '; ', 
+                # "mae = ", round(mean(abs(LIL - came[came!=0])), 4),
                 sep = '')) 
     
 }
 
 
-approx = data.frame(LIL, hyb = hyb[hyb!=0])
+approx = data.frame(LIL, hyb = hyb[hyb!=0], bridge = bridge[bridge!=0])
+approx = data.frame(LIL, hyb = hyb[1:47], bridge = bridge[bridge!=0])
+
 data.frame(approx = colMeans(approx), approx_sd = apply(approx, 2, sd),
-           ae = colMeans(LIL - approx),
+           ae = colMeans(abs(LIL - approx)),
            rmse = sqrt(colMeans((LIL - approx)^2))) %>% round(3)
 
 saveRDS(list(J = J, D = D, D_u = D_u, N = N, approx_df = approx), 

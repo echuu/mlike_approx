@@ -44,6 +44,13 @@ X   = matrix(rnorm(N * D), N, D)                # (N x D) design matrix
 eps = rnorm(N, mean = 0, sd = sqrt(sigmasq))    # (N x 1) errors vector
 y   = X %*% beta + eps                          # (N x 1) response vector
 
+write.csv(X,   "C:/Users/ericc/X.csv", row.names = FALSE)
+write.csv(y,   "C:/Users/ericc/y.csv", row.names = FALSE)
+write.csv(eps, "C:/Users/ericc/eps.csv", row.names = FALSE)
+write.csv(beta, "C:/Users/ericc/beta.csv", row.names = FALSE)
+
+
+
 # compute posterior parameters -------------------------------------------------
 Q_beta     =  1 / sigmasq * (t(X) %*% X + tau * diag(1, D))
 Q_beta_inv =  solve(Q_beta)
@@ -70,6 +77,9 @@ lil_0 = -0.5 * N * log(2 * pi) - 0.5 * (N + D) * log(sigmasq) +
 
 samples = rtmvnorm(J, c(mu_beta), Q_beta_inv, rep(0, D), rep(Inf, D))
 u_df = preprocess(data.frame(samples), D, prior)
+
+write.csv(u_df, "C:/Users/ericc/u_df.csv", row.names = FALSE)
+
 hybrid = hybrid_ml(D, u_df, J, prior)
 hybrid$zhat
 
@@ -212,8 +222,18 @@ ggplot(mvnig_df, aes(x = iter, y = hyb)) + geom_point() +
     theme(legend.position = c(.2,.85))
 
 
+# nse stuff
+data_file_loc = 'C:/Users/ericc/Dropbox/eric chuu research/aistats/rdata_files/'
 
+nse = read.csv(paste(data_file_loc, 'nse_trunc_d20.csv', sep = ''),
+               header = F)[,1]
+nse %>% head
 
+approx = data.frame(LIL, nse = nse)
+data.frame(approx = colMeans(approx), 
+           approx_sd = apply(approx, 2, sd),
+           mae = colMeans(abs(LIL - approx)),
+           rmse = sqrt(colMeans((LIL - approx)^2))) %>% round(3)
 
 
 

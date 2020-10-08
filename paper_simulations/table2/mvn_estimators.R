@@ -2,27 +2,27 @@
 
 
 #### CORRECTED ARITHMETIC MEAN ESTIMATOR ---------------------------------------
-came_approx = function(u_df, hml_approx, prior, post, J, D) {
+came_approx = function(u_df, prior, post, J, D) {
     
-    A_beta = hml_approx$param_support # data defined support (D x 2)
+    A_beta = extractSupport(u_df, D) # data defined support (D x 2)
     post_mean = unlist(unname(colMeans(u_df[,1:D])))
+    post_cov = cov(u_df[,1:D])
     
-    imp_samp = rmvnorm(J, mean = post_mean, sigma = post$Q_beta_inv) %>% 
+    imp_samp = rmvnorm(J, mean = post_mean, sigma = post_cov) %>% 
         data.frame 
     
     u_df_imp = preprocess(imp_samp, D, prior)
-    
     log_s_theta = unname(dmvnorm(imp_samp, mean = post_mean, 
                                  sigma = post$Q_beta_inv, 
                                  log = TRUE))
-    
-    include_d = rep(TRUE, D)
+    include_d = rep(TRUE, J)
     for (d in 1:D) {
         include_d = include_d & 
             (imp_samp[,d] >= A_beta[d,1]) & (imp_samp[,d] <= A_beta[d,2])
     }
     
-    -log(J) + log_sum_exp((-u_df_imp$psi_u - log_s_theta)[include_d])
+    -log(sum(include_d)) + 
+        log_sum_exp((-u_df_imp$psi_u - log_s_theta)[include_d])
 }
 
 
