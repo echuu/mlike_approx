@@ -12,7 +12,7 @@ source("C:/Users/ericc/mlike_approx/paper_simulations/table2/mvn_estimators.R")
 # source("/mlike_approx/paper_simulations/table2/mvn_estimators.R")
 
 
-D = c(20) # test for smalller dimensions for now
+D = c(10) # test for smalller dimensions for now
 N = c(100) # for testing -- comment this line to perform ext. analysis
 
 
@@ -68,6 +68,12 @@ hybrid_ml(D, u_df, J, prior)$zhat
 (LIL = lil(prior, post))   # -272.1202
 
 
+library(bridgesampling)
+log_density = function(u, data) {
+    -psi(u, data)
+}
+
+
 
 #### begin simulations ---------------------------------------------------------
 
@@ -118,34 +124,30 @@ approx = data.frame(LIL,
                     came = came[came!=0])
 
 (error = data.frame(approx = colMeans(approx), approx_sd = apply(approx, 2, sd),
-                    mae = colMeans(abs(LIL - approx)),
+                    ae = colMeans((LIL - approx)),
                     rmse = sqrt(colMeans((LIL - approx)^2))) %>% round(3))
 
 
-approx_df = data.frame(mcmc = 1:B, hme = hme, came = came, hyb = hyb)
+setwd("C:/Users/ericc/Dropbox/eric chuu research/aistats/figure_code")
+write.csv(approx, "mvn_d10.csv", row.names = FALSE)
+test = read.csv("mvn_d10.csv")
+
+
+approx_df = data.frame(mcmc = 1:B, 
+                       hme = hme, 
+                       came = came, 
+                       hyb = hyb, 
+                       bridge = bridge)
+
 approx_long = melt(approx_df, id.vars = 'mcmc')
+
+approx_long %>% head
+
+ggplot(approx_long, aes(x = variable, y = value - LIL)) + geom_boxplot()
 
 ggplot(approx_long, aes(x = mcmc, y = value, col = variable)) + geom_point() +
     geom_hline(aes(yintercept = LIL), linetype = 'dashed', size = 0.9)
 
-### mean, error
-(LIL = lil(prior, post))
-
-
-round(mean(hyb), 3)
-round(mean(hme), 3)
-# mean(ame)
-round(mean(came), 3)
-
-round(mean(LIL - hyb), 3)
-round(mean(LIL - hme), 3)
-# mean(LIL - ame)
-round(mean(LIL - came), 3)
-
-round(sqrt(mean((LIL - hyb)^2)), 3)
-round(sqrt(mean((LIL - hme)^2)), 3)
-# sqrt(mean((LIL - ame)^2))
-round(sqrt(mean((LIL - came)^2)), 3)
 
 
 

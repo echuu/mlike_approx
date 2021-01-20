@@ -13,12 +13,37 @@ testG  = matrix(c(1,1,0,0,0,
                   0,1,1,1,1,
                   0,1,1,1,1), 5, 5)
 
+testG = matrix(c(1,1,1,0,0,
+                 1,1,1,0,0,
+                 1,1,1,1,1,
+                 0,0,1,1,1,
+                 0,0,1,1,1), 5,5)
+
+# ------------------------------------------------------------------------------
+
+g_df = data.frame(testG)
+
+data = melt(g_df)
+
+x <- 1:5
+y <- paste0("var", seq(1,5))
+data <- expand.grid(X=x, Y=y)
+data$Z <- runif(25, 0, 5)
+
+# Heatmap 
+ggplot(data, aes(variable, variable, fill= value)) + 
+    geom_tile()
+
+# ------------------------------------------------------------------------------
+
+
+
 D = nrow(testG)
 b = 3          # prior degrees of freedom
 V = diag(1, D) # prior scale matrix 
 
 D_0 = 0.5 * D * (D + 1) # num entries on diagonal and upper diagonal
-J = 30
+J = 25
 
 
 
@@ -71,11 +96,12 @@ u_df = preprocess(post_samps, D_u, params)     # J x (D_u + 1)
 
 (LIL = logmarginal(Y, testG, b, V, S))
 
-# (gnorm_approx = - 0.5 * D * N * log(2 * pi) + 
-#         gnorm(testG, b + N, V + S, iter = 100) - gnorm(testG, b, V, iter = 100))
+(gnorm_approx = - 0.5 * D * N * log(2 * pi) +
+        gnorm(testG, b + N, V + S, iter = 15) - gnorm(testG, b, V, iter = 15))
 
 hybrid = hybrid_ml(D_u, u_df, J, params)
 hybrid$zhat
+
 
 u_samp = as.matrix(post_samps)
 colnames(u_samp) = names(u_df)[1:D_u]
@@ -111,65 +137,140 @@ hyb = numeric(B)
 bridge = numeric(B)
 hme = numeric(B)
 set.seed(123)
+J = 25
+i = 1
 
-for (i in 1:B) {
+
+while (i <= B) {
+    i = 11
     
     postIW = sampleHIW(J, D_u, D_0, testG, b, N, V, S, edgeInd)  
     post_samps = postIW$post_samps                 # (J x D_u)
     
     u_df = preprocess(post_samps, D_u, params)     # J x (D_u + 1)
     
-    # hybrid = hybrid_ml(D_u, u_df, J, param_list)
-    # 
-    # if (any(is.na(hybrid))) {print(paste("error in iteration", i)); next;}
-    # 
-    # hyb[i] = hybrid$zhat
-    # 
-    # u_samp = as.matrix(post_samps)
-    # colnames(u_samp) = names(u_df)[1:D_u]
-    # lb = rep(-Inf, D_u)
-    # ub = rep(Inf, D_u)
-    # names(lb) <- names(ub) <- colnames(u_samp)
-    # bridge_result = bridgesampling::bridge_sampler(samples = u_samp, 
-    #                                                log_posterior = log_density,
-    #                                                data = params, 
-    #                                                lb = lb, ub = ub, 
-    #                                                silent = TRUE)
-    # bridge[i] = bridge_result$logml
-    # 
-    # 
-    # avg_hyb = mean(hyb[hyb!=0])
-    # avg_bridge = mean(bridge[bridge!=0])
+    hybrid = hybrid_ml(D_u, u_df, J, param_list)
+
+    if (any(is.na(hybrid))) {print(paste("error in iteration", i)); next;}
+
+    hyb[i] = hybrid$zhat
+
+    u_samp = as.matrix(post_samps)
+    colnames(u_samp) = names(u_df)[1:D_u]
+    lb = rep(-Inf, D_u)
+    ub = rep(Inf, D_u)
+    names(lb) <- names(ub) <- colnames(u_samp)
+    bridge_result = bridgesampling::bridge_sampler(samples = u_samp,
+                                                   log_posterior = log_density,
+                                                   data = params,
+                                                   lb = lb, ub = ub,
+                                                   silent = TRUE,
+                                                   method = 'warp3')
     
-    
+    bridge[i] = bridge_result$logml
     hme[i] = hme_approx(u_df, params, J, D, N)
+
+    avg_hyb = mean(hyb[hyb!=0])
+    avg_bridge = mean(bridge[bridge!=0])
     avg_hme = mean(hme[hme!=0])
     
     print(paste("iter ", i, ': ',
-                # "hybrid = ", round(avg_hyb, 3), 
-                # '; ', "mae = ", round(mean(abs(LIL - hyb[hyb!=0])), 4),
-                # ' // ',
-                # "bridge = ", round(avg_bridge, 3), '; ', 
-                # "mae = ", round(mean(abs(LIL - bridge[bridge!=0])), 4),
-                # ' // ',
-                "hme = ", round(avg_hme, 3), '; ', 
-                "mae = ", round(mean(abs(LIL - hme[hme!=0])), 4),
+                "hybrid = ", round(avg_hyb, 3),
+                '; ', "ae = ", round(mean((LIL - hyb[hyb!=0])), 4),
+                ' // ',
+                "bridge = ", round(avg_bridge, 3), '; ',
+                "ae = ", round(mean((LIL - bridge[bridge!=0])), 4),
+                ' // ',
+                "hme = ", round(avg_hme, 3), '; ',
+                "ae = ", round(mean((LIL - hme[hme!=0])), 4),
                 sep = '')) 
+    i = i + 1
 }
-approx = data.frame(LIL, hyb = hyb[hyb!=0], bridge = bridge[bridge!=0])
-approx = data.frame(LIL, hme = hme[hme!=0])
-
-error = data.frame(approx = colMeans(approx), approx_sd = apply(approx, 2, sd),
-           mae = colMeans(abs(LIL - approx)),
-           rmse = sqrt(colMeans((LIL - approx)^2))) %>% round(3)
-error
-
-saveRDS(list(J = J, D = D, D_u = D_u, N = N, approx_df = approx, error = error), 
-        file = 'covarIW_d5_j5000.RData')
-mvnig_d20 = readRDS('covarIW_d5.RData')
 
 
-test = readRDS("C:/Users/ericc/Dropbox/eric chuu research/aistats/rdata_files/HIW_d5_j5000.RData")
+set.seed(1)
+gnorm_approx = numeric(B)
+for (i in 1:B) {
+    gnorm_approx[i] = - 0.5 * D * N * log(2 * pi) + 
+        gnorm(testG, b + N, V + S, iter = 13) - 
+        gnorm(testG, b, V, iter = 12)
+}
+
+
+approx = data.frame(LIL, hyb = hyb[1:B], bridge = bridge[1:B], 
+                    hme = hme[1:B], gnorm_approx = gnorm_approx)
+
+names(approx) = c("LIL", "HybE", "WBSE", "HME", "GNORM")
+
+
+(error = data.frame(approx = colMeans(approx), approx_sd = apply(approx, 2, sd),
+            mae = colMeans(abs(LIL - approx)),
+            ae = colMeans(LIL - approx),
+            rmse = sqrt(colMeans((LIL - approx)^2))) %>% round(3))
+
+
+delta_df = (LIL - approx) %>% dplyr::select(-c('LIL')) %>% melt()
+
+delta_df %>% head
+
+### figure dimensions for saving: (954 x 488) 
+ggplot(delta_df, aes(x = variable, y = value)) + geom_boxplot() +
+    coord_flip() + 
+    labs(y = expression(paste(Delta, ' ', ln, ' ', p(y))), x = '') +
+    theme_bw() + 
+    theme(axis.text  = element_text(size=25),
+          axis.title = element_text(size=25,face="bold")) + 
+    scale_y_continuous(breaks = seq(-60, 0, 10))
+
+
+fig_loc = 'C:/Users/ericc/mlike_approx/final_sims/'
+saveRDS(list(J = J, D = D, D_u = D_u, N = N, approx = approx, error = error), 
+        file = paste(fig_loc, 'hiw_d5_j25.RData', sep = ''))
+hiw_d5 = readRDS(paste(fig_loc, 'hiw_d5_j25_final.RData', sep = ''))
+
+approx = hiw_d5$approx
+
+hiw_d5$error
+
+delta_df = (LIL - approx) %>% dplyr::select(-c('LIL')) %>% melt()
+
+delta_df %>% head
+
+### figure dimensions for saving: (954 x 488) 
+ggplot(delta_df, aes(x = variable, y = value)) + geom_boxplot() +
+    geom_hline(yintercept = 0, col = 'red', size = 1, linetype = 'dashed') + 
+    coord_flip() + 
+    labs(y = expression(paste(Delta, ' ', ln, ' ', p(y))), x = '') +
+    theme_bw() + 
+    theme(axis.text  = element_text(size=25),
+          axis.title = element_text(size=25,face="bold")) + 
+    scale_y_continuous(breaks = seq(-60, 0, 10))
+
+
+
+
+hiw_5e3 = readRDS(paste(fig_loc, 'hiw_d5_j5e3.RData', sep = ''))
+hiw_5e3$error
+
+approx_5e3 = hiw_5e3$approx_df
+approx_5e3 %>% head
+names(approx_5e3) = c("LIL", "HybE", "BSE", "HME")
+
+
+delta_df = (LIL - approx_5e3) %>% dplyr::select(-c('LIL')) %>% melt()
+
+delta_df %>% head
+
+### figure dimensions for saving: (954 x 488) 
+ggplot(delta_df, aes(x = variable, y = value)) + geom_boxplot() +
+    coord_flip() + 
+    labs(y = expression(paste(Delta, ' ', ln, ' ', p(y))), x = '') +
+    theme_bw() + 
+    theme(axis.text  = element_text(size=25),
+          axis.title = element_text(size=25,face="bold")) + 
+    scale_y_continuous(breaks = seq(-60, 0, 10))
+
+
 
 
 

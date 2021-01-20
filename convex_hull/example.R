@@ -34,3 +34,25 @@ i = sample.int(nrow(tetrahedra), 1, prob = probs) # pick the tetra
 th = tetrahedra[i,]
 # sample from the tetrahedron
 runif_in_tetrahedron(1, vs[th[1],], vs[th[2],], vs[th[3],], vs[th[4],])
+
+
+# repeat for 100 random points
+nsims <- 100
+sims <- matrix(NA_real_, nrow=nsims, ncol=3)
+for(k in 1:nsims){
+    th <- tetrahedra[sample.int(nrow(tetrahedra), 1, prob=probs),]
+    sims[k,] <- runif_in_tetrahedron(1, vs[th[1],], vs[th[2],], vs[th[3],], vs[th[4],])
+}
+
+
+install.packages("rgl")
+library('rgl')
+
+open3d(windowRect=c(100,100,600,600))
+#> wgl 
+#>   1
+shade3d(icosahedron3d(), color="red", alpha=0.3)
+points3d(sims)
+rglwidget()
+
+

@@ -44,11 +44,26 @@ X   = matrix(rnorm(N * D), N, D)                # (N x D) design matrix
 eps = rnorm(N, mean = 0, sd = sqrt(sigmasq))    # (N x 1) errors vector
 y   = X %*% beta + eps                          # (N x 1) response vector
 
-write.csv(X,   "C:/Users/ericc/X.csv", row.names = FALSE)
-write.csv(y,   "C:/Users/ericc/y.csv", row.names = FALSE)
-write.csv(eps, "C:/Users/ericc/eps.csv", row.names = FALSE)
-write.csv(beta, "C:/Users/ericc/beta.csv", row.names = FALSE)
+# write.csv(X,   "C:/Users/ericc/X.csv", row.names = FALSE)
+# write.csv(y,   "C:/Users/ericc/y.csv", row.names = FALSE)
+# write.csv(eps, "C:/Users/ericc/eps.csv", row.names = FALSE)
+# write.csv(beta, "C:/Users/ericc/beta.csv", row.names = FALSE)
 
+
+# beta_df = data.frame(beta, comp = 1:D)
+# ggplot(beta_df, aes(comp, y = 1, fill = beta)) +
+#     geom_tile(color = 'black', size = 1) +
+#     #geom_text(aes(label = round(beta, 4)), size = 5) +
+#     scale_fill_gradient(low = "white", high = "red",
+#                         limits=c(0, 1), 
+#                         breaks = c(0, 0.5, 1)) + coord_fixed() + 
+#     theme_bw() + labs(y = '', x = expression(beta)) +
+#     scale_x_continuous(breaks = 1:D, name = expression(beta)) + 
+#     theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+#           panel.background = element_blank(), axis.line = element_line(colour = "black"),
+#           axis.text.y=element_blank(),
+#           legend.title = element_blank(),
+#           text = element_text(size = 15))
 
 
 # compute posterior parameters -------------------------------------------------
@@ -78,7 +93,7 @@ lil_0 = -0.5 * N * log(2 * pi) - 0.5 * (N + D) * log(sigmasq) +
 samples = rtmvnorm(J, c(mu_beta), Q_beta_inv, rep(0, D), rep(Inf, D))
 u_df = preprocess(data.frame(samples), D, prior)
 
-write.csv(u_df, "C:/Users/ericc/u_df.csv", row.names = FALSE)
+# write.csv(u_df, "C:/Users/ericc/u_df.csv", row.names = FALSE)
 
 hybrid = hybrid_ml(D, u_df, J, prior)
 hybrid$zhat
@@ -92,6 +107,7 @@ log_density = function(u, data) {
     -psi(u, data)
 }
 
+library(bridgesampling)
 bridge_result <- bridge_sampler(samples = samples, log_posterior = log_density,
                                 data = prior, lb = lb, ub = ub, silent = TRUE)
 bridge_result$logml
@@ -125,103 +141,69 @@ came_approx = function(u_df, prior, post, J, D) {
     -log(sum(include_d)) + log_sum_exp((-u_df_imp$psi_u - log_s_theta)[include_d])
 }
 
-# samples = rtmvnorm(J, c(mu_beta), Q_beta_inv, rep(0, D), rep(Inf, D))
-# u_df = preprocess(data.frame(samples), D, prior)
-# hml_approx = hml_const(1, D, u_df, J, prior)
-# hml_approx$const_vec
 
+came_approx(u_df, prior, post, J, D)
 
-B = 100
+B = 20
 hyb = numeric(B)
 bridge = numeric(B)
+wbse = numeric(B)
 hme = numeric(B)
 came = numeric(B)
-came0 = numeric(B)
 set.seed(1)
+i = 1
+J = 75
 
-for (i in 1:B) {
+while (i <= B) {
     
     # sample from posterior
     samples = rtmvnorm(J, c(mu_beta), Q_beta_inv, rep(0, D), rep(Inf, D))
     u_df = preprocess(data.frame(samples), D, prior)
     
-    # #### (1) hybrid estimator
-    # hybrid = hybrid_ml(D, u_df, J, prior)
-    # if (any(is.na(hybrid))) {print(paste("error in iteration", i)); next;}
-    # hyb[i] = hybrid$zhat
-    # 
-    # lb = rep(0, D)
-    # ub = rep(Inf, D)
-    # colnames(samples) = names(u_df)[1:D]
-    # names(lb) <- names(ub) <- colnames(samples)
-    # 
-    # # bridge_result <- bridge_approx(samples, log_density, prior, lb, ub)
-    # # if (!is.na(bridge_result)) {
-    # #     bridge[i] = bridge_result
-    # # }
-    # 
-    # bridge_result <- bridgesampling::bridge_sampler(samples = samples, 
-    #                                                 log_posterior = log_density,
-    #                                                 data = prior, 
-    #                                                 lb = lb, ub = ub, 
-    #                                                 silent = TRUE)
-    # bridge[i] = bridge_result$logml
+    #### (1) hybrid estimator
+    hybrid = hybrid_ml(D, u_df, J, prior)
+    if (any(is.na(hybrid))) {print(paste("error in iteration", i)); next;}
+    hyb[i] = hybrid$zhat
+
+    lb = rep(0, D)
+    ub = rep(Inf, D)
+    colnames(samples) = names(u_df)[1:D]
+    names(lb) <- names(ub) <- colnames(samples)
+    bridge_result <- bridgesampling::bridge_sampler(samples = samples,
+                                                    log_posterior = log_density,
+                                                    data = prior,
+                                                    lb = lb, ub = ub,
+                                                    silent = TRUE)
+    bridge[i] = bridge_result$logml
     
+    # bridge_result <- bridgesampling::bridge_sampler(samples = samples,
+    #                                                 log_posterior = log_density,
+    #                                                 data = prior,
+    #                                                 lb = lb, ub = ub,
+    #                                                 silent = TRUE,
+    #                                                 method = 'warp3')
+    # 
+    # wbse[i] = bridge_result$logml
     # hme[i] = hme_approx(u_df, prior, J, D, N)
     came[i] = came_approx(u_df, prior, post, J, D)
     
     print(paste("iter ", i, ': ',
-                # "hybrid = ", round(mean(hyb[hyb!=0]), 3), 
-                # '; ', "mae = ", round(mean(abs(LIL - hyb[hyb!=0])), 4),
+                "hybrid = ", round(mean(hyb[hyb!=0]), 3),
+                '; ', "avg_err = ", round(mean((LIL - hyb[hyb!=0])), 4),
+                '; ', "abs_err = ", round(mean(abs(LIL - hyb[hyb!=0])), 4),
+                ' // ',
+                "bridge = ", round(mean(bridge[bridge!=0]), 3), '; ',
+                "avg_err = ", round(mean((LIL - bridge[bridge!=0])), 4), '; ',
+                "abs_err = ", round(mean(abs(LIL - bridge[bridge!=0])), 4),
                 # ' // ',
-                # "bridge = ", round(mean(bridge[bridge!=0]), 3), '; ', 
-                # "mae = ", round(mean(abs(LIL - bridge[bridge!=0])), 4),
-                "came = ", round(mean(came[came!=0]), 3), '; ', 
-                "mae = ", round(mean(abs(LIL - came[came!=0])), 4),
+                # "wbse = ", round(mean(wbse[wbse!=0]), 3), '; ',
+                # "mae = ", round(mean((LIL - wbse[wbse!=0])), 4),
                 sep = '')) 
+    
+    i = i + 1
 }
 
-approx = data.frame(LIL, hyb = hyb[hyb!=0], bridge = bridge[bridge!=0])
-approx = data.frame(LIL, came = came[came!=0])
-data.frame(approx = colMeans(approx), 
-           approx_sd = apply(approx, 2, sd),
-           mae = colMeans(abs(LIL - approx)),
-           rmse = sqrt(colMeans((LIL - approx)^2))) %>% round(3)
-
-
-approx_long = (approx[,-1] - LIL) %>% melt()
-ggplot(approx_long, aes(x = variable, y = value)) + geom_boxplot() +
-    geom_hline(yintercept = 0) + 
-    scale_y_continuous(breaks = seq(-4, 12, 0.5))
-
-
-saveRDS(list(J = J, D = D, N = N, approx_df = approx), 
-        file = 'trunc_d20.RData')
-mvnig_d20 = readRDS('trunc_d20.RData')
-
-
-
-approx = approx %>% mutate(iter = 1:B)
-approx_long = approx %>% melt(id.vars = 'iter')
-ggplot(approx_long, aes(x = iter, y = value, col = variable)) + geom_point() +
-    geom_hline(aes(yintercept = LIL), linetype = 'dashed', size = 0.9) + 
-    theme(legend.position = c(.2,.85))
-
-
-# bridge stuff
-approx = data.frame(LIL, bridge = bridge[bridge!=0])
-
-trunc = readRDS('trunc_d20_n100.RData')
-trunc$approx_df
-
-trunc_df = trunc$approx_df %>% dplyr::mutate(iter = 1:nrow(mvnig$approx_df))
-mvnig_df %>% head
-
-ggplot(mvnig_df, aes(x = iter, y = hyb)) + geom_point() +
-    geom_hline(aes(yintercept = LIL), linetype = 'dashed', size = 0.9) + 
-    theme(legend.position = c(.2,.85))
-
-
+#### read in NSE stuff
 # nse stuff
 data_file_loc = 'C:/Users/ericc/Dropbox/eric chuu research/aistats/rdata_files/'
 
@@ -229,11 +211,100 @@ nse = read.csv(paste(data_file_loc, 'nse_trunc_d20.csv', sep = ''),
                header = F)[,1]
 nse %>% head
 
-approx = data.frame(LIL, nse = nse)
-data.frame(approx = colMeans(approx), 
-           approx_sd = apply(approx, 2, sd),
-           mae = colMeans(abs(LIL - approx)),
-           rmse = sqrt(colMeans((LIL - approx)^2))) %>% round(3)
+approx = data.frame(LIL, hyb = hyb, bridge = bridge, wbse = wbse,
+                    came = came, hme = hme, nse = nse)
+error = data.frame(approx = colMeans(approx), 
+                   approx_sd = apply(approx, 2, sd),
+                   mae = colMeans(abs(LIL - approx)),
+                   ae = colMeans((LIL - approx)),
+                   rmse = sqrt(colMeans((LIL - approx)^2))) %>% round(3)
+error
+approx %>% head
+names(approx) = c("LIL", "HybE", "BSE", "WBSE", "CAME", "HME", "NSE")
+
+# ------------------------------------------------------------------------------
+
+fig_loc = 'C:/Users/ericc/mlike_approx/final_sims/'
+saveRDS(list(J = J, D = D, N = N, approx = approx, error = error),
+        file = paste(fig_loc, 'trunc_d20_j45.RData', sep = ''))
+
+
+trunc = readRDS(paste(fig_loc, 'trunc_d20_j45.RData', sep = ''))
+
+
+
+delta_df = (LIL - approx) %>% dplyr::select(-c('LIL')) %>% melt()
+
+delta_df %>% head
+
+### figure dimensions for saving: (954 x 488) 
+ggplot(delta_df, aes(x = variable, y = value)) + geom_boxplot() +
+    geom_hline(yintercept = 0, col = 'red', size = 1, linetype = 'dashed') +
+    coord_flip() + 
+    labs(y = expression(paste(Delta, ' ', ln, ' ', p(y))), x = '') +
+    theme_bw() + 
+    theme(axis.text  = element_text(size=25),
+          axis.title = element_text(size=25,face="bold")) + 
+    scale_y_continuous(breaks = seq(-30, 0, 10))
+
+
+
+
+fig_loc = 'C:/Users/ericc/mlike_approx/final_sims/'
+saveRDS(list(J = J, D = D, N = N, approx_df = approx, error = error),
+        file = paste(fig_loc, 'trunc_d20_j1e5.RData', sep = ''))
+
+
+approx = trunc$approx
+
+LIL = approx$LIL[1]
+
+approx %>% head
+delta_df = (LIL - approx) %>% dplyr::select(-c('LIL', 'NSE')) %>% melt()
+
+delta_df %>% head
+
+
+
+ggplot(delta_df, aes(x = variable, y = value)) + 
+    geom_boxplot(lwd = 1, fatten = 1.5) +
+    geom_hline(yintercept = 0, col = 'red', size = 1.5, linetype = 'dashed') +
+    coord_flip() + 
+    labs(y = expression(paste(Delta, ' ', ln, ' ', p(y))), x = '') +
+    theme_bw() + 
+    theme(axis.text  = element_text(size=25),
+          axis.title = element_text(size=25,face="bold")) + 
+    scale_y_continuous(breaks = seq(-30, 0, 10))
+
+
+
+
+### figure dimensions for saving: (954 x 488) 
+ggplot(delta_df, aes(x = variable, y = value)) + geom_boxplot() +
+    geom_hline(yintercept = 0, col = 'red', size = 1, linetype = 'dashed') +
+    coord_flip() + 
+    labs(y = expression(paste(Delta, ' ', ln, ' ', p(y))), x = '') +
+    theme_bw() + 
+    theme(axis.text  = element_text(size=25),
+          axis.title = element_text(size=25,face="bold")) + 
+    scale_y_continuous(breaks = seq(-30, 0, 10))
+
+fig_loc = 'C:/Users/ericc/mlike_approx/final_sims/'
+saveRDS(list(J = J, D = D, N = N, approx_df = approx, error = error),
+        file = paste(fig_loc, 'trunc_d20_j1e5.RData', sep = ''))
+
+test_read = readRDS(paste(fig_loc, 'trunc_d20_j1e5.RData', sep = ''))
+test_read$J
+test_read$error
+
+
+
+
+
+
+
+
+
 
 
 

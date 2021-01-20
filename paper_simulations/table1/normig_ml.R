@@ -92,13 +92,13 @@ for (i in 1:B) {
     s_imp = sigmasq_mean * (r_imp - 1)
     
     sigmasq_s = MCMCpack::rinvgamma(J, shape = r_imp, scale = s_imp)
-    mu_s      = rnorm(J, mean(mu_post), sqrt(mean(sigma_sq_post) / w_n))
+    mu_s      = rnorm(J, mean(mu_post), sqrt(sigmasq_s / w_n))
     # mu_s      = rnorm(J, mean(mu_post), sqrt(mean(sigmasq_s) / w_n))
     
     # compute 1/s(theta) -- (K x 1) vector of evaluated densities
     # s_theta = dnorm(mu_s, m_n, sqrt(sigma_sq / w_n)) * 
     #     MCMCpack::dinvgamma(sigmasq_s, shape = r_n / 2, scale = s_n / 2)
-    s_theta = dnorm(mu_s, mean(mu_post), sqrt(mean(sigma_sq_post) / w_n)) * 
+    s_theta = dnorm(mu_s, mean(mu_post), sqrt(sigmasq_s / w_n)) * 
         MCMCpack::dinvgamma(sigmasq_s, shape = r_imp, scale = s_imp)
     
     # compute prior density
@@ -115,6 +115,7 @@ for (i in 1:B) {
         (sigmasq_s >= A_sigmasq[1] & sigmasq_s <= A_sigmasq[2]) # 1_A (theta)
     
     came_approx = (1 / s_theta * lik_q * p_theta)[ind_A]
+    log(mean(came_approx))
     came[i] = log(mean(came_approx))
     
     
@@ -149,7 +150,7 @@ approx = data.frame(LIL,
                     came = came[came!=0])
 
 error = data.frame(approx = colMeans(approx), approx_sd = apply(approx, 2, sd),
-                   mae = colMeans(abs(LIL - approx)),
+                   mae = colMeans((LIL - approx)),
                    rmse = sqrt(colMeans((LIL - approx)^2))) %>% round(3)
 error
 

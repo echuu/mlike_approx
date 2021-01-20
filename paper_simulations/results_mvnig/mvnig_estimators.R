@@ -66,10 +66,10 @@ came_approx = function(u_df, hml_approx, prior, post, J, D) {
     
     Jp = sum(include_d)
     
-    came_j = -log(J) + log_sum_exp((-u_df_imp$psi_u - log_s_theta)[include_d])
-    came_jp = -log(Jp) + log_sum_exp((-u_df_imp$psi_u - log_s_theta)[include_d])
+    # scame_j = -log(J) + log_sum_exp((-u_df_imp$psi_u - log_s_theta)[include_d])
+    out = -log(Jp) + log_sum_exp((-u_df_imp$psi_u - log_s_theta)[include_d])
     
-    return(c(came_j, came_jp))
+    return(out)
 }
 
 

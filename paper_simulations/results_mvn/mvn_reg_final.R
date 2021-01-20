@@ -12,7 +12,7 @@ source("C:/Users/ericc/mlike_approx/paper_simulations/table2/mvn_estimators.R")
 # source("/mlike_approx/paper_simulations/table2/mvn_estimators.R")
 
 
-D = c(20) # test for smalller dimensions for now
+D = c(30) # test for smalller dimensions for now
 N = c(100) # for testing -- comment this line to perform ext. analysis
 
 
@@ -47,7 +47,7 @@ post = list(Q_beta = Q_beta, Q_beta_inv = Q_beta_inv, mu_beta = mu_beta, b = b)
 
 
 ## algorithm settings ----------------------------------------------------------
-J         = 5000         # number of MC samples per approximation
+J         = 1000         # number of MC samples per approximation
 # ------------------------------------------------------------------------------
 
 ## sample from posterior -------------------------------------------------------
@@ -60,12 +60,19 @@ u_df = preprocess(u_samps, D, prior) # J x (D + 1) -- stored row-wise
 
 # library(microbenchmark)
 # microbenchmark("hml" = hml_const(1, D, u_df, J, prior))
-start_time <- Sys.time()
+# start_time <- Sys.time()
 hml_approx = hml_const(1, D, u_df, J, prior)
-end_time <- Sys.time()
+# end_time <- Sys.time()
 
-end_time - start_time
+# end_time - start_time
 hml_approx$const_vec       # -272.1245
+
+(LIL = lil(prior, post))   # -272.1202
+
+hybrid_ml(D, u_df, J, prior)$zhat
+
+
+
 n_samps = 10
 
 # for the partition learned from prev fitted tree, extract the partition id and

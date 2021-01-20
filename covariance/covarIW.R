@@ -70,6 +70,7 @@ loglik_max = maxLogLik(Sigma, param_list)
 
 ## (3b) compute approximation
 hml_approx = hml_const(1, D_u, u_df, J, param_list)
+hml_approx$const_vec
 
 hml_approx$param_out %>%
     dplyr::select(leaf_id, psi_choice, psi_star, logQ_cstar, n_obs)

@@ -241,13 +241,16 @@ hybrid_ml <- function(D, u_df, J, param) {
 
 
 
-bridge_approx <- function(samples, log_density, prior, lb, ub) {
+bridge_approx <- function(samples, log_density, prior, lb, ub, method = 'normal') {
     out <- tryCatch(
         {
             
             bridge_result <- bridgesampling::bridge_sampler(samples = samples, 
                                                             log_posterior = log_density,
-                                                            data = prior, lb = lb, ub = ub, silent = TRUE)
+                                                            data = prior, 
+                                                            lb = lb, ub = ub, 
+                                                            silent = TRUE,
+                                                            method = method)
             bridge_result$logml
             # The return value of `readLines()` is the actual value 
             # that will be returned in case there is no condition 
@@ -264,6 +267,7 @@ bridge_approx <- function(samples, log_density, prior, lb, ub) {
         warning=function(cond) {
             # message("Here's the original warning message:")
             message(cond)
+            return(out)
         },
         finally={
         }
