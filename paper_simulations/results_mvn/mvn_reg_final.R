@@ -4,7 +4,7 @@ source("setup.R")           # setup global environment, load in algo functions
 ## 
 
 source("C:/Users/ericc/mlike_approx/bayes_regression/bayesLinRegHelper.R") 
-source("C:/Users/ericc/mlike_approx/paper_simulations/table2/mvn_estimators.R") 
+# source("C:/Users/ericc/mlike_approx/paper_simulations/table2/mvn_estimators.R") 
 
 # setwd("/mlike_approx/algo")
 # source("setup.R")           # setup global environment, load in algo functions
@@ -12,7 +12,7 @@ source("C:/Users/ericc/mlike_approx/paper_simulations/table2/mvn_estimators.R")
 # source("/mlike_approx/paper_simulations/table2/mvn_estimators.R")
 
 
-D = c(30) # test for smalller dimensions for now
+D = c(100) # test for smalller dimensions for now
 N = c(100) # for testing -- comment this line to perform ext. analysis
 
 
@@ -47,7 +47,7 @@ post = list(Q_beta = Q_beta, Q_beta_inv = Q_beta_inv, mu_beta = mu_beta, b = b)
 
 
 ## algorithm settings ----------------------------------------------------------
-J         = 1000         # number of MC samples per approximation
+J         = 2000         # number of MC samples per approximation
 # ------------------------------------------------------------------------------
 
 ## sample from posterior -------------------------------------------------------

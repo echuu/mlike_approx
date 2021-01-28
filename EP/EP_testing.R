@@ -1,6 +1,7 @@
 
 
-
+install.packages("C:/Users/ericc/rcpp-epmgp", repos = NULL, type="source")
+library(epmgp)
 
 ## (2) fit the regression tree via rpart()
 u_rpart = rpart(psi_u ~ ., u_df)
