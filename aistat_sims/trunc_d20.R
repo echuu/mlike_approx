@@ -14,12 +14,12 @@ sourceCpp("C:/Users/ericc/mlike_approx/speedup/trunc_psi.cpp")
 
 
 set.seed(123)
-D = 20
+D = 100
 N = 100
 I_D = diag(1, D)
 
 n_samps = 10
-J       = 50
+J       = 500
 B       = 100 # number of replications
 
 source("C:/Users/ericc/mlike_approx/paper_simulations/table2/mvn_estimators.R") 

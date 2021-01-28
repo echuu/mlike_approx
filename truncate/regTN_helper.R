@@ -7,7 +7,7 @@
 # loglikelihood computed using closed form (faster than using dnorm() function)
 # logprior computed using TruncatedNormal::dtmvnorm() function
 #
-psi = function(u, prior) {
+psi_trunc = function(u, prior) {
     
     y = prior$y
     X = prior$X

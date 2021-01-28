@@ -14,7 +14,7 @@ sourceCpp("C:/Users/ericc/mlike_approx/fast_psi.cpp")
 
 
 J = 100          # number of MC samples per approximation
-D = 100
+D = 20
 N = 100 # for testing -- comment this line to perform ext. analysis
 n_samps = 10
 

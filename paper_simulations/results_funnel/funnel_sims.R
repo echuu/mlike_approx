@@ -45,11 +45,17 @@ ub <- c(4, rep(30, D-1))
 colnames(funnel_mat) = names(u_df)[1:D]
 names(lb) <- names(ub) <- colnames(funnel_mat)
 
+library(bridgesampling)
 bridge_result = bridge_sampler(samples = funnel_mat,
                                log_posterior = log_density,
                                data = params, lb = lb, ub = ub, 
                                silent = TRUE)
 bridge_result$logml
+
+
+log(TruncatedNormal::pmvnorm(m_k, H_k_inv, lb, ub)[1])
+
+
 
 
 # STAN SETTINGS ----------------------------------------------------------------
@@ -185,7 +191,7 @@ for (b_i in 1:B) {
     }
 }
 
-LIL = -63.4988
+
 approx = data.frame(bridge, LIL)
 
 # approx = data.frame(hyb[1:B], came[1:B], came_0)

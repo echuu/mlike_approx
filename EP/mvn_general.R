@@ -13,7 +13,7 @@ source("C:/Users/ericc/mlike_approx/bayes_regression/bayesLinRegHelper.R")
 # source("/mlike_approx/paper_simulations/table2/mvn_estimators.R")
 
 
-D = c(4) # test for smalller dimensions for now
+D = c(100) # test for smalller dimensions for now
 N = c(100) # for testing -- comment this line to perform ext. analysis
 
 
@@ -69,8 +69,6 @@ hml_approx = hml_const(1, D, u_df, J, prior)
 hml_approx$const_vec       # -272.1245
 
 (LIL = lil(prior, post))   # -272.1202
-
-
 
 
 
@@ -131,20 +129,37 @@ psi_df = u_df_part %>%
 K = nrow(bounds)
 log_terms = numeric(K) # store terms so that we can use log-sum-exp()
 G_k = numeric(K)       # store terms coming from gaussian integral
+
+
+##
+### (4) compute hessian, H_k for each of the u_k
+H_k = Q_beta # same hessian for all partitions A_k
+
+H_k_inv = Q_beta_inv
+
+### (5) compute mean component for the gaussian, m_k for each partition
+m_k = mu_beta # same for all partitions A_k
+
+lambda_k = apply(psi_df[,1:D], 1, lambda, prior = prior) # column-wise, (D x K)
+##
+
 for (k in 1:K) {
   
   u_k = unname(unlist(psi_df[k,1:D]))
   # diff_k = u_k - m_k
   
-  H_k = pracma::hessian(psi, u_k, prior = prior)
-  H_k_inv = solve(H_k)
-  lambda_k = pracma::grad(psi, u_k, prior = prior)
+  H_k = pracma::hessian(psi_trunc, u_k, prior = prior)
+  H_k_inv = chol2inv(chol(H_k))
+
+  lambda_k = pracma::grad(psi_trunc, u_k, prior = prior)
   b_k = H_k %*% u_k - lambda_k
   m_k = H_k_inv %*% b_k
   
   lb = bounds[k, seq(1, 2 * D, 2)] %>% unname %>% unlist
   ub = bounds[k, seq(2, 2 * D, 2)] %>% unname %>% unlist
   G_k[k] = epmgp::pmvn(lb, ub, m_k, H_k_inv, log = TRUE)
+  
+  # G_k[k] = log(TruncatedNormal::pmvnorm(m_k, H_k_inv, lb, ub)[1])
 
   log_terms[k] = D / 2 * log(2 * pi) - 0.5 * log_det(H_k) - 
     psi_df$psi_u[k] + sum(lambda_k * u_k) - 0.5 * t(u_k) %*% H_k %*% u_k + 
@@ -153,6 +168,9 @@ for (k in 1:K) {
 }
 
 log_sum_exp(log_terms)
+
+abs(log_sum_exp(log_terms) - LIL)
+
 (LIL = lil(prior, post)) 
 
 
