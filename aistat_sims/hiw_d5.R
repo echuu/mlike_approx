@@ -19,6 +19,23 @@ testG = matrix(c(1,1,1,0,0,
                  0,0,1,1,1,
                  0,0,1,1,1), 5,5)
 
+
+# Given graph testG
+testG = matrix(c(1,1,0,0,1,0,0,0,0,
+                 1,1,1,1,1,0,0,0,0,
+                 0,1,1,1,0,0,0,0,0,
+                 0,1,1,1,1,1,1,0,0,
+                 1,1,0,1,1,1,0,0,0,
+                 0,0,0,1,1,1,1,1,1,
+                 0,0,0,1,0,1,1,1,1,
+                 0,0,0,0,0,1,1,1,1,
+                 0,0,0,0,0,1,1,1,1), 9, 9)
+
+a = c(1, 3, 2, 5, 4, 6, 7, 8, 9)
+testG = testG[a, a]
+
+
+
 # ------------------------------------------------------------------------------
 
 g_df = data.frame(testG)
@@ -43,7 +60,7 @@ b = 3          # prior degrees of freedom
 V = diag(1, D) # prior scale matrix 
 
 D_0 = 0.5 * D * (D + 1) # num entries on diagonal and upper diagonal
-J = 25
+J = 1000
 
 
 
@@ -59,10 +76,6 @@ hme_exp_term = function(u) {
     
     - N * log_det(Lt) + 0.5 * matrix.trace(t(Lt) %*% Lt %*% S)
 }
-
-
-
-
 
 # logical vector determining existence of edges between vertices
 edgeInd = testG[upper.tri(testG, diag = TRUE)] %>% as.logical
@@ -97,7 +110,7 @@ u_df = preprocess(post_samps, D_u, params)     # J x (D_u + 1)
 (LIL = logmarginal(Y, testG, b, V, S))
 
 (gnorm_approx = - 0.5 * D * N * log(2 * pi) +
-        gnorm(testG, b + N, V + S, iter = 15) - gnorm(testG, b, V, iter = 15))
+        gnorm(testG, b + N, V + S) - gnorm(testG, b, V))
 
 hybrid = hybrid_ml(D_u, u_df, J, params)
 hybrid$zhat
@@ -116,6 +129,10 @@ bridge_result = bridgesampling::bridge_sampler(samples = u_samp,
                                                lb = lb, ub = ub, 
                                                silent = TRUE)
 bridge_result$logml
+
+hyb_numer(u_df, psi, params)
+
+
 
 
 hme_approx = function(u_df, params, J, D, N) {

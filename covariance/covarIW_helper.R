@@ -203,7 +203,7 @@ cov_logprior = function(u, params) {
 
 
 ## psi() function  -------------------------------------------------------------
-psi = function(u, params) {
+psi_covar = function(u, params) {
     
     loglik = cov_loglik(u, params)
     logprior = cov_logprior(u, params)

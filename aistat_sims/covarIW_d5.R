@@ -9,9 +9,9 @@ library(Rcpp)
 sourceCpp("C:/Users/ericc/mlike_approx/speedup/fast_covIW.cpp")
 
 N = 100                     # number of observations
-D = 4                       # num rows/cols in the covariance matrix
+D = 6                       # num rows/cols in the covariance matrix
 D_u = 0.5 * D * (D + 1)     # dimension of u that is fed into the tree
-J = 25
+J = 1000
 
 
 ## wishart prior parameters
@@ -115,6 +115,12 @@ bridge_result$logml
 # u_df = preprocess(post_samps, D_u, param_list) # J x (D_u + 1)
 hybrid = hybrid_ml(D_u, u_df, J, param_list)
 hybrid$zhat
+
+
+# try the updated approximation using EP
+hyb_numer(u_df, psi = psi_covar, params = param_list)
+
+
 
 hme_approx(u_df)
 

@@ -105,9 +105,9 @@ hyb_numer(u_df, psi = psi_trunc)
 
 set.seed(1)
 D_MAX = 100
-D_vec = seq(10, D_MAX, 2)
+D_vec = seq(40, D_MAX, 5)
 N_REP = 50
-KAPPA = 3 # (# MCMC samples) / D = J / D
+KAPPA = 2 # (# MCMC samples) / D = J / D
 
 logml_truth = numeric(length(D_vec))
 approx = matrix(0, N_REP, length(D_vec))
@@ -203,7 +203,7 @@ df_long %>% head
 x11()
 ggplot(df_long, aes(x = d, y = error, col = approx)) + geom_point(size = 2) + 
     geom_hline(yintercept = 0, col = 'red', size = 1) + 
-    labs(y = "average error", title = "tMVN (Kappa = 4)")
+    labs(y = "average error", title = "tMVN (Kappa = 3)")
     
 
 
