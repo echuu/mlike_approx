@@ -119,6 +119,8 @@ hybrid$zhat
 
 # try the updated approximation using EP
 hyb_numer(u_df, psi = psi_covar, params = param_list)
+hyb(u_df, psi = psi_covar, params = param_list)
+
 
 
 

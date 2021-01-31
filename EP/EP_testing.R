@@ -8,7 +8,7 @@ u_rpart = rpart(psi_u ~ ., u_df)
 
 ## (3) process the fitted tree
 
-# (3.1) obtain the (data-defined) support for each of the parameters
+# (3.1) obtain t\he (data-defined) support for each of the parameters
 param_support = extractSupport(u_df, D) #
 
 # (3.2) obtain the partition

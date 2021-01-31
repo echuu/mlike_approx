@@ -86,10 +86,12 @@ extractPartition = function(u_tree, param_support = NULL) {
             
         } # end of update step for each of the parameters
         
-    } # end of loop storing the parititon boundaries
+    } # end of loop storing the partition boundaries
     
     ## 1/23 -- updated the left-appended column
     partition_out = cbind(psi_hat_id, partition)
+    
+    
     
     # number of observations in each leaf node
     # part_obs_tbl = table(u_tree$where) %>% data.frame

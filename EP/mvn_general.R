@@ -70,6 +70,9 @@ hml_approx$const_vec       # -272.1245
 
 (LIL = lil(prior, post))   # -272.1202
 
+hyb_numer(u_df, psi = psi, params = prior)
+
+hyb(u_df, psi = psi, params = prior)
 
 
 l1_norm = function(u, u_0) {

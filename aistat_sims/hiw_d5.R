@@ -38,18 +38,18 @@ testG = testG[a, a]
 
 # ------------------------------------------------------------------------------
 
-g_df = data.frame(testG)
-
-data = melt(g_df)
-
-x <- 1:5
-y <- paste0("var", seq(1,5))
-data <- expand.grid(X=x, Y=y)
-data$Z <- runif(25, 0, 5)
-
-# Heatmap 
-ggplot(data, aes(variable, variable, fill= value)) + 
-    geom_tile()
+# g_df = data.frame(testG)
+# 
+# data = melt(g_df)
+# 
+# x <- 1:5
+# y <- paste0("var", seq(1,5))
+# data <- expand.grid(X=x, Y=y)
+# data$Z <- runif(25, 0, 5)
+# 
+# # Heatmap 
+# ggplot(data, aes(variable, variable, fill= value)) + 
+#     geom_tile()
 
 # ------------------------------------------------------------------------------
 
@@ -68,7 +68,7 @@ log_density = function(u, data) {
     -psi(u, data)
 }
 
-hme_exp_term = function(u) {
+# hme_exp_term = function(u) {
     Lt = matrix(0, D, D)     # (D x D) lower triangular matrix
     Lt_vec_0 = numeric(D_0)  # (D_0 x 1) vector to fill upper triangular, Lt
     Lt_vec_0[edgeInd] = u
@@ -102,6 +102,7 @@ S = t(Y) %*% Y
 params = list(N = N, D = D, D_0 = D_0, testG = testG, edgeInd = edgeInd,
               upperInd = upperInd, S = S, V = V, b = b)
 
+J = 5000
 postIW = sampleHIW(J, D_u, D_0, testG, b, N, V, S, edgeInd)  
 post_samps = postIW$post_samps                 # (J x D_u)
 
@@ -109,29 +110,47 @@ u_df = preprocess(post_samps, D_u, params)     # J x (D_u + 1)
 
 (LIL = logmarginal(Y, testG, b, V, S))
 
-(gnorm_approx = - 0.5 * D * N * log(2 * pi) +
-        gnorm(testG, b + N, V + S) - gnorm(testG, b, V))
 
-hybrid = hybrid_ml(D_u, u_df, J, params)
-hybrid$zhat
+gnorm_approx = numeric(20)
+approx = numeric(20)
+for (i in 1:20) {
+    print(i)
+    postIW = sampleHIW(J, D_u, D_0, testG, b, N, V, S, edgeInd)  
+    post_samps = postIW$post_samps                 # (J x D_u)
+    
+    u_df = preprocess(post_samps, D_u, params)     # J x (D_u + 1)
+    gnorm_approx[i] = - 0.5 * D * N * log(2 * pi) +
+        gnorm(testG, b + N, V + S, iter = 5000) - gnorm(testG, b, V, iter = 5000)
+    approx[i] = hyb(u_df, psi, params)
+    
+}
+(gnorm_approx[i] = - 0.5 * D * N * log(2 * pi) +
+        gnorm(testG, b + N, V + S, iter = 1000) - gnorm(testG, b, V, iter = 1000))
+
+# hybrid = hybrid_ml(D_u, u_df, J, params)
+# hybrid$zhat
+
+approx[i] = hyb(u_df, psi, params)
+
+mean((LIL - gnorm_approx))
+mean((LIL - approx))
 
 
-u_samp = as.matrix(post_samps)
-colnames(u_samp) = names(u_df)[1:D_u]
-# prepare bridge_sampler input()
-lb = rep(-Inf, D_u)
-ub = rep(Inf, D_u)
-names(lb) <- names(ub) <- colnames(u_samp)
 
-bridge_result = bridgesampling::bridge_sampler(samples = u_samp, 
-                                               log_posterior = log_density,
-                                               data = params, 
-                                               lb = lb, ub = ub, 
-                                               silent = TRUE)
-bridge_result$logml
 
-hyb_numer(u_df, psi, params)
-
+# u_samp = as.matrix(post_samps)
+# colnames(u_samp) = names(u_df)[1:D_u]
+# # prepare bridge_sampler input()
+# lb = rep(-Inf, D_u)
+# ub = rep(Inf, D_u)
+# names(lb) <- names(ub) <- colnames(u_samp)
+# 
+# bridge_result = bridgesampling::bridge_sampler(samples = u_samp, 
+#                                                log_posterior = log_density,
+#                                                data = params, 
+#                                                lb = lb, ub = ub, 
+#                                                silent = TRUE)
+# bridge_result$logml
 
 
 
