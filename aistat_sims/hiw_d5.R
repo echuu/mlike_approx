@@ -132,8 +132,11 @@ for (i in 1:20) {
 
 approx[i] = hyb(u_df, psi, params)
 
-mean((LIL - gnorm_approx))
-mean((LIL - approx))
+mean(abs(LIL - gnorm_approx))
+mean(abs(LIL - approx))
+
+sqrt(mean((LIL - gnorm_approx)^2))
+sqrt(mean((LIL - approx)^2))
 
 
 

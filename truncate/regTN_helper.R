@@ -17,7 +17,7 @@ psi_trunc = function(u, prior) {
     
     sigmasq = prior$sigmasq
     tau     = prior$tau
-    
+     
     beta = u
     
     # psi_u = 0.5 * (N + D) * log(2 * pi * sigmasq)  - 0.5 * D * log(tau) +
