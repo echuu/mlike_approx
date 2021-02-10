@@ -69,13 +69,13 @@ log_density = function(u, data) {
 }
 
 # hme_exp_term = function(u) {
-    Lt = matrix(0, D, D)     # (D x D) lower triangular matrix
-    Lt_vec_0 = numeric(D_0)  # (D_0 x 1) vector to fill upper triangular, Lt
-    Lt_vec_0[edgeInd] = u
-    Lt[upper.tri(Lt, diag = T)] = Lt_vec_0   # populate lower triangular terms
-    
-    - N * log_det(Lt) + 0.5 * matrix.trace(t(Lt) %*% Lt %*% S)
-}
+#    Lt = matrix(0, D, D)     # (D x D) lower triangular matrix
+#    Lt_vec_0 = numeric(D_0)  # (D_0 x 1) vector to fill upper triangular, Lt
+#    Lt_vec_0[edgeInd] = u
+#    Lt[upper.tri(Lt, diag = T)] = Lt_vec_0   # populate lower triangular terms
+#    
+#    - N * log_det(Lt) + 0.5 * matrix.trace(t(Lt) %*% Lt %*% S)
+# }
 
 # logical vector determining existence of edges between vertices
 edgeInd = testG[upper.tri(testG, diag = TRUE)] %>% as.logical
@@ -110,6 +110,10 @@ u_df = preprocess(post_samps, D_u, params)     # J x (D_u + 1)
 
 (LIL = logmarginal(Y, testG, b, V, S))
 
+hyb(u_df, psi, params)
+
+- 0.5 * D * N * log(2 * pi) +
+    gnorm(testG, b + N, V + S, iter = 1000) - gnorm(testG, b, V, iter = 1000)
 
 gnorm_approx = numeric(20)
 approx = numeric(20)
@@ -136,7 +140,6 @@ mean(abs(LIL - gnorm_approx))
 mean(abs(LIL - approx))
 
 sqrt(mean((LIL - gnorm_approx)^2))
-sqrt(mean((LIL - approx)^2))
 
 
 
