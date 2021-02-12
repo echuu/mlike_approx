@@ -1,6 +1,13 @@
 
 
 
+setwd("C:/Users/ericc/mlike_approx/algo")
+
+source("setup.R")           # setup global environment, load in algo functions
+
+library(BDgraph)
+library(Rcpp)
+
 # compute normalizing constant for G_5
 
 # Eq. (2.4) in Uhler paper (p.12)
@@ -23,11 +30,11 @@ G_5 = matrix(c(1,1,0,1,1,
 
 
 N = 500
+V = diag(1, p)
 delta_post = delta + N
 
 I_G(delta_post)
 gnorm(G_5, delta_post, V, 100)
-
 
 is.symmetric.matrix(G_5)
 
@@ -53,11 +60,45 @@ J = 2000
 N = 0
 S = 0
 
-params = list(N = N, D = D, S = S, b = b, V = V, G = G_5, nu = nu_i)
+xi = b + nu_i - 1
+
+params = list(N = N, D = D, D_0 = D_0, S = S, b = b, V = V, 
+              G = G_5, nu = nu_i, xi = xi)
 
 post_gW = sampleGW(J, D_0, G_5, b, N, V, S) %>% data.frame()
+
+
 u_df = preprocess(post_gW, D_0, params)     # J x (D_u + 1) 
 u_df %>% head()
+
+
+sourceCpp("C:/Users/ericc/mlike_approx/speedup/gwish.cpp")
+u_df = preprocess(post_gW, D_0, params)     # J x (D_u + 1) 
+u_df %>% head()
+
+all.equal(u_df$psi_u, u_df_cpp$psi_u)
+
+
+library(microbenchmark)
+microbenchmark(cpp = psi(u, params), 
+               R = slow_psi(u, params))
+
+
+
+head(u_df$psi_u, 10)
+head(u_df_cpp$psi_u, 10)
+
+psi(u, params)
+Lt[3,3]
+Lt
+
+u = u_df[1,1:D_0] %>% unlist %>% unname
+psi(u, params)
+
+Lt = matrix(0, p, p)              # (D x D) upper triangular matrix
+Lt[upper.tri(Lt, diag = T)] = u   # populate upper triangular terms
+Lt
+
 
 gnorm(G_5, delta_post, diag(1, D))
 
@@ -157,15 +198,20 @@ Lt[upper.tri(Lt, diag = T)] = u   # populate upper triangular terms
 Lt
 
 
-test_grad = pracma::grad(test, u, params = params)
+test_grad = pracma::grad(psi, u, params = params)
 test_grad
-
 grad_mat = matrix(0, p, p)              # (D x D) upper triangular matrix
 grad_mat[upper.tri(grad_mat, diag = T)] = test_grad   # populate upper triangular terms
 grad_mat
 
-- Lt %*% V
 
+xi = b + nu_i - 1
+closed_grad = - diag(xi/diag(Lt)) + Lt %*% V
+closed_grad
+
+all.equal(grad_mat, closed_grad)
+
+- Lt %*% V
 
 xi = b + nu_i - 1
 u_mat = matrix(0, p, p)
@@ -226,7 +272,6 @@ test = function(u, params) {
 }
 
 
-
 all.equal(grad_u, -numer_umat, tolerance = 1e-6)
 
 H = pracma::hessian(psi, u, params = params)
@@ -249,121 +294,126 @@ diag(H)[setdiff(1:D_0, diag_index)]
 
 
 # ------------------------------------------------------------------------------
+
+index_mat = matrix(0, p, p)
+index_mat[upper.tri(index_mat, diag = T)] = 1:D_0
 index_mat[upper.tri(index_mat, diag = T)]
-array(c(1:p, 1:p), dim = c(p, p, 2))
 
 t_ind = which(index_mat!=0,arr.ind = T)
+t_ind
+
+params = list(N = N, D = D, D_0 = D_0, S = S, b = b, V = V, 
+              G = G_5, nu = nu_i, xi = xi,
+              t_ind = t_ind)
 
 
-ind_mat = array(0, c(3, 3, 2))
+u = u_df[2,1:D_0] %>% unlist %>% unname
+Lt = matrix(0, p, p)              # (D x D) upper triangular matrix
+Lt[upper.tri(Lt, diag = T)] = u   # populate upper triangular terms
+Lt
 
-myarray <- array(1:24, c(p,p,2))
-myarray[1,3,]
 
-
-f1 = function() {
-    
-    r = 1
-    G = matrix(NA, D_0, D_0)
+#### final version of the hessian ----------------------------------------------
+h = function() {
+    G = matrix(NA, D_0, D_0) # populate G with: d t_{i,j} d t_{k, l}
     for (r in 1:D_0) {
-        
         i = t_ind[r,1]
         j = t_ind[r,2]
-        # if (i == j) {
-        #     G[r, r] = xi[i] / Lt[i,i]^2 + V[i,i]
-        # } else {
-        #     G[r, r] = V[j,j]
-        # }
-        G[r,r] = ifelse(i == j, xi[i] / Lt[i,i]^2 + V[i,i], V[j,j])
+        c = r
+        while (c <= D_0) {
+            k = t_ind[c,1] # row of 2nd order partial
+            l = t_ind[c,2] # col of 2nd order partial
+            # partial derivative cases
+            MISMATCH_PARTIAL = (i != k)
+            DIAGONAL_PARTIAL = (i == j && j == k && k == l)
+            MIXED_PARTIAL    = (i != j && k == i && l >= j)
+            
+            if (MISMATCH_PARTIAL) {
+                G[r,c] = 0
+            } else if (DIAGONAL_PARTIAL) { 
+                G[r,c] = xi[i] / Lt[i,i]^2 + V[i,i]
+            } else if (MIXED_PARTIAL) {
+                G[r,c] = V[l,j]
+            }
+            c = c + 1
+        }
+        
     }
-    return(G)
+    G[is.na(G)] = 0
+    G = 0.5 * (G + t(G))
+    G
 }
+#### final version of the hessian ----------------------------------------------
+
+h()
+H = pracma::hessian(slow_psi, u, params = params)
+H
 
 
-u2 = u_df[10,1:D_0] %>% unlist %>% unname
+sourceCpp("C:/Users/ericc/mlike_approx/speedup/gwish.cpp")
+hess_gwish(u, params)
+
+
+all.equal(h(), H)
+all.equal(hess_gwish(u, params), H)
+
+diag(h())
+diag(hess_gwish(u, params))
+diag(H)
+
+library(microbenchmark)
+microbenchmark(numer = pracma::hessian(slow_psi, u, params = params), 
+               r = h(),
+               cpp = hess_gwish(u, params))
+
+
+diag(G)
+
+H = pracma::hessian(psi, u, params = params)
+diag(H)
 
 all.equal(diag(f2(u2)), 
           diag(pracma::hessian(psi, u2, params = params)), 
           tolerance = 1e-4)
 
-f2 = function(u) {
-    
-    Lt = matrix(0, p, p)              # (D x D) upper triangular matrix
-    Lt[upper.tri(Lt, diag = T)] = u   # populate upper triangular terms
 
-    G = matrix(NA, D_0, D_0)
-    for (r in 1:D_0) {
-        i = t_ind[r,1]
-        j = t_ind[r,2]
-        if (i == j) {
-            G[r, r] = xi[i] / Lt[i,i]^2 + V[i,i]
-        } else {
-            G[r, r] = V[j,j]
-        }
-        
-        c = r + 1
-        while (c <= D_0) {
-            l = t_ind[c,1]
-            k = t_ind[c,2]
-            G[r,c] = f(i, j, k, l)
-            c = c + 1
-        }
-    }
-    
-    G[is.na(G)] = 0
-    G = 0.5 * (G + t(G))
-    return(G)
-}
 
-library(microbenchmark)
-microbenchmark(pracma::hessian(psi, u, params = params), f2())
+u = u_df[10,1:D_0] %>% unlist %>% unname
+Lt = matrix(0, p, p)              # (D x D) upper triangular matrix
+Lt[upper.tri(Lt, diag = T)] = u   # populate upper triangular terms
+Lt
+grad_closed = - diag(xi / diag(Lt)) + Lt %*% V ## vectorize the cholesky factor to obtain the gradient
+
+
+test_grad = pracma::grad(slow_psi, u, params = params)
+test_grad
+
+grad_mat = matrix(0, p, p)              # (D x D) upper triangular matrix
+grad_mat[upper.tri(grad_mat, diag = T)] = test_grad   # populate upper triangular terms
+grad_mat
+
+
+all.equal(grad_closed, grad_mat)
 
 
 
+sourceCpp("C:/Users/ericc/mlike_approx/speedup/gwish.cpp")
+grad_cpp = grad_gwish(u, params)
 
-f = function(i, j, k, l) {
-    if (k > i) {
-        return(0)
-    } else if ((k == i) && (l > j)) {
-        return(V[l,j])
-    } else {
-        print(paste("i = ", i, " j = ", j, " l = ", l, " k = ", k, sep = ''))
-        print("situation not accounted for")
-    }
-    
+
+gvec = function() {
+    grad_closed = - diag(xi / diag(Lt)) + Lt %*% V 
+    grad_closed_vec = grad_closed[upper.tri(grad_closed, diag = T)]
+    grad_closed_vec
 }
 
 
-r = 1
-G = matrix(NA, D_0, D_0)
+all.equal(grad_gwish(u, params), grad_closed_vec)
 
-for (r in 1:D_0) {
-    i = t_ind[r,1]
-    j = t_ind[r,2]
-    if (i == j) {
-        G[r, r] = xi[i] / Lt[i,i]^2 + V[i,i]
-    } else {
-        G[r, r] = V[j,j]
-    }
-    
-    # for (c in min((r + 1), D_0):D_0) { # compute the upper diagonal entries
-    #     l = t_ind[c,1]
-    #     k = t_ind[c,2]
-    #     G[r,c] = f(i, j, k, l)
-    # }
-    c = r + 1
-    while (c <= D_0) {
-        l = t_ind[c,1]
-        k = t_ind[c,2]
-        G[r,c] = f(i, j, k, l)
-        c = c + 1
-    }
-}
+microbenchmark(cpp = grad_gwish(u, params), 
+               R = gvec(),
+               numer = pracma::grad(slow_psi, u, params = params))
 
-G[is.na(G)] = 0
-G = 0.5 * (G + t(G))
-G
-all.equal(diag(G), diag(H), tolerance = 1e-5)
 
 
 

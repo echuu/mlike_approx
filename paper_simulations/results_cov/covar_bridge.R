@@ -5,6 +5,8 @@ source("setup.R")           # setup global environment, load in algo functions
 setwd("C:/Users/ericc/mlike_approx/covariance")
 source("covarIW_helper.R")  # covariance related helper functions
 
+library(Rcpp)
+
 sourceCpp("C:/Users/ericc/mlike_approx/speedup/fast_covIW.cpp")
 
 
