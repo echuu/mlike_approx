@@ -1,6 +1,10 @@
 #include <RcppArmadillo.h>
 #include <cmath>
 
+
+typedef unsigned int u_int;
+
+
 // [[Rcpp::depends(RcppArmadillo)]]
 #define EIGEN_PERMANENTLY_DISABLE_STUPID_WARNINGS
 float create_loTriag(arma::mat& L, Rcpp::NumericVector& u);
@@ -37,27 +41,27 @@ Rcpp::NumericVector grad_gwish(Rcpp::NumericVector& u, Rcpp::List& params) {
 	arma::vec nu     = params["nu"];
 	arma::vec xi     = params["xi"];
 	arma::mat V      = params["V"];
-	unsigned int D   = params["D"];
-	unsigned int D_0 = params["D_0"];
+	u_int D   = params["D"];
+	u_int D_0 = params["D_0"];
 
 	arma::mat Lt(D, D, arma::fill::zeros);
-	unsigned int k = 0;
-	for (unsigned int c = 0; c < D; c++) {
-		for (unsigned int r = 0; r <= c; r++) {
+	u_int k = 0;
+	for (u_int c = 0; c < D; c++) {
+		for (u_int r = 0; r <= c; r++) {
 			Lt(r, c) = u[k++];	
 		}
 	}
 
 	arma::mat diag_terms(D, D, arma::fill::zeros);
-	for (unsigned int i = 0; i < D; i++) { diag_terms(i,i) = xi[i] / Lt(i,i); }
+	for (u_int i = 0; i < D; i++) { diag_terms(i,i) = xi[i] / Lt(i,i); }
 	arma::mat grad(D, D, arma::fill::zeros);
 
 	grad = - diag_terms + Lt * V;
 
 	k = 0; 
 	Rcpp::NumericVector grad_vec(D_0);
-	for (unsigned int c = 0; c < D; c++) {
-		for (unsigned int r = 0; r <= c; r++) {
+	for (u_int c = 0; c < D; c++) {
+		for (u_int r = 0; r <= c; r++) {
 			grad_vec[k++] = grad(r, c);	
 		}
 	}
@@ -108,8 +112,9 @@ arma::mat hess_gwish(Rcpp::NumericVector& u, Rcpp::List& params) {
 			c++;
 		} // end inner while loop
 
-		
 	} // end for() populating hessian matrix
+
+	H = 0.5 * (H + H.t());
 
 	return H;
 }
