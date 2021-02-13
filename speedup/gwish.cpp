@@ -35,6 +35,36 @@ float cov_loglik (Rcpp::NumericVector& u, Rcpp::List& params) {
 	return loglik;
 }
 
+// [[Rcpp::export]]
+arma::mat vec2chol(Rcpp::NumericVector& u, u_int D) {
+
+	arma::mat Lt(D, D, arma::fill::zeros);
+	u_int p = 0;
+	for (u_int c = 0; c < D; c++) {
+		for (u_int r = 0; r <= c; r++) {
+			Lt(r, c) = u[p++];	
+		}
+	}
+	return Lt;
+}
+
+
+
+// [[Rcpp::export]]
+Rcpp::NumericVector chol2vec(arma::mat& M, u_int D) {
+
+	u_int k = 0; 
+	u_int D_0 = D * (D + 1) / 2;
+	Rcpp::NumericVector u(D_0);
+	for (u_int c = 0; c < D; c++) {
+		for (u_int r = 0; r <= c; r++) {
+			u[k++] = M(r, c);	
+		}
+	}
+	return u;
+}
+
+
 
 // [[Rcpp::export]]
 Rcpp::NumericVector grad_gwish(Rcpp::NumericVector& u, Rcpp::List& params) {
@@ -44,27 +74,15 @@ Rcpp::NumericVector grad_gwish(Rcpp::NumericVector& u, Rcpp::List& params) {
 	u_int D   = params["D"];
 	u_int D_0 = params["D_0"];
 
-	arma::mat Lt(D, D, arma::fill::zeros);
-	u_int k = 0;
-	for (u_int c = 0; c < D; c++) {
-		for (u_int r = 0; r <= c; r++) {
-			Lt(r, c) = u[k++];	
-		}
-	}
+	arma::mat Lt = vec2chol(u, D);
 
 	arma::mat diag_terms(D, D, arma::fill::zeros);
 	for (u_int i = 0; i < D; i++) { diag_terms(i,i) = xi[i] / Lt(i,i); }
+	
 	arma::mat grad(D, D, arma::fill::zeros);
-
 	grad = - diag_terms + Lt * V;
 
-	k = 0; 
-	Rcpp::NumericVector grad_vec(D_0);
-	for (u_int c = 0; c < D; c++) {
-		for (u_int r = 0; r <= c; r++) {
-			grad_vec[k++] = grad(r, c);	
-		}
-	}
+	Rcpp::NumericVector grad_vec = chol2vec(grad, D);
 
 	return grad_vec;
 }
@@ -83,13 +101,7 @@ arma::mat hess_gwish(Rcpp::NumericVector& u, Rcpp::List& params) {
 	arma::mat H(D_0, D_0, arma::fill::zeros);
 
 	// reconstruct upper cholesky factor -- to be moved into another function
-	arma::mat Lt(D, D, arma::fill::zeros);
-	unsigned int p = 0;
-	for (unsigned int c = 0; c < D; c++) {
-		for (unsigned int r = 0; r <= c; r++) {
-			Lt(r, c) = u[p++];	
-		}
-	}
+	arma::mat Lt = vec2chol(u, D);
 
 	unsigned int i, j, k, l, r, c;
 	arma::mat test(D_0, 2, arma::fill::zeros);

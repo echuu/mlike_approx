@@ -167,6 +167,28 @@ microbenchmark(numer = pracma::hessian(slow_psi, u, params = params),
                r = h(),
                cpp = hess_gwish(u, params))
 
+#### test vec2chol() function --------------------------------------------------
+
+sourceCpp("C:/Users/ericc/mlike_approx/speedup/gwish.cpp")
+v2c = function(u, D) {
+    Lt = matrix(0, D, D)              # (D x D) upper triangular matrix
+    Lt[upper.tri(Lt, diag = T)] = u   # populate upper triangular terms
+    Lt
+}
+
+vec2chol(u, D)
+v2c(u, D)
+
+
+microbenchmark(r = v2c(u, D),
+               cpp = vec2chol(u, D))
+
+
+#### test chol2vec() function --------------------------------------------------
+all.equal(Lt[upper.tri(Lt, diag = T)], chol2vec(Lt, D))
+microbenchmark(r = Lt[upper.tri(Lt, diag = T)],
+               cpp = chol2vec(Lt, D))
+
 
 
 
