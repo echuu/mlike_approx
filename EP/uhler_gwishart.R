@@ -3,9 +3,9 @@
 
 
 setwd("C:/Users/ericc/mlike_approx/algo")
+source("setup.R")           # setup global environment, load in algo functions
 source("C:/Users/ericc/mlike_approx/covariance/gWish_helper.R")
 
-source("setup.R")           # setup global environment, load in algo functions
 
 library(BDgraph)
 library(Rcpp)
@@ -134,8 +134,9 @@ K = nrow(bounds)
 log_terms = numeric(K) # store terms so that we can use log-sum-exp()
 G_k = numeric(K)       # store terms coming from gaussian integral
 
-lambda_k = apply(psi_df[,1:D], 1, lambda, params = params)
+# lambda_k = apply(psi_df[,1:D], 1, lambda, params = params)
 
+k = 1
 for (k in 1:K) {
     
     u_k = unname(unlist(psi_df[k,1:D]))
@@ -144,7 +145,7 @@ for (k in 1:K) {
     H_k = f2(u)
     H_k_inv = chol2inv(chol(H_k))
     
-    # lambda_k = pracma::grad(psi, u_k, params = params)
+    lambda_k = pracma::grad(psi, u_k, params = params)
     b_k = H_k %*% u_k - lambda_k[,k]
     m_k = H_k_inv %*% b_k
     

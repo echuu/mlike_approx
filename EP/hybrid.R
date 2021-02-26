@@ -80,6 +80,13 @@ hyb = function(u_df, psi, params,
 }
 
 
+hyb = function(u_df, psi, params,
+               D = ncol(u_df) - 1) {
+    
+    
+}
+
+
 
 
 
