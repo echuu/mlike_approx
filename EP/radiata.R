@@ -8,8 +8,12 @@ y = RadiataPine$y
 n = length(y)
 X1 = cbind(rep(1,n),RadiataPine$x-mean(RadiataPine$x))
 
+X2 = cbind(rep(1,n),RadiataPine$z - mean(RadiataPine$z))
+
+
 
 X = X1 # (42 x 2)
+X = X2
 
 mu0 = c(3000,185)
 Lambda0 = diag(1,2)
@@ -54,145 +58,25 @@ yTy = t(y)%*%y
 c0 = yTy + t(mu0)%*%(tau0%*%mu0) - t(beta0)%*%M%*%beta0
 c1 = t(mu0)%*%tau0%*%mu0
 
--0.5*n*logPi + 0.5*log.dettau0 - 0.5*log.detM + 0.5*alpha*log(delta) + 
+LIL = -0.5*n*logPi + 0.5*log.dettau0 - 0.5*log.detM + 0.5*alpha*log(delta) + 
     lgamma((n+alpha)/2) - lgamma(alpha/2) -0.5*(n+alpha)*log(c0+delta)
-
-
 
 
 params = list(Q_0 = Lambda0, mu0 = mu0, alpha = alpha, beta = beta,
               d = d, n = n, 
               X = X, y = y)
 
-grad = function(u, params) {
-    beta = u[1:d] %>% unlist %>% unname
-    tau = u[d+1]
-    
-    g1 = tau * (Lambda0 %*% (beta - mu0) - t(X) %*%(y - X %*% beta))
-    g2 = -1/tau * (0.5 * (n + d + alpha) - 1) + 
-                       0.5 * (delta + sum((y - X%*%beta)^2) + 
-                                  t(beta - mu0) %*% Lambda0 %*% (beta - mu0))
-    return(c(g1, g2))
-}
-
-u1
-grad(u1, NULL)
-grad_psi(u1, NULL)
-
-all.equal(grad(u1), grad(u1))
-
-
-hessian = function(u, params) {
-    
-    beta = u[1:d] %>% unlist %>% unname
-    tau = u[d+1]
-    
-    h11 = tau * M
-    h12 = M %*% beta - XTy - Lambda0 %*% mu0
-    h22 = tau^(-2) * (0.5 *(n + d + alpha) - 1)
-    
-    H = matrix(0, nrow = d + 1, ncol = d + 1)
-    H[1:d, 1:d] = h11
-    H[d+1, 1:d] = t(h12)
-    H[1:d, d+1] = h12
-    H[d+1, d+1] = h22
-    
-    return(H)
-    
-}
-
-hess(u1)
-hessian(u1)
-
-all.equal(hess(u1), hessian(u1))
-
-# ------------------------------------------------------------------------------
-
 
 # define psi, gradient, hessian
 setwd("C:/Users/ericc/mlike_approx/algo")
 source("setup.R")           # setup global environment, load in algo functions
+source("C:/Users/ericc/mlike_approx/EP/hybml.R")
+source("C:/Users/ericc/mlike_approx/radiata/radiata_helper.R")
 
-logprior = function(theta, params) {
-    dist = theta[1:d] - beta0
-    tau = theta[d+1]
-    logPrior = -0.5*(d)*log2Pi + 0.5*d*log(tau)+0.5*log.dettau0 - 0.5*tau*t(dist)%*%tau0%*%dist + dgamma(tau,shape = 0.5*alpha,rate = 0.5*delta,log=TRUE)
-    
-    return(logPrior)
-}
-
-loglike = function(theta, params) {
-    beta = theta[1:d]
-    tau = theta[d+1]
-    z = y - X%*%beta
-    logLikelihood = -0.5*n*log2Pi + 0.5*n*log(tau) - 0.5*tau*t(z)%*%z
-    return(logLikelihood)
-}
-
-logpost = function(theta, params) {
-    dist = theta[1:d] - beta0
-    tau = theta[d+1]
-    logPosterior = -0.5*(n+d)*log2Pi + 0.5*(n+d)*log(tau) + 0.5*log.dettau0 -
-        0.5*tau*(t(dist)%*%M%*%dist) - 0.5*tau*c0 +0.5*alpha*log(0.5*delta) - 
-        lgamma(0.5*alpha) + (0.5*alpha-1)*log(tau) - 0.5*delta*tau
-    logPosterior
-}
-
-
-psi = function(u, params) {
-    -loglike(u, params)-logprior(u, params)
-}
-
-grad_psi = function(theta, params) {
-    dist = theta[1:d] - beta0
-    
-    tau = theta[d+1]
-    
-    w = -tau*(M%*%dist)
-    
-    z = 0.5*(n+d)/tau - 
-        0.5*t(dist)%*%M%*%dist - 
-        0.5*c0 + (0.5*alpha-1)/tau - 0.5*delta
-    
-    return(-c(w,z))
-}
-
-hess = function(theta, params) {
-    dist = theta[1:d] - beta0
-    tau = theta[d+1]	
-    H = matrix(nrow=d+1,ncol=d+1)
-    H[1:d,1:d] = -tau*M
-    z = -M%*%dist
-    H[1:d,d+1] = z
-    H[d+1,1:d] = t(z)
-    H[d+1,d+1] = -0.5*(n+d)/(tau^2) - (0.5*alpha-1)/(tau^2)
-    return(-H)
-}
-
-
-preprocess = function(post_samps, D, params = NULL) {
-    
-    psi_u = apply(post_samps, 1, psi, params = params) %>% unname() # (J x 1)
-    
-    # (1.2) name columns so that values can be extracted by partition.R
-    u_df_names = character(D + 1)
-    for (d in 1:D) {
-        u_df_names[d] = paste("u", d, sep = '')
-    }
-    u_df_names[D + 1] = "psi_u"
-    
-    # populate u_df
-    u_df = cbind(post_samps, psi_u) # J x (D + 1)
-    names(u_df) = u_df_names
-    
-    return(u_df)
-} # end of preprocess() function -----------------------------------------------
-
-
-n.its = 505000
-burn.in = 101000
-fix = list(); fix$vars = rep(FALSE,d+1); fix$values = numeric(d+1);
-u_samps = gibbs_radiata(Its,BurnIn,fix)
+n.its   = 505000 # num iterations to run MCMC
+burn.in = 101000 # num burn-in
+fix = list(); fix$vars = rep(FALSE, d + 1); fix$values = numeric(d + 1);
+u_samps = gibbs_radiata(n.its,burn.in,fix)
 u_samps = u_samps %>% as.data.frame # 200000 x 3
 u_samps %>% dim
 
@@ -201,74 +85,71 @@ u_df_all = preprocess(u_samps, D, params)
 row.names(u_df_all) = NULL
 u_df_all %>% head
 u_df = u_df_all
-u_df = u_df_all[sample(1:nrow(u_df_all), 5000),]
+# u_df = u_df_all[sample(1:nrow(u_df_all), 5000),]
 u_df %>% head
 
 hml_approx = hml_const(1, D, u_df, 1000, params)
 hml_approx$const_vec
 
-# ------------------------------------------------------------------------------
-## (2) fit the regression tree via rpart()
-u_rpart = rpart(psi_u ~ ., u_df)
 
-## (3) process the fitted tree
-# (3.1) obtain the (data-defined) support for each of the parameters
-param_support = extractSupport(u_df, D) #
+hybml(u_df, params, psi, grad, old_hess)
 
-# (3.2) obtain the partition
-u_partition = extractPartition(u_rpart, param_support) 
+LIL
 
+n_reps = 20
+hyb_results = numeric(n_reps)
+D = d + 1
 
-### (1) find global mean
-u_0 = colMeans(u_df[,1:D]) %>% unname() %>% unlist() # global mean
-
-### (2) find point in each partition closest to global mean (for now)
-# u_k for each partition
-u_df_part = u_df %>% dplyr::mutate(leaf_id = u_rpart$where)
-
-l1_cost = apply(u_df_part[,1:D], 1, l1_norm, u_0 = u_0)
-u_df_part = u_df_part %>% dplyr::mutate(l1_cost = l1_cost)
-
-# take min result, group_by() leaf_id
-psi_df = u_df_part %>% 
-    group_by(leaf_id) %>% filter(l1_cost == min(l1_cost)) %>% 
-    data.frame
-
-bounds = u_partition %>% arrange(leaf_id) %>% 
-    dplyr::select(-c("psi_hat", "leaf_id")) 
-psi_df = psi_df %>% arrange(leaf_id)
-
-K = nrow(bounds)
-log_terms = numeric(K) # store terms so that we can use log-sum-exp()
-G_k = numeric(K)       # store terms coming from gaussian integral
-
-# lambda_k = apply(psi_df[,1:D], 1, lambda, params = params)
-
-k = 1
-for (k in 1:K) {
-    
-    u_k = unname(unlist(psi_df[k,1:D]))
-    
-    H_k = hess(u_k, params = params)
-    H_k_inv = chol2inv(chol(H_k))
-    
-    # lambda_k = pracma::grad(psi, u_k, params = params)
-    lambda_k = grad_psi(u_k, params)
-    b_k = H_k %*% u_k - lambda_k
-    m_k = H_k_inv %*% b_k
-    
-    lb = bounds[k, seq(1, 2 * D, 2)] %>% unname %>% unlist
-    ub = bounds[k, seq(2, 2 * D, 2)] %>% unname %>% unlist
-    
-    G_k[k] = epmgp::pmvn(lb, ub, m_k, H_k_inv, log = TRUE)
-    
-    # G_k[k] = log(TruncatedNormal::pmvnorm(m_k, H_k_inv, lb, ub)[1])
-    
-    log_terms[k] = D / 2 * log(2 * pi) - 0.5 * log_det(H_k) - 
-        psi_df$psi_u[k] + sum(lambda_k * u_k) - 0.5 * t(u_k) %*% H_k %*% u_k + 
-        0.5 * t(m_k) %*% H_k %*% m_k + G_k[k]
-    
+for (i in 1:n_reps) {
+    u_samps = gibbs_radiata(n.its,burn.in,fix) %>% as.data.frame
+    u_df = preprocess(u_samps, D, params)
+    row.names(u_df) = NULL
+    hyb_results[i] = hybml(u_df, params, psi, grad, hess) %>% suppressWarnings()
+    print(paste('iter: ', i, ' | hybrid = ', round(hyb_results[i], 3), 
+                ' (error = ', round(hyb_results[i] - LIL, 3), ')',
+                sep = ''))
 }
-log_sum_exp(log_terms)
+
+x11()
+results = data.frame(LIL = LIL, hyb_results = hyb_results, misc = hyb_results)
+results_long = melt(results, id.vars = "LIL")
+results_long %>% head
+ggplot(results_long, aes(x = variable, y = value)) + geom_boxplot() + 
+    geom_hline(yintercept = LIL, col = 'red', size = 1, linetype = 'dashed')
+hyb_results
+
+
+ggplot(delta_df, aes(x = variable, y = value)) + geom_boxplot() +
+    geom_hline(yintercept = 0, col = 'red', size = 1, linetype = 'dashed') + 
+    coord_flip() + 
+    labs(y = expression(paste(Delta, ' ', ln, ' ', p(y))), x = '') +
+    theme_bw() + 
+    theme(axis.text  = element_text(size=25),
+          axis.title = element_text(size=25,face="bold")) + 
+    scale_y_continuous(breaks = seq(-60, 0, 10))
+
+library(Rcpp)
+
+params = list(Q_0 = Lambda0, mu0 = mu0, alpha = alpha, delta = delta,
+              d = d, n = n, 
+              X = X, y = y,
+              tau0 = Lambda0, beta0 = beta0,
+              ldtau0 = log.dettau0)
+
+u1 = u_df[2,1:D] %>% unname %>% unlist
+
+sourceCpp("C:/Users/ericc/mlike_approx/radiata/radiata.cpp")
+
+grad(u1, params)
+old_grad(u1, params)
+
+
+microbenchmark(f1 = grad(u1, params),
+               f2 = old_grad(u1, params))
+
+out = grad(u1, params)
+out %>% dim
+
+
 
 
