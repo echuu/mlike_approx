@@ -83,7 +83,7 @@ u_partition = extractPartition(u_rpart, param_support)
 ### (1) find global mean
 u_0 = colMeans(u_df[,1:D]) %>% unname() %>% unlist() # global mean
 
-# u_0 = u_df[which(u_df$psi_u == max(u_df$psi_u)),1:D] %>% unname() %>% unlist()
+u_0 = u_df[which(u_df$psi_u == min(u_df$psi_u)),1:D] %>% unname() %>% unlist()
 
 ### (2) find point in each partition closest to global mean (for now)
 # u_k for each partition
@@ -111,7 +111,7 @@ k = 1
 for (k in 1:K) {
     u_k = unname(unlist(psi_df[k,1:D]))
     
-    H_k = hessian(u_k, params = params)
+    H_k = hess(u_k, params = params)
     H_k_inv = chol2inv(chol(H_k))
     
     # lambda_k = pracma::grad(psi, u_k, params = params)

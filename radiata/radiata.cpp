@@ -10,10 +10,11 @@ typedef unsigned int u_int;
 // [[Rcpp::depends(RcppArmadillo)]]
 #define EIGEN_PERMANENTLY_DISABLE_STUPID_WARNINGS
 
-
+inline float psi(Rcpp::NumericVector& u, Rcpp::List& params);
 inline float loglike(Rcpp::NumericVector& u, Rcpp::List& params); 
 inline float logprior(Rcpp::NumericVector& u, Rcpp::List& params); 
 inline arma::vec grad(Rcpp::NumericVector& u, Rcpp::List& params);
+inline arma::mat hess(Rcpp::NumericVector& u, Rcpp::List& params);
 
 // [[Rcpp::export]]
 inline float psi(Rcpp::NumericVector& u, Rcpp::List& params) {
@@ -115,9 +116,34 @@ inline arma::vec grad(Rcpp::NumericVector& u, Rcpp::List& params) {
 
 
 // [[Rcpp::export]]
-arma::mat hess(Rcpp::NumericVector& u, Rcpp::List& params) {
+inline arma::mat hess(Rcpp::NumericVector& u, Rcpp::List& params) {
 
-	return NULL;
+	arma::vec mu0     = params["mu0"];
+	arma::vec Xty     = params["Xty"];
+	arma::mat M       = params["M"];
+	arma::mat Lambda0 = params["tau0"];
+	float alpha       = params["alpha"];  // shape
+	u_int n           = params["n"]; 
+
+	u_int D = u.size();      // dimension of theta
+	u_int d = D - 1;         // dimension of beta
+	double tau = u[D - 1];
+    arma::vec beta = u[Range(0, d - 1)];
+
+	arma::mat H(D, D, arma::fill::zeros);
+	arma::mat h11(d, d, arma::fill::zeros); // hessian for beta component
+	arma::vec h12(d, arma::fill::zeros);
+	double h22;
+
+	h11 = tau * M;
+	h12 = M * beta - Xty - Lambda0 * mu0;
+	h22 = 1 / std::pow(tau, 2) * (0.5 * (n + d + alpha) - 1);
+	H.submat(0, d, d-1, d) = h12;
+	H.submat(d, 0, d, d-1) = h12.t();
+	H.submat(0, 0, d - 1, d - 1) = h11;
+	H(d, d) = h22;
+
+	return H;
 
 }
 

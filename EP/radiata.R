@@ -92,7 +92,13 @@ hml_approx = hml_const(1, D, u_df, 1000, params)
 hml_approx$const_vec
 
 
-hybml(u_df, params, psi, grad, old_hess)
+hybml(u_df, params, psi, grad, hess)
+hybml(u_df, params, old_psi, old_grad, old_hess)
+
+microbenchmark(f1 = hybml(u_df, params, psi, grad, hess),
+               f2 = hybml(u_df, params, old_psi, old_grad, old_hess),
+               times = 10)
+
 
 LIL
 
@@ -131,8 +137,8 @@ ggplot(delta_df, aes(x = variable, y = value)) + geom_boxplot() +
 library(Rcpp)
 
 params = list(Q_0 = Lambda0, mu0 = mu0, alpha = alpha, delta = delta,
-              d = d, n = n, 
-              X = X, y = y,
+              d = d, n = n, M = M, 
+              X = X, y = y, Xty = t(X) %*% y,
               tau0 = Lambda0, beta0 = beta0,
               ldtau0 = log.dettau0)
 
@@ -140,9 +146,18 @@ u1 = u_df[2,1:D] %>% unname %>% unlist
 
 sourceCpp("C:/Users/ericc/mlike_approx/radiata/radiata.cpp")
 
+hess(u1, params)
+old_hess(u1, params)
+
+all.equal(hess(u1, params),
+          old_hess(u1, params))
+
+microbenchmark(f1 = hess(u1, params),
+               f2 = old_hess(u1, params))
+
+
 grad(u1, params)
 old_grad(u1, params)
-
 
 microbenchmark(f1 = grad(u1, params),
                f2 = old_grad(u1, params))
