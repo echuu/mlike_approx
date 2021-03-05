@@ -13,7 +13,7 @@ X2 = cbind(rep(1,n),RadiataPine$z - mean(RadiataPine$z))
 
 
 X = X1 # (42 x 2)
-X = X2
+# X = X2
 
 mu0 = c(3000,185)
 Lambda0 = diag(1,2)
@@ -124,6 +124,216 @@ ggplot(results_long, aes(x = variable, y = value)) + geom_boxplot() +
     geom_hline(yintercept = LIL, col = 'red', size = 1, linetype = 'dashed')
 hyb_results
 
+
+# ------------------------------------------------------------------------------
+
+### simulations using the updated version of hybml
+
+methods = c("LAP", "HME", "C", "AIS", "NS", "PP")
+approx_df = store.log.evidences[1:15,] %>% data.frame
+names(approx_df) = methods
+approx_df = approx_df %>% dplyr::mutate(LIL = LIL)
+
+approx_df_sub = approx_df %>% dplyr::select(-c("HME", "NS"))
+
+approx_long = melt(approx_df_sub, id.vars = "LIL")
+approx_long %>% head
+x11()
+ggplot(approx_long, aes(x = variable, y = value)) + geom_boxplot() + 
+    geom_hline(yintercept = LIL, col = 'red', size = 1, linetype = 'dashed')
+
+
+### run hybrid sims ------------------------------------------------------------
+library(Rcpp)
+
+setwd("C:/Users/ericc/mlike_approx/algo")
+source("setup.R")           # setup global environment, load in algo functions
+source("C:/Users/ericc/mlike_approx/EP/hybml.R")
+sourceCpp("C:/Users/ericc/mlike_approx/radiata/radiata.cpp")
+source("C:/Users/ericc/mlike_approx/radiata/radiata_helper.R")
+
+params = list(Q_0 = Lambda0, mu0 = mu0, alpha = alpha, delta = delta,
+              d = d, n = n, M = M, 
+              X = X, y = y, Xty = t(X) %*% y,
+              tau0 = Lambda0, beta0 = beta0,
+              ldtau0 = log.dettau0)
+
+
+n.its   = 505000 # num iterations to run MCMC
+burn.in = 101000 # num burn-in
+fix = list(); fix$vars = rep(FALSE, d + 1); fix$values = numeric(d + 1);
+u_samps = gibbs_radiata(n.its,burn.in,fix)
+u_samps = u_samps %>% as.data.frame # 200000 x 3
+u_samps %>% dim
+
+D = d + 1
+u_df_all = preprocess(u_samps, D, params)
+row.names(u_df_all) = NULL
+u_df_all %>% head
+u_df = u_df_all
+# u_df = u_df_all[sample(1:nrow(u_df_all), 5000),]
+u_df %>% head
+
+hybml(u_df, params, psi, grad, hess)
+# hybml(u_df, params, old_psi, old_grad, old_hess)
+# LIL
+
+n_reps = 15
+hyb_results = numeric(n_reps)
+
+for (i in 1:n_reps) {
+    u_samps = gibbs_radiata(n.its,burn.in,fix) %>% as.data.frame
+    u_df = preprocess(u_samps, D, params)
+    row.names(u_df) = NULL
+    hyb_results[i] = hybml(u_df, params, psi, grad, hess)
+    print(paste('iter: ', i, ' | hybrid = ', round(hyb_results[i], 3), 
+                ' (error = ', round(hyb_results[i] - LIL, 3), ')',
+                sep = ''))
+}
+
+#### update boxplots to include the hybrid estimators --------------------------
+
+## read in data computed using Wyse/Friel code
+approx_df = read.csv("RadiataModel1logevidences.txt", header = F)
+approx_df
+approx_df = approx_df[1:15,]
+methods = c("LAP", "HME", "C", "AIS", "NS", "PP")
+names(approx_df) = methods
+approx_df = approx_df %>% dplyr::mutate(LIL = LIL, HYB = hyb_results)
+approx_df
+x11()
+
+#### (1) first one including all estimators (including HME, NS)
+approx_1_long = melt(approx_df, id.vars = "LIL")
+ggplot(approx_1_long, aes(x = variable, y = value)) + geom_boxplot() + 
+    geom_hline(yintercept = LIL, col = 'red', size = 1, linetype = 'dashed')
+
+
+#### (2) second one including all estimators except HME, NS
+approx_2 = approx_df %>% dplyr::select(-c("HME", "NS"))
+approx_2_long = melt(approx_2, id.vars = "LIL")
+ggplot(approx_2_long, aes(x = variable, y = value)) + geom_boxplot() + 
+    geom_hline(yintercept = LIL, col = 'red', size = 1, linetype = 'dashed')
+
+
+#### (3) last one including only good estimators: LAP, Chib, Hybrid
+approx_3 = approx_df %>% dplyr::select("LAP", "C", "HYB", "LIL")
+approx_3_long = melt(approx_3, id.vars = "LIL")
+ggplot(approx_3_long, aes(x = variable, y = value)) + geom_boxplot() + 
+    geom_hline(yintercept = LIL, col = 'red', size = 1, linetype = 'dashed')
+
+
+(approx_df - LIL) %>% colMeans()
+
+colMeans(approx_df) - LIL
+
+
+
+
+
+# ------------------------------------------------------------------------------
+
+## compare theta_star with point with highest posterior probability
+
+MAP_LOC = which(u_df$psi_u == min(u_df$psi_u))
+u_0 = u_df[MAP_LOC,1:D] %>% unname() %>% unlist()
+
+u_star = theta_star()
+
+hybml(u_df, params, psi, grad, hess, u_0 = u_star)
+hybml(u_df, params, psi, grad, hess)
+
+LIL
+
+theta_star = function(tolerance = 0.0001, maxsteps = 200) {
+
+    betaHat = solve(t(X)%*%X, method = "chol") %*% (t(X) %*% y)
+    z = y - X %*% betaHat
+    tauHat = n / (t(z) %*% z)
+    theta = c(betaHat, tauHat)
+    numsteps = 0
+    tolcriterion = 100
+    step.size = 1
+    
+    while(tolcriterion>tolerance && numsteps < maxsteps){
+        
+        # G = evidence.obj$hessian(theta)
+        G = -hess(theta, params)
+        
+        invG = solve(G)
+        # thetaNew = theta - 
+        #     step.size * invG %*% evidence.obj$log.posterior.gradient(theta)
+        
+        thetaNew = theta + step.size * invG %*% grad(theta, params)
+        
+        # if precision turns negative or if the posterior probability of 
+        # thetaNew becomes smaller than the posterior probability of theta
+        if(thetaNew[d+1] < 0 || -psi(thetaNew, params) < -psi(theta, params)) {
+            cat('tolerance reached on log scale =', tolcriterion, '\n')
+            print(paste("converged -- ", numsteps, " iters", sep = ''))
+            return(theta)
+        }
+        
+        tolcriterion = abs(psi(thetaNew, params)-psi(theta, params))
+        theta = thetaNew
+        numsteps = numsteps + 1
+    }
+    
+    if(numsteps == maxsteps) 
+        warning('Maximum number of steps reached in Newton method.')
+    
+    
+    print(paste("converged -- ", numsteps, " iters", sep = ''))
+    return(theta)
+
+}	
+
+
+n_reps = 15
+hyb_results = numeric(n_reps)
+
+for (i in 1:n_reps) {
+    u_samps = gibbs_radiata(n.its,burn.in,fix) %>% as.data.frame
+    u_df = preprocess(u_samps, D, params)
+    row.names(u_df) = NULL
+    hyb_results[i] = hybml(u_df, params, psi, grad, hess, u_0 = u_star)
+    print(paste('iter: ', i, ' | hybrid = ', round(hyb_results[i], 3), 
+                ' (error = ', round(hyb_results[i] - LIL, 3), ')',
+                sep = ''))
+}
+
+
+## read in data computed using Wyse/Friel code
+# approx_df = read.csv("RadiataModel1logevidences.txt", header = F)
+# approx_df
+# approx_df = approx_df[1:15,]
+# methods = c("LAP", "HME", "C", "AIS", "NS", "PP")
+# names(approx_df) = methods
+# approx_df = approx_df %>% dplyr::mutate(LIL = LIL, HYB = hyb_results) # hybrid using MAP
+approx_df = approx_df %>% dplyr::mutate(HYB_0 = hyb_results) # hybrid using newton to find mode
+approx_df
+colMeans(approx_df) - LIL
+x11()
+
+#### (1) first one including all estimators (including HME, NS)
+approx_1_long = melt(approx_df, id.vars = "LIL")
+ggplot(approx_1_long, aes(x = variable, y = value)) + geom_boxplot() + 
+    geom_hline(yintercept = LIL, col = 'red', size = 1, linetype = 'dashed')
+
+
+#### (2) second one including all estimators except HME, NS
+approx_2 = approx_df %>% dplyr::select(-c("HME", "NS"))
+approx_2_long = melt(approx_2, id.vars = "LIL")
+ggplot(approx_2_long, aes(x = variable, y = value)) + geom_boxplot() + 
+    geom_hline(yintercept = LIL, col = 'red', size = 1, linetype = 'dashed')
+
+
+
+
+
+
+
+#### old testing code ----------------------------------------------------------
 
 ggplot(delta_df, aes(x = variable, y = value)) + geom_boxplot() +
     geom_hline(yintercept = 0, col = 'red', size = 1, linetype = 'dashed') + 

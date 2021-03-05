@@ -55,7 +55,7 @@ l1_norm = function(u, u_0) {
 
 
 
-hybml = function(u_df, params, psi, grad, hess, D = ncol(u_df) - 1) {
+hybml = function(u_df, params, psi, grad, hess, u_0 = NULL, D = ncol(u_df) - 1) {
     
     ## fit the regression tree via rpart()
     u_rpart = rpart(psi_u ~ ., u_df)
@@ -70,11 +70,13 @@ hybml = function(u_df, params, psi, grad, hess, D = ncol(u_df) - 1) {
     #### hybrid extension begins here ------------------------------------------
     
     ### (1) find global mean
-    u_0 = colMeans(u_df[,1:D]) %>% unname() %>% unlist() # global mean
+    # u_0 = colMeans(u_df[,1:D]) %>% unname() %>% unlist() # global mean
     
-    # MAP_LOC = which(u_df$psi_u == max(u_df$psi_u))
-    # u_0 = u_df[MAP_LOC,1:D] %>% unname() %>% unlist()
-    
+    if (is.null(u_0)) {
+        MAP_LOC = which(u_df$psi_u == min(u_df$psi_u))
+        u_0 = u_df[MAP_LOC,1:D] %>% unname() %>% unlist()
+    }
+        
     ### (2) find point in each partition closest to global mean (for now)
     # u_k for each partition
     u_df_part = u_df %>% dplyr::mutate(leaf_id = u_rpart$where)

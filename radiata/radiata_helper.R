@@ -43,16 +43,16 @@ old_psi = function(u, params) {
 
 
 old_grad = function(u, l = NULL) {
-        beta = u[1:d] %>% unlist %>% unname
-        tau = u[d+1]
+    beta = u[1:d] %>% unlist %>% unname
+    tau = u[d+1]
         
-        diff = beta - mu0
+    diff = beta - mu0
         
-        g1 = tau * (Lambda0 %*% (beta - mu0) - t(X) %*%(y - X %*% beta))
-        g2 = -1/tau * (0.5 * (n + d + alpha) - 1) +
-                           0.5 * (delta + sum((y - X%*%beta)^2) +
-                                      t(diff) %*% Lambda0 %*% diff)
-        return(c(g1, g2))
+    g1 = tau * (Lambda0 %*% (beta - mu0) - t(X) %*%(y - X %*% beta))
+    g2 = -1/tau * (0.5 * (n + d + alpha) - 1) +
+                    0.5 * (delta + sum((y - X%*%beta)^2) +
+                            t(diff) %*% Lambda0 %*% diff)
+    return(c(g1, g2))
 }
 
 
