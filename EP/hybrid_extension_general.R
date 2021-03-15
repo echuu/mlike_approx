@@ -79,10 +79,10 @@ hyb_numer = function(u_df, psi, params,
         u_k = unname(unlist(psi_df[k,1:D]))
         # diff_k = u_k - m_k
         
-        H_k = pracma::hessian(psi, u_k, prior = params)
+        H_k = pracma::hessian(psi, u_k, params = params)
         H_k_inv = chol2inv(chol(H_k))
         
-        lambda_k = pracma::grad(psi, u_k, prior = params)
+        lambda_k = pracma::grad(psi, u_k, params = params)
         b_k = H_k %*% u_k - lambda_k
         m_k = H_k_inv %*% b_k
         

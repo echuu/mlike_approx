@@ -12,7 +12,7 @@ source("C:/Users/ericc/mlike_approx/bayes_regression/bayesLinRegHelper.R")
 # source("/mlike_approx/paper_simulations/table2/mvn_estimators.R")
 
 
-D = c(100) # test for smalller dimensions for now
+D = c(4) # test for smalller dimensions for now
 N = c(100) # for testing -- comment this line to perform ext. analysis
 
 

@@ -110,7 +110,7 @@ u_df = preprocess(post_samps, D_u, params)     # J x (D_u + 1)
 
 (LIL = logmarginal(Y, testG, b, V, S))
 
-hyb(u_df, psi, params)
+hyb_numer(u_df, psi, params)
 
 - 0.5 * D * N * log(2 * pi) +
     gnorm(testG, b + N, V + S, iter = 1000) - gnorm(testG, b, V, iter = 1000)

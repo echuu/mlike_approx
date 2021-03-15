@@ -53,6 +53,10 @@ l1_norm = function(u, u_0) {
     sum(abs(u - u_0))
 }
 
+l2_norm = function(u, u_0) {
+    sum((u - u_0)^2)
+}
+
 
 
 hybml = function(u_df, params, psi, grad, hess, u_0 = NULL, D = ncol(u_df) - 1) {
@@ -127,11 +131,57 @@ hybml = function(u_df, params, psi, grad, hess, u_0 = NULL, D = ncol(u_df) - 1) 
 }
 
 
-test = function(u_df, params, psi, grad, hess) { 
+globalMode = function(u_df, tolerance = 0.00001, maxsteps = 200) {
+    
+    # use the MAP as the starting point for the algorithm
+    MAP_LOC = which(u_df$psi_u == min(u_df$psi_u))
+    theta = u_df[MAP_LOC,1:D] %>% unname() %>% unlist()
+    
+    numsteps = 0
+    tolcriterion = 100
+    step.size = 1
+    
+    
+    while(tolcriterion>tolerance && numsteps < maxsteps){
+        
+        # G = evidence.obj$hessian(theta)
+        G = -hess(theta, params)
+        
+        invG = solve(G)
+        # thetaNew = theta - 
+        #     step.size * invG %*% evidence.obj$log.posterior.gradient(theta)
+        
+        thetaNew = theta + step.size * invG %*% grad(theta, params)
+        
+        # if precision turns negative or if the posterior probability of 
+        # thetaNew becomes smaller than the posterior probability of theta
+        if(-psi(thetaNew, params) < -psi(theta, params)) {
+            cat('tolerance reached on log scale =', tolcriterion, '\n')
+            print(paste("converged -- ", numsteps, " iters", sep = ''))
+            return(theta)
+        }
+        
+        tolcriterion = abs(psi(thetaNew, params)-psi(theta, params))
+        theta = thetaNew
+        numsteps = numsteps + 1
+    }
+    
+    if(numsteps == maxsteps) 
+        warning('Maximum number of steps reached in Newton method.')
+    
+    
+    print(paste("converged -- ", numsteps, " iters", sep = ''))
+    return(theta)
+    
+    
+}
+
+
+
+ep_step = function(lb, ub, m_k, H_k_inv) { 
     out <- tryCatch(
         {
-            
-            hybml(u_df, params, psi, grad, hess)
+            epmgp::pmvn(lb, ub, m_k, H_k_inv, log = TRUE)
             # The return value of `readLines()` is the actual value 
             # that will be returned in case there is no condition 
             # (e.g. warning or error). 
@@ -140,14 +190,14 @@ test = function(u_df, params, psi, grad, hess) {
             # for the condition handlers for warnings and error below)
         },
         error=function(cond) {
-            message(paste("hybrid computation error"))
+            message("integral evaluation is 0")
             message(cond)
-            return(NA)
+            return(0)
         },
         warning=function(cond) {
             message("Here's the original warning message:")
             message(cond)
-            return(NULL)
+            return(0)
         },
         finally={
         }

@@ -31,7 +31,7 @@ G_5 = matrix(c(1,1,0,1,1,
                1,0,1,1,1), p, p)
 
 
-N = 500
+N = 10
 V = diag(1, p)
 delta_post = delta + N
 
@@ -52,13 +52,13 @@ p = 5 # number vertices
 D = p
 D_0 = D * (D + 1) / 2
 b = delta_post
-N = 500
+# N = 500
 V = diag(1, D)
 # S = t(Y) %*% Y
 delta = b
 
 
-J = 2000
+J = 1000
 N = 0
 S = 0
 
@@ -80,6 +80,7 @@ params = list(N = N, D = D, D_0 = D_0, S = S, b = b, V = V,
 post_gW = sampleGW(J, D_0, G_5, b, N, V, S) %>% data.frame()
 
 sourceCpp("C:/Users/ericc/mlike_approx/speedup/gwish.cpp")
+source("C:/Users/ericc/mlike_approx/EP/hybml.R")
 
 u_df = preprocess(post_gW, D_0, params)     # J x (D_u + 1) 
 u_df %>% head()
@@ -89,15 +90,18 @@ u = u_df[1,1:D_0] %>% unlist %>% unname
 Lt = matrix(0, p, p)              # (D x D) upper triangular matrix
 Lt[upper.tri(Lt, diag = T)] = u   # populate upper triangular terms
 Lt
-
-hml_approx = hml_const(1, D_0, u_df, J, params)
-hml_approx$const_vec
-
-hyb(u_df, psi = psi, params = params)
+# 
+# hml_approx = hml_const(1, D_0, u_df, J, params)
+# hml_approx$const_vec
+# 
+# gnorm(G_5, delta_post, V, 100)
+# 
+# 
+# hybml(u_df, params = params, psi = psi, grad = grad_gwish, hess = hess_gwish)
 # ------------------------------------------------------------------------------
 
 D = D_0
-
+D = D_u
 ## (2) fit the regression tree via rpart()
 u_rpart = rpart(psi_u ~ ., u_df)
 
@@ -112,18 +116,24 @@ u_partition = extractPartition(u_rpart, param_support)
 
 ### (1) find global mean
 u_0 = colMeans(u_df[,1:D]) %>% unname() %>% unlist() # global mean
+u_star = u_0
+
+u_star = globalMode(u_df)
+
+cbind(u_0, globalMode(u_df))
 
 
 ### (2) find point in each partition closest to global mean (for now)
 # u_k for each partition
 u_df_part = u_df %>% dplyr::mutate(leaf_id = u_rpart$where)
 
-l1_cost = apply(u_df_part[,1:D], 1, l1_norm, u_0 = u_0)
-u_df_part = u_df_part %>% dplyr::mutate(l1_cost = l1_cost)
+cost = apply(u_df_part[,1:D], 1, l1_norm, u_0 = u_star)
+# cost = apply(u_df_part[,1:D], 1, l2_norm, u_0 = u_star)
+u_df_part = u_df_part %>% dplyr::mutate(cost = cost)
 
 # take min result, group_by() leaf_id
 psi_df = u_df_part %>% 
-    group_by(leaf_id) %>% filter(l1_cost == min(l1_cost)) %>% 
+    group_by(leaf_id) %>% filter(cost == min(cost)) %>% 
     data.frame
 
 bounds = u_partition %>% arrange(leaf_id) %>% 
@@ -132,37 +142,53 @@ psi_df = psi_df %>% arrange(leaf_id)
 
 K = nrow(bounds)
 log_terms = numeric(K) # store terms so that we can use log-sum-exp()
-G_k = numeric(K)       # store terms coming from gaussian integral
+G_k = rep(NA, K)       # store terms coming from gaussian integral
 
 # lambda_k = apply(psi_df[,1:D], 1, lambda, params = params)
 
-k = 1
+k = 2
 for (k in 1:K) {
     
     u_k = unname(unlist(psi_df[k,1:D]))
     
-    H_k = pracma::hessian(psi, u_k, params = params)
-    H_k = f2(u)
+    # H_k = pracma::hessian(psi, u_k, params = params)
+    H_k = hess(u_k, params)
     H_k_inv = chol2inv(chol(H_k))
     
-    lambda_k = pracma::grad(psi, u_k, params = params)
-    b_k = H_k %*% u_k - lambda_k[,k]
+    # lambda_k = pracma::grad(psi, u_k, params = params)
+    lambda_k = grad(u_k, params = params)
+    b_k = H_k %*% u_k - lambda_k
     m_k = H_k_inv %*% b_k
     
     lb = bounds[k, seq(1, 2 * D, 2)] %>% unname %>% unlist
     ub = bounds[k, seq(2, 2 * D, 2)] %>% unname %>% unlist
     
-    G_k[k] = epmgp::pmvn(lb, ub, m_k, H_k_inv, log = TRUE)
+    # epmgp::pmvn(lb, ub, m_k, H_k_inv, log = TRUE)
+    # epmgp::axisepmgp(m_k, H_k_inv, lb, ub)
     
-    G_k[k] = log(TruncatedNormal::pmvnorm(m_k, H_k_inv, lb, ub)[1])
+    # G_k[k] = epmgp::pmvn(lb, ub, m_k, H_k_inv, log = TRUE)
+    G_k[k] = ep_step(lb, ub, m_k, H_k_inv)
+
+    # G_k[k] = log(TruncatedNormal::pmvnorm(m_k, H_k_inv, lb, ub)[1])
     
     log_terms[k] = D / 2 * log(2 * pi) - 0.5 * log_det(H_k) - 
-        psi_df$psi_u[k] + sum(lambda_k[,k] * u_k) - 0.5 * t(u_k) %*% H_k %*% u_k + 
+        psi_df$psi_u[k] + sum(lambda_k * u_k) - 0.5 * t(u_k) %*% H_k %*% u_k + 
         0.5 * t(m_k) %*% H_k %*% m_k + G_k[k]
     
 }
-log_sum_exp(log_terms)
 
+G_k
+
+# mean(G_k)
+# G_k[G_k == 0] = mean(G_k)
+# 
+# log_terms[which(G_k == 0)] = log_terms[which(G_k == 0)] + mean(G_k[G_k!=0]) 
+# log_terms
+
+log_sum_exp(log_terms - G_k)
+
+log_sum_exp(log_terms)
+gnorm(G_5, delta_post, V, 100)
 
 
 for (k in 1:K) {
@@ -179,6 +205,33 @@ for (k in 1:K) {
 
 
 # ------------------------------------------------------------------------------
+
+
+
+
+library(matlabr)
+options(matlab.path = "C:/Users/ericc/Dropbox/epmgp/")
+have_matlab()
+
+code = c("x = 10", 
+         "y=20;", 
+         "z=x+y", 
+         "a = [1 2 3; 4 5 6; 7 8 10]",
+         "save('test.txt', 'x', 'a', 'z', '-ascii')")
+res = run_matlab_code(code)
+
+
+test
+
+H_k_inv
+
+library(R.matlab)
+writeMat(con = "C:/Users/ericc/Dropbox/epmgp/hmat.mat", x = as.matrix(H_k_inv))
+writeMat(con = "C:/Users/ericc/Dropbox/epmgp/m_k.mat", x = as.matrix(m_k))
+writeMat(con = "C:/Users/ericc/Dropbox/epmgp/lb.mat", x = as.matrix(lb))
+writeMat(con = "C:/Users/ericc/Dropbox/epmgp/ub.mat", x = as.matrix(ub))
+
+
 
 
 

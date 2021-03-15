@@ -245,55 +245,15 @@ hybml(u_df, params, psi, grad, hess)
 
 LIL
 
-theta_star = function(tolerance = 0.0001, maxsteps = 200) {
-
-    betaHat = solve(t(X)%*%X, method = "chol") %*% (t(X) %*% y)
-    z = y - X %*% betaHat
-    tauHat = n / (t(z) %*% z)
-    theta = c(betaHat, tauHat)
-    numsteps = 0
-    tolcriterion = 100
-    step.size = 1
-    
-    while(tolcriterion>tolerance && numsteps < maxsteps){
-        
-        # G = evidence.obj$hessian(theta)
-        G = -hess(theta, params)
-        
-        invG = solve(G)
-        # thetaNew = theta - 
-        #     step.size * invG %*% evidence.obj$log.posterior.gradient(theta)
-        
-        thetaNew = theta + step.size * invG %*% grad(theta, params)
-        
-        # if precision turns negative or if the posterior probability of 
-        # thetaNew becomes smaller than the posterior probability of theta
-        if(thetaNew[d+1] < 0 || -psi(thetaNew, params) < -psi(theta, params)) {
-            cat('tolerance reached on log scale =', tolcriterion, '\n')
-            print(paste("converged -- ", numsteps, " iters", sep = ''))
-            return(theta)
-        }
-        
-        tolcriterion = abs(psi(thetaNew, params)-psi(theta, params))
-        theta = thetaNew
-        numsteps = numsteps + 1
-    }
-    
-    if(numsteps == maxsteps) 
-        warning('Maximum number of steps reached in Newton method.')
-    
-    
-    print(paste("converged -- ", numsteps, " iters", sep = ''))
-    return(theta)
-
-}	
 
 
-n_reps = 15
+n_reps = 100
+n_mcmc = 505000
+burn_in = n_mcmc / 5
 hyb_results = numeric(n_reps)
 
 for (i in 1:n_reps) {
-    u_samps = gibbs_radiata(n.its,burn.in,fix) %>% as.data.frame
+    u_samps = gibbs_radiata(n_mcmc, burn_in, fix) %>% as.data.frame
     u_df = preprocess(u_samps, D, params)
     row.names(u_df) = NULL
     hyb_results[i] = hybml(u_df, params, psi, grad, hess, u_0 = u_star)
@@ -311,7 +271,10 @@ for (i in 1:n_reps) {
 # names(approx_df) = methods
 # approx_df = approx_df %>% dplyr::mutate(LIL = LIL, HYB = hyb_results) # hybrid using MAP
 approx_df = approx_df %>% dplyr::mutate(HYB_0 = hyb_results) # hybrid using newton to find mode
+approx_df = approx_df %>% dplyr::mutate(HYB_00 = hyb_results)
+mean(hyb_results) - LIL
 approx_df
+hist(hyb_results)
 colMeans(approx_df) - LIL
 x11()
 
@@ -326,11 +289,6 @@ approx_2 = approx_df %>% dplyr::select(-c("HME", "NS"))
 approx_2_long = melt(approx_2, id.vars = "LIL")
 ggplot(approx_2_long, aes(x = variable, y = value)) + geom_boxplot() + 
     geom_hline(yintercept = LIL, col = 'red', size = 1, linetype = 'dashed')
-
-
-
-
-
 
 
 #### old testing code ----------------------------------------------------------

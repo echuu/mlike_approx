@@ -67,7 +67,7 @@ Rcpp::NumericVector chol2vec(arma::mat& M, u_int D) {
 
 
 // [[Rcpp::export]]
-Rcpp::NumericVector grad_gwish(Rcpp::NumericVector& u, Rcpp::List& params) {
+Rcpp::NumericVector grad(Rcpp::NumericVector& u, Rcpp::List& params) {
 	arma::vec nu     = params["nu"];
 	arma::vec xi     = params["xi"];
 	arma::mat V      = params["V"];
@@ -88,7 +88,7 @@ Rcpp::NumericVector grad_gwish(Rcpp::NumericVector& u, Rcpp::List& params) {
 }
 
 // [[Rcpp::export]]
-arma::mat hess_gwish(Rcpp::NumericVector& u, Rcpp::List& params) {
+arma::mat hess(Rcpp::NumericVector& u, Rcpp::List& params) {
 
 	arma::vec nu      = params["nu"];
 	arma::vec xi      = params["xi"];
