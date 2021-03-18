@@ -36,7 +36,7 @@ K = nrow(bounds)
 log_terms = numeric(K) # store terms so that we can use log-sum-exp()
 G_k = rep(NA, K)       # store terms coming from gaussian integral
 
-k = 2
+# k = 2
 
 for (k in 1:K) {
   
@@ -55,10 +55,11 @@ for (k in 1:K) {
   ub = bounds[k, seq(2, 2 * D, 2)] %>% unname %>% unlist
   
   # epmgp::pmvn(lb, ub, m_k, H_k_inv, log = TRUE)
-  epmgp::axisepmgp(m_k, H_k_inv, lb, ub)
+  # epmgp::axisepmgp(m_k, H_k_inv, lb, ub)$logZ
   
   # G_k[k] = epmgp::pmvn(lb, ub, m_k, H_k_inv, log = TRUE)
-  G_k[k] = ep_step(lb, ub, m_k, H_k_inv)
+  # G_k[k] = ep_step(lb, ub, m_k, H_k_inv)
+  G_k[k] = epmgp_stable(m_k, H_k_inv, b_k, lb, ub)$logZ
   
   # G_k[k] = log(TruncatedNormal::pmvnorm(m_k, H_k_inv, lb, ub)[1])
   

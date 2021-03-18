@@ -5,8 +5,9 @@ source("setup.R")           # setup global environment, load in algo functions
 setwd("C:/Users/ericc/mlike_approx/covariance")
 source("covarIW_helper.R")  # covariance related helper functions
 
-library(Rcpp)
-sourceCpp("C:/Users/ericc/mlike_approx/speedup/fast_covIW.cpp")
+
+source("C:/Users/ericc/mlike_approx/covariance/covarIW_helper.R")
+Rcpp::sourceCpp("C:/Users/ericc/mlike_approx/speedup/fast_covIW.cpp")
 
 N = 100                     # number of observations
 D = 6                       # num rows/cols in the covariance matrix
@@ -25,17 +26,17 @@ is.positive.definite(Sigma)
 
 
 ##
-## below is one iteration of the simulation: 
+## below is one iteration of the simulation:
 ##     (1) generate data
 ##     (2) sample from posterior
-##     (3) compute: 
-##                  (a) maximized likelihood 
+##     (3) compute:
+##                  (a) maximized likelihood
 ##                  (b) approximate logML
 ##                  (c) true logML
-## 
+##
 
 ## (1) generate data
-X = rmvnorm(N, mean = rep(0, D), sigma = Sigma) # (N x p)
+X = mvtnorm::rmvnorm(N, mean = rep(0, D), sigma = Sigma) # (N x p)
 S = t(X) %*% X                                  # (p x p)
 
 
@@ -50,25 +51,25 @@ log_density = function(u, data) {
 }
 
 hme_exp_term = function(u) {
-    
+
     L = matrix(0, D, D)             # (D x D) lower triangular matrix
     L[lower.tri(L, diag = T)] = u   # populate lower triangular terms
-    
+
     logDiagL = log(diag(L))         # log of diagonal terms of L
-    
-    
+
+
     # compute loglikelihood using the 'L' instead of 'Sigma' --> allows us
-    # to use simplified version of the determinant 
-    
-    loglik = - 0.5 * N * D * log(2 * pi) - N * sum(logDiagL) - 
+    # to use simplified version of the determinant
+
+    loglik = - 0.5 * N * D * log(2 * pi) - N * sum(logDiagL) -
         0.5 * matrix.trace(solve(L %*% t(L)) %*% S)
-    
+
     -loglik
 }
 
 
 hme_approx = function(u_df) {
-    
+
     # N   = params$N
     # D   = params$D
     # D_u = params$D_u
@@ -90,6 +91,8 @@ postIW = sampleIW(J, N, D_u, nu, S, Omega)     # post_samps, Sigma_post, L_post
 # have been collapsed into D_u dimensional vectors)
 post_samps = postIW$post_samps                 # (J x D_u)
 u_df = preprocess(post_samps, D_u, param_list)
+
+
 u_samp = as.matrix(post_samps)
 colnames(u_samp) = names(u_df)[1:D_u]
 # prepare bridge_sampler input()
@@ -109,12 +112,18 @@ bridge_result$logml
 
 
 
-(LIL = lil(param_list)) 
+(LIL = lil(param_list))
 # postIW = sampleIW(J, N, D_u, nu, S, Omega)     # post_samps, Sigma_post, L_post
 # post_samps = postIW$post_samps                 # (J x D_u)
 # u_df = preprocess(post_samps, D_u, param_list) # J x (D_u + 1)
 hybrid = hybrid_ml(D_u, u_df, J, param_list)
 hybrid$zhat
+
+lambda = function(u, params) { pracma::grad(psi_covar, u, params = params) }
+hess   = function(u, params) { pracma::hessian(psi_covar, u, params = params) }
+
+hybridml::hybml_const(u_df)$zhat
+hybridml::hybml(u_df, param_list, grad = lambda, hess = hess)
 
 
 # try the updated approximation using EP
@@ -135,15 +144,15 @@ J = 25
 set.seed(1)
 i = 1
 while (i <= B) {
-    
+
     postIW = sampleIW(J, N, D_u, nu, S, Omega)     # post_samps, Sigma_post, L_post
-    
+
     # these are the posterior samples stored as vectors (the lower cholesky factors
     # have been collapsed into D_u dimensional vectors)
     post_samps = postIW$post_samps                 # (J x D_u)
-    
-    
-    # u_df stores the posterior samples row-wise so that the first D_u columns 
+
+
+    # u_df stores the posterior samples row-wise so that the first D_u columns
     # store the lower cholesky factors in vector form, and the last column is
     # the function evaluate psi(u), so u \in R^(D_u), and psi(u) \in R
     u_df = preprocess(post_samps, D_u, param_list) # J x (D_u + 1)
@@ -153,7 +162,7 @@ while (i <= B) {
     # hybrid = logml(D_u, u_df, J, param_list)
     # hybrid = hybrid_ml(D_u, u_df, J, param_list)
     # if (any(is.na(hybrid))) {print(paste("error in iteration", i)); next;}
-    # 
+    #
     # hyb[i] = hybrid$zhat
 
 
@@ -171,7 +180,7 @@ while (i <= B) {
                                                    method = 'warp3')
     bridge[i] = bridge_result$logml
     # hme[i] = hme_approx(u_df)
-    
+
     print(paste("iter ", i, ': ',
                 # "hybrid = ", round(mean(hyb[hyb!=0]), 3),
                 # '; ', "ae = ", round(mean((LIL - hyb[hyb!=0])), 4),
@@ -180,9 +189,9 @@ while (i <= B) {
                 "ae = ", round(mean((LIL - bridge[bridge!=0])), 4),
                 # "hme = ", round(mean(hme[hme!=0]), 3), '; ',
                 # "ae = ", round(mean((LIL - hme[hme!=0])), 4),
-                sep = '')) 
+                sep = ''))
     i = i + 1
-    
+
 }
 
 
@@ -193,7 +202,7 @@ error = data.frame(approx = colMeans(approx), approx_sd = apply(approx, 2, sd),
 error
 
 fig_loc = 'C:/Users/ericc/mlike_approx/final_sims/'
-saveRDS(list(J = J, D = D, D_u = D_u, N = N, approx = approx, error = error), 
+saveRDS(list(J = J, D = D, D_u = D_u, N = N, approx = approx, error = error),
         file = paste(fig_loc, 'covarIW_d4_j25.RData', sep = ''))
 
 covar_iw_d4 = readRDS(paste(fig_loc, 'covarIW_d4_j25.RData', sep = ''))
@@ -214,16 +223,16 @@ delta_df = (LIL - approx) %>% dplyr::select(-c('LIL')) %>% melt()
 
 delta_df %>% head
 
-### figure dimensions for saving: (954 x 488) 
+### figure dimensions for saving: (954 x 488)
 ggplot(delta_df, aes(x = variable, y = value)) + geom_boxplot() +
-    geom_hline(yintercept = 0, col = 'red', size = 1, linetype = 'dashed') + 
-    coord_flip() + 
+    geom_hline(yintercept = 0, col = 'red', size = 1, linetype = 'dashed') +
+    coord_flip() +
     labs(y = expression(paste(Delta, ' ', ln, ' ', p(y))), x = '') +
-    theme_bw() + 
+    theme_bw() +
     theme(axis.text  = element_text(size=25),
-          axis.title = element_text(size=25,face="bold")) + 
+          axis.title = element_text(size=25,face="bold")) +
     scale_y_continuous(breaks = seq(-60, 0, 10))
-    
+
 
 
 

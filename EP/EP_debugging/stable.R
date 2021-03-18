@@ -1,35 +1,37 @@
 
 
-lpnorm = function(x) {
-  pnorm(x, log.p = TRUE)
-}
-
-Z_i_hat = exp(lpnorm(a * sqrt(2))) * 
-  expm1(lpnorm(b * sqrt(2)) - lpnorm(a * sqrt(2)))
-
-mu_i_hat = mu + sqrt(sigma / (2 * pi)) * exp(-b^2 - lpnorm(a * sqrt(2))) * 
-  expm1(-a^2 + b^2) / expm1(lpnorm(b * sqrt(2)) - lpnorm(a * sqrt(2)))
-
-mu_hat
-
-sigma_i_hat = mu^2 + sigma - mu_i_hat^2 + sqrt(sigma / (2 * pi)) * 
-  1 / Z_i_hat * ((lb + mu) * exp(-a^2) - (ub + mu) * exp(-b^2))
-
-sigma_i_hat
-
-sigma_hat
-
-all.equal(sigma_i_hat, Re(sigma_hat))
-sigma_i_hat == Re(sigma_hat)
-
-
-sourceCpp("C:/Users/ericc/rcpp-epmgp/src/axisepmgp.cpp")
-
-res_pkg = axisepmgp(m, K, lb, ub)
-
-res_pkg$logZ
-res_pkg$mu
-res_pkg$Sigma
+# lpnorm = function(x) {
+#   pnorm(x, log.p = TRUE)
+# }
+# 
+# Z_i_hat = exp(lpnorm(a * sqrt(2))) * 
+#   expm1(lpnorm(b * sqrt(2)) - lpnorm(a * sqrt(2)))
+# 
+# mu_i_hat = mu + sqrt(sigma / (2 * pi)) * exp(-b^2 - lpnorm(a * sqrt(2))) * 
+#   expm1(-a^2 + b^2) / expm1(lpnorm(b * sqrt(2)) - lpnorm(a * sqrt(2)))
+# 
+# mu_hat
+# 
+# sigma_i_hat = mu^2 + sigma - mu_i_hat^2 + sqrt(sigma / (2 * pi)) * 
+#   1 / Z_i_hat * ((lb + mu) * exp(-a^2) - (ub + mu) * exp(-b^2))
+# 
+# sigma_i_hat
+# 
+# sigma_hat
+# 
+# all.equal(sigma_i_hat, Re(sigma_hat))
+# sigma_i_hat == Re(sigma_hat)
+# 
+# 
+# sourceCpp("C:/Users/ericc/rcpp-epmgp/src/axisepmgp.cpp")
+# 
+# res_pkg = axisepmgp(m_k, H_k_inv, lb[4], ub[4])
+# 
+# trunc_norm_moments(lb[4], ub[4])
+# 
+# res_pkg$logZ
+# res_pkg$mu
+# res_pkg$Sigma
 
 tn_moments = function(lb_vec, ub_vec, mu_in, sigma_in) {
 
@@ -82,14 +84,14 @@ tn_moments = function(lb_vec, ub_vec, mu_in, sigma_in) {
 
 
 
-tn_cpp = trunc_norm_moments(lb, ub, nu_cavity / tau_cavity, 1 / tau_cavity)
-tn_r   = tn_moments(lb, ub, nu_cavity / tau_cavity, 1 / tau_cavity)
-
-
-all.equal(
-  lapply(tn_cpp, as.matrix),
-  lapply(tn_r, as.matrix)
-)
+# tn_cpp = trunc_norm_moments(lb, ub, nu_cavity / tau_cavity, 1 / tau_cavity)
+# tn_r   = tn_moments(lb, ub, nu_cavity / tau_cavity, 1 / tau_cavity)
+# 
+# 
+# all.equal(
+#   lapply(tn_cpp, as.matrix),
+#   lapply(tn_r, as.matrix)
+# )
 
 
 

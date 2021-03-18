@@ -10,7 +10,52 @@ source("C:/Users/ericc/mlike_approx/covariance/gWish_helper.R")
 library(BDgraph)
 library(Rcpp)
 
-# compute normalizing constant for G_5
+# Eq. (2.4) in Uhler paper (p.12)
+I_G = function(delta) {
+    7/2 * log(pi) + lgamma(delta + 5/2) - lgamma(delta + 3) + 
+        lgamma(delta + 1) + lgamma(delta + 3/2) + 2 * lgamma(delta + 2) + 
+        lgamma(delta + 5/2)
+}
+
+
+d = 5
+delta = 3
+# |E| = 7. Applying formula at the end of pg.2 
+# of the Uhler paper. 
+#log normalizing  constant of the G-WIshart is 
+log(2^(0.5*d*delta + 7)) + I_G(0.5*(delta-2))
+
+
+d = 5 # number vertices
+G_5 = matrix(c(1,1,0,1,1,
+               1,1,1,0,0,
+               0,1,1,1,1,
+               1,0,1,1,1,
+               1,0,1,1,1), d, d)
+
+
+I_G(delta)
+V = diag(1, d)
+gnorm(G_5, delta, V, 100)
+
+post_gW = sampleGW(J, D_0, G_5, delta, N, V, S) %>% data.frame()
+
+xi = delta + nu_i - 1
+
+# construct D_0 x 2 matrix, where each row has the row, column of each of the 
+# free parameters **in order** (order matters because this is how they are
+# populated in both the gradient vector and the hessian matrix)
+index_mat = matrix(0, p, p)
+index_mat[upper.tri(index_mat, diag = T)] = 1:D_0
+index_mat[upper.tri(index_mat, diag = T)]
+t_ind = which(index_mat!=0,arr.ind = T)
+t_ind
+
+params = list(N = N, D = D, D_0 = D_0, S = S, b = delta, V = V, 
+              G = G_5, nu = nu_i, xi = xi,
+              t_ind = t_ind)
+
+# compute normalizing constant for G_5 -----------------------------------------
 
 # Eq. (2.4) in Uhler paper (p.12)
 I_G = function(delta) {
@@ -58,7 +103,7 @@ V = diag(1, D)
 delta = b
 
 
-J = 1000
+J = 5000
 N = 0
 S = 0
 
@@ -94,14 +139,14 @@ Lt
 # hml_approx = hml_const(1, D_0, u_df, J, params)
 # hml_approx$const_vec
 # 
-# gnorm(G_5, delta_post, V, 100)
-# 
+gnorm(G_5, delta_post, V, 100)
+
 # 
 # hybml(u_df, params = params, psi = psi, grad = grad_gwish, hess = hess_gwish)
 # ------------------------------------------------------------------------------
 
 D = D_0
-D = D_u
+# D = D_u
 ## (2) fit the regression tree via rpart()
 u_rpart = rpart(psi_u ~ ., u_df)
 
@@ -146,12 +191,12 @@ G_k = rep(NA, K)       # store terms coming from gaussian integral
 
 # lambda_k = apply(psi_df[,1:D], 1, lambda, params = params)
 
-k = 2
-for (k in 1:K) {
+k = 1
+for (k in 1:nrow(bounds)) {
     
     u_k = unname(unlist(psi_df[k,1:D]))
     
-    # H_k = pracma::hessian(psi, u_k, params = params)
+    # H_k = pracma::hessian(slow_psi, u_k, params = params)
     H_k = hess(u_k, params)
     H_k_inv = chol2inv(chol(H_k))
     
@@ -167,7 +212,9 @@ for (k in 1:K) {
     # epmgp::axisepmgp(m_k, H_k_inv, lb, ub)
     
     # G_k[k] = epmgp::pmvn(lb, ub, m_k, H_k_inv, log = TRUE)
-    G_k[k] = ep_step(lb, ub, m_k, H_k_inv)
+    # G_k[k] = ep_step(lb, ub, m_k, H_k_inv)
+    
+    G_k[k] = epmgp_stable(m_k, H_k_inv, b_k, lb, ub, EPS_CONVERGE = 1e-5)$logZ
 
     # G_k[k] = log(TruncatedNormal::pmvnorm(m_k, H_k_inv, lb, ub)[1])
     
@@ -178,6 +225,7 @@ for (k in 1:K) {
 }
 
 G_k
+log_terms
 
 # mean(G_k)
 # G_k[G_k == 0] = mean(G_k)
@@ -186,8 +234,8 @@ G_k
 # log_terms
 
 log_sum_exp(log_terms - G_k)
-
 log_sum_exp(log_terms)
+gnorm(G_5, delta, V, 1000)
 gnorm(G_5, delta_post, V, 100)
 
 

@@ -23,7 +23,7 @@ sampleGW = function(J, D_0, G, b, N, V, S) {
 
 preprocess = function(post_samps, D, params) {
     
-    psi_u = apply(post_samps, 1, psi, params = params) %>% unname() # (J x 1)
+    psi_u = apply(post_samps, 1, slow_psi, params = params) %>% unname() # (J x 1)
     
     # (1.2) name columns so that values can be extracted by partition.R
     u_df_names = character(D + 1)
@@ -64,23 +64,6 @@ gwish_loglik = function(u, params) {
 
 gwish_logprior = function(u, params) {
     
-    G   = params$G
-    D   = params$D
-    b   = params$b # degree of freedom for G-wishart distribution
-    V   = params$V # scale matrix for G-wishart distribution
-    
-    Lt = matrix(0, D, D)              # (D x D) lower triangular matrix
-    Lt[upper.tri(Lt, diag = T)] = u   # populate lower triangular terms
-    
-    logprior = - gnorm(G, b, V, 100) + (b - 2) * sum(log(diag(Lt))) - 
-        0.5 * matrix.trace(t(Lt) %*% Lt %*% V)
-    
-    return(logprior)
-}
-
-
-gwish_logprior = function(u, params) {
-    
     D   = params$D
     b   = params$b # degree of freedom for G-wishart distribution
     V   = params$V # scale matrix for G-wishart distribution
@@ -101,10 +84,10 @@ gwish_logprior = function(u, params) {
 ## psi() function  -------------------------------------------------------------
 slow_psi = function(u, params) {
     
-    # loglik = gwish_loglik(u, params)
+    loglik = gwish_loglik(u, params)
     logprior = gwish_logprior(u, params)
     
-    return(- logprior)
+    return(- logprior - loglik)
     
 } # end of psi() function ------------------------------------------------------
 

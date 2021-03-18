@@ -1,10 +1,11 @@
 
 # setwd("C:/Users/ericc/Dropbox/eric chuu research/GGM/")
 
-library(BDgraph)
+# library(BDgraph)
 # source("C:/Users/ericc/Dropbox/eric chuu research/GGM/makedecompgraph.R")
 # source("C:/Users/ericc/Dropbox/eric chuu research/GGM/Wishart_InvA_RNG.R")
 # source("C:/Users/ericc/Dropbox/eric chuu research/GGM/HIWsim.R")
+
 
 
 

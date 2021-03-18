@@ -100,7 +100,7 @@ other_var
 
 # 1/z *  ((lb + mu) * exp(-a^2) - (ub + mu) * exp(-b^2))
 
-1/other_var - tau_cavity - tau_site
+1/other_var - tau_cavity[3] - tau_site[3]
 
 mu_hat
 sigma_hat

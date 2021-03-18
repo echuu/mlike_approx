@@ -20,7 +20,7 @@ library('rBayesianOptimization') # Matrix_unif()
 library('tmg')
 library('TruncatedNormal')
 library('BayesianTools')
-# library('BDgraph')
+library('BDgraph')
 # library('MLmetrics')
  
 
