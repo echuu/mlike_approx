@@ -11,38 +11,43 @@ float create_loTriag(arma::mat& L, Rcpp::NumericVector& u);
 inline float logmultigamma (unsigned int p, float a);
 float cov_loglik (Rcpp::NumericVector& u, Rcpp::List& params); 
 float cov_logprior(Rcpp::NumericVector& u, Rcpp::List& params); 
+arma::mat vec2chol(Rcpp::NumericVector& u, Rcpp::List& params);
 
 
 // [[Rcpp::export]]
 inline float psi(Rcpp::NumericVector& u, Rcpp::List& params) {
-	return -cov_logprior(u, params); 
+	return -cov_logprior(u, params) - cov_loglik(u, params); 
 }
 
+// [[Rcpp::export]]
 float cov_loglik (Rcpp::NumericVector& u, Rcpp::List& params) {
 	int N = params["N"];
 	int D = params["D"];
 	arma::mat S = params["S"];
 	
-	arma::mat L(D, D, arma::fill::zeros);
-
-	float logDiagL = create_loTriag(L, u);
-	arma::mat inv_L = inv(L);
-	arma::mat t_inv_L = inv_L.t();
-
-	float loglik = -0.5 * N * D * std::log(2*M_PI) - N * logDiagL - 
-					0.5 * arma::trace(t_inv_L * inv_L * S);
-
+	arma::mat Lt = vec2chol(u, params);
+	float logdet = 0;
+	for (int i = 0; i < D; i++) {
+		logdet += std::log(Lt(i,i));
+	}
+	float loglik = -0.5 * N * D * std::log(2*M_PI) + N * logdet - 
+					0.5 * arma::trace(Lt.t() * Lt * S);
 	return loglik;
 }
 
 // [[Rcpp::export]]
-arma::mat vec2chol(Rcpp::NumericVector& u, u_int D) {
+arma::mat vec2chol(Rcpp::NumericVector& u, Rcpp::List& params) {
+
+	u_int D      = params["D"];
+	arma::mat G  = params["G"];
 
 	arma::mat Lt(D, D, arma::fill::zeros);
 	u_int p = 0;
 	for (u_int c = 0; c < D; c++) {
 		for (u_int r = 0; r <= c; r++) {
-			Lt(r, c) = u[p++];	
+			if (G(r,c) > 0) {
+				Lt(r, c) = u[p++];	
+			}
 		}
 	}
 	return Lt;
@@ -51,113 +56,139 @@ arma::mat vec2chol(Rcpp::NumericVector& u, u_int D) {
 
 
 // [[Rcpp::export]]
-Rcpp::NumericVector chol2vec(arma::mat& M, u_int D) {
+Rcpp::NumericVector chol2vec(arma::mat& M, Rcpp::List& params) {
 
-	u_int k = 0; 
-	u_int D_0 = D * (D + 1) / 2;
-	Rcpp::NumericVector u(D_0);
+	u_int D      = params["D"];
+	u_int D_u    = params["D_u"];
+	arma::mat G  = params["G"];
+	u_int k      = 0; // used to increment the index in the vector u 
+	Rcpp::NumericVector u(D_u);
 	for (u_int c = 0; c < D; c++) {
 		for (u_int r = 0; r <= c; r++) {
-			u[k++] = M(r, c);	
+			if (G(r,c) > 0) {
+				u[k++] = M(r, c);
+			}
 		}
 	}
 	return u;
 }
 
 
-
 // [[Rcpp::export]]
 Rcpp::NumericVector grad(Rcpp::NumericVector& u, Rcpp::List& params) {
 	arma::vec nu     = params["nu"];
 	arma::vec xi     = params["xi"];
-	//arma::mat V      = params["V"];
-	u_int D   = params["D"];
-	u_int D_0 = params["D_0"];
-	u_int N   = params["N"];
+	arma::mat V      = params["V"];
+	arma::mat S      = params["S"]; 
+	u_int D          = params["D"];   // dimension of the cholesky factor
+	u_int D_u        = params["D_u"]; // dimension of the parameter
+	u_int N          = params["N"];
 
-	arma::mat Lt = vec2chol(u, D);
+	arma::mat Lt = vec2chol(u, params);
 
 	arma::mat diag_terms(D, D, arma::fill::zeros);
 	for (u_int i = 0; i < D; i++) { 
 		diag_terms(i,i) = (xi[i] + N) / Lt(i,i); 
 	}
 	
-	arma::mat grad(D, D, arma::fill::zeros);
-	grad = - diag_terms + Lt * S + Lt;
+	arma::mat grad_mat(D, D, arma::fill::zeros);
+	grad_mat = - diag_terms + Lt * S + Lt;
 
-	Rcpp::NumericVector grad_vec = chol2vec(grad, D);
-
+	Rcpp::NumericVector grad_vec = chol2vec(grad_mat, params);
 	return grad_vec;
+	// return Lt;
 }
 
-/*
+
 // [[Rcpp::export]]
 arma::mat hess(Rcpp::NumericVector& u, Rcpp::List& params) {
 
 	arma::vec nu      = params["nu"];
 	arma::vec xi      = params["xi"];
 	arma::mat V       = params["V"];
+	arma::mat S       = params["S"]; 
 	unsigned int D    = params["D"];
-	unsigned int D_0  = params["D_0"];
+	unsigned int D_u  = params["D_u"];
+	u_int N           = params["N"];
 	arma::mat ind_mat = params["t_ind"];
 
 	// initialize the output matrix
-	arma::mat H(D_0, D_0, arma::fill::zeros);
+	arma::mat H(D_u, D_u, arma::fill::zeros);
 
 	// reconstruct upper cholesky factor -- to be moved into another function
-	arma::mat Lt = vec2chol(u, D);
+	arma::mat Lt = vec2chol(u, params);
+
 
 	unsigned int i, j, k, l, r, c;
-	arma::mat test(D_0, 2, arma::fill::zeros);
-	for (r = 0; r < D_0; r++) {
+	// arma::mat test(D_u, 2, arma::fill::zeros);
+
+	for (r = 0; r < D_u; r++) {
 		i = ind_mat(r, 0) - 1; // subtract one to account for 0-index
 		j = ind_mat(r, 1) - 1;
 		c = r;
-		while (c < D_0) {
+		while (c < D_u) {
 
 			k = ind_mat(c, 0) - 1; // row of 2nd order partial
 			l = ind_mat(c, 1) - 1; // col of 2nd order partial
 
 			if (i != k) {
 				H(r,c) = 0;
+				H(c,r) = 0;
+			} else if (i == j && k == i && l > j) {
+				H(r,c) = -S(l,j);
+				H(c,r) = H(r,c);
 			} else if (i == j && j == k && k == l) {
-				H(r,c) = xi(i) / std::pow(Lt(i,i), 2) + V(i,i);
-			} else if (i != j && k == i && l >= j) {
-				H(r,c) = V(l,j);
+				// -1/Lt[i,i]^2 * (N + xi[i]) - S[i,i] - 1
+				H(r,c) = -(xi(i) + N) / std::pow(Lt(i,i), 2) - S(i,i) - 1;
+				H(c,r) = H(r,c);
+			} else if (i != j && k == i && l == j) {
+				H(r,c) = -S(l, j) - 1;
+				H(c,r) = H(r,c);
+			} else if (i != j && k == i && l > j) {
+				H(r,c) = -S(l, j);
+				H(c,r) = H(r,c);
 			}
 			c++;
 		} // end inner while loop
+		// return ind_mat;
 
 	} // end for() populating hessian matrix
 
-	H = 0.5 * (H + H.t());
+	// H = 0.5 * (H + H.t());
 
-	return H;
+	return -H;
 }
-*/
 
 
-
+// [[Rcpp::export]]
 float cov_logprior(Rcpp::NumericVector& u, Rcpp::List& params) {
 
 	arma::mat V     = params["V"];
 	unsigned int b  = params["b"];
 	unsigned int D  = params["D"];
 	arma::vec nu    = params["nu"];
-	arma::mat Lt(D, D, arma::fill::zeros);
+	arma::mat G  = params["G"];
+	// arma::mat Lt(D, D, arma::fill::zeros);
 
-	unsigned int k = 0;
-	for (unsigned int c = 0; c < D; c++) {
-		for (unsigned int r = 0; r <= c; r++) {
-			Lt(r, c) = u[k++];	
+	arma::mat Lt = vec2chol(u, params);
+	float logprior = 0;
+	// TODO: compute upper diagonal part of the log prior
+	for (int r = 0; r < D; r++) {
+		for (int c = (r+1); c < D; c++) {
+			if (G(r,c) > 0) {
+				logprior += -0.5 * std::log(2 * M_PI) - 0.5 * std::pow(Lt(r,c), 2);
+			}
 		}
 	}
 
-	float logprior = 0;
+
+	// compute diagonal part of the log prior
 	for (unsigned int i = 0; i < D; i++) {
-		logprior += (b + nu(i) - 1) * std::log(Lt(i,i));
+		logprior += -0.5*(b + nu(i)) * std::log(2) - 
+						lgamma(0.5*(b + nu(i))) +  
+						(b + nu(i) - 2) * std::log(Lt(i,i)) - 
+						0.5 * std::pow(Lt(i,i), 2) + std::log(2 * Lt(i,i));
 	}
-	logprior += - 0.5 * arma::trace(Lt.t() * Lt * V) + D * std::log(2);
 
 	return logprior;
 }

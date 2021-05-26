@@ -1,16 +1,14 @@
 
 
-setwd("C:/Users/ericc/normalizingconstant/Code Jason Wyse")
-source("ModelEvidence.R")
+# setwd("C:/Users/ericc/normalizingconstant/Code Jason Wyse")
+source("C:/Users/ericc/normalizingconstant/Code Jason Wyse/ModelEvidence.R")
 
-RadiataPine = read.table("RadiataPine.txt",sep = " ",header = TRUE)
+RadiataPine = read.table("C:/Users/ericc/normalizingconstant/Code Jason Wyse/RadiataPine.txt",
+                         sep = " ", header = TRUE)
 y = RadiataPine$y
 n = length(y)
 X1 = cbind(rep(1,n),RadiataPine$x-mean(RadiataPine$x))
-
 X2 = cbind(rep(1,n),RadiataPine$z - mean(RadiataPine$z))
-
-
 
 X = X1 # (42 x 2)
 # X = X2
@@ -58,12 +56,13 @@ yTy = t(y)%*%y
 c0 = yTy + t(mu0)%*%(tau0%*%mu0) - t(beta0)%*%M%*%beta0
 c1 = t(mu0)%*%tau0%*%mu0
 
-LIL = -0.5*n*logPi + 0.5*log.dettau0 - 0.5*log.detM + 0.5*alpha*log(delta) + 
+LIL = -0.5*n*logPi + 0.5*log.dettau0 - 0.5*log.detM + 0.5*alpha*log(delta) +
     lgamma((n+alpha)/2) - lgamma(alpha/2) -0.5*(n+alpha)*log(c0+delta)
 
+LIL
 
 params = list(Q_0 = Lambda0, mu0 = mu0, alpha = alpha, beta = beta,
-              d = d, n = n, 
+              d = d, n = n,
               X = X, y = y)
 
 
@@ -71,7 +70,9 @@ params = list(Q_0 = Lambda0, mu0 = mu0, alpha = alpha, beta = beta,
 setwd("C:/Users/ericc/mlike_approx/algo")
 source("setup.R")           # setup global environment, load in algo functions
 source("C:/Users/ericc/mlike_approx/EP/hybml.R")
+
 source("C:/Users/ericc/mlike_approx/radiata/radiata_helper.R")
+Rcpp::sourceCpp("C:/Users/ericc/mlike_approx/radiata/radiata.cpp")
 
 n.its   = 505000 # num iterations to run MCMC
 burn.in = 101000 # num burn-in
@@ -81,7 +82,8 @@ u_samps = u_samps %>% as.data.frame # 200000 x 3
 u_samps %>% dim
 
 D = d + 1
-u_df_all = preprocess(u_samps, D, params)
+u_df_all = hybridml::preprocess(u_samps, D, params)
+
 row.names(u_df_all) = NULL
 u_df_all %>% head
 u_df = u_df_all
@@ -111,7 +113,7 @@ for (i in 1:n_reps) {
     u_df = preprocess(u_samps, D, params)
     row.names(u_df) = NULL
     hyb_results[i] = hybml(u_df, params, psi, grad, hess) %>% suppressWarnings()
-    print(paste('iter: ', i, ' | hybrid = ', round(hyb_results[i], 3), 
+    print(paste('iter: ', i, ' | hybrid = ', round(hyb_results[i], 3),
                 ' (error = ', round(hyb_results[i] - LIL, 3), ')',
                 sep = ''))
 }
@@ -120,7 +122,7 @@ x11()
 results = data.frame(LIL = LIL, hyb_results = hyb_results, misc = hyb_results)
 results_long = melt(results, id.vars = "LIL")
 results_long %>% head
-ggplot(results_long, aes(x = variable, y = value)) + geom_boxplot() + 
+ggplot(results_long, aes(x = variable, y = value)) + geom_boxplot() +
     geom_hline(yintercept = LIL, col = 'red', size = 1, linetype = 'dashed')
 hyb_results
 
@@ -139,7 +141,7 @@ approx_df_sub = approx_df %>% dplyr::select(-c("HME", "NS"))
 approx_long = melt(approx_df_sub, id.vars = "LIL")
 approx_long %>% head
 x11()
-ggplot(approx_long, aes(x = variable, y = value)) + geom_boxplot() + 
+ggplot(approx_long, aes(x = variable, y = value)) + geom_boxplot() +
     geom_hline(yintercept = LIL, col = 'red', size = 1, linetype = 'dashed')
 
 
@@ -149,11 +151,13 @@ library(Rcpp)
 setwd("C:/Users/ericc/mlike_approx/algo")
 source("setup.R")           # setup global environment, load in algo functions
 source("C:/Users/ericc/mlike_approx/EP/hybml.R")
-sourceCpp("C:/Users/ericc/mlike_approx/radiata/radiata.cpp")
+
+
+Rcpp::sourceCpp("C:/Users/ericc/mlike_approx/radiata/radiata.cpp")
 source("C:/Users/ericc/mlike_approx/radiata/radiata_helper.R")
 
 params = list(Q_0 = Lambda0, mu0 = mu0, alpha = alpha, delta = delta,
-              d = d, n = n, M = M, 
+              d = d, n = n, M = M,
               X = X, y = y, Xty = t(X) %*% y,
               tau0 = Lambda0, beta0 = beta0,
               ldtau0 = log.dettau0)
@@ -167,7 +171,7 @@ u_samps = u_samps %>% as.data.frame # 200000 x 3
 u_samps %>% dim
 
 D = d + 1
-u_df_all = preprocess(u_samps, D, params)
+u_df_all = hybridml::preprocess(u_samps, D, params = params)
 row.names(u_df_all) = NULL
 u_df_all %>% head
 u_df = u_df_all
@@ -175,6 +179,18 @@ u_df = u_df_all
 u_df %>% head
 
 hybml(u_df, params, psi, grad, hess)
+
+## hybrid approximation (constant)
+out1 = hybridml::hybml_const(u_df)
+out1$logz
+
+## hybrid approximation (EP)
+out2 = hybridml::hybml(u_df, params, grad = grad, hess = hess)
+out2$logz
+
+LIL
+
+
 # hybml(u_df, params, old_psi, old_grad, old_hess)
 # LIL
 
@@ -186,7 +202,7 @@ for (i in 1:n_reps) {
     u_df = preprocess(u_samps, D, params)
     row.names(u_df) = NULL
     hyb_results[i] = hybml(u_df, params, psi, grad, hess)
-    print(paste('iter: ', i, ' | hybrid = ', round(hyb_results[i], 3), 
+    print(paste('iter: ', i, ' | hybrid = ', round(hyb_results[i], 3),
                 ' (error = ', round(hyb_results[i] - LIL, 3), ')',
                 sep = ''))
 }
@@ -205,21 +221,21 @@ x11()
 
 #### (1) first one including all estimators (including HME, NS)
 approx_1_long = melt(approx_df, id.vars = "LIL")
-ggplot(approx_1_long, aes(x = variable, y = value)) + geom_boxplot() + 
+ggplot(approx_1_long, aes(x = variable, y = value)) + geom_boxplot() +
     geom_hline(yintercept = LIL, col = 'red', size = 1, linetype = 'dashed')
 
 
 #### (2) second one including all estimators except HME, NS
 approx_2 = approx_df %>% dplyr::select(-c("HME", "NS"))
 approx_2_long = melt(approx_2, id.vars = "LIL")
-ggplot(approx_2_long, aes(x = variable, y = value)) + geom_boxplot() + 
+ggplot(approx_2_long, aes(x = variable, y = value)) + geom_boxplot() +
     geom_hline(yintercept = LIL, col = 'red', size = 1, linetype = 'dashed')
 
 
 #### (3) last one including only good estimators: LAP, Chib, Hybrid
 approx_3 = approx_df %>% dplyr::select("LAP", "C", "HYB", "LIL")
 approx_3_long = melt(approx_3, id.vars = "LIL")
-ggplot(approx_3_long, aes(x = variable, y = value)) + geom_boxplot() + 
+ggplot(approx_3_long, aes(x = variable, y = value)) + geom_boxplot() +
     geom_hline(yintercept = LIL, col = 'red', size = 1, linetype = 'dashed')
 
 
@@ -257,7 +273,7 @@ for (i in 1:n_reps) {
     u_df = preprocess(u_samps, D, params)
     row.names(u_df) = NULL
     hyb_results[i] = hybml(u_df, params, psi, grad, hess, u_0 = u_star)
-    print(paste('iter: ', i, ' | hybrid = ', round(hyb_results[i], 3), 
+    print(paste('iter: ', i, ' | hybrid = ', round(hyb_results[i], 3),
                 ' (error = ', round(hyb_results[i] - LIL, 3), ')',
                 sep = ''))
 }
@@ -280,32 +296,32 @@ x11()
 
 #### (1) first one including all estimators (including HME, NS)
 approx_1_long = melt(approx_df, id.vars = "LIL")
-ggplot(approx_1_long, aes(x = variable, y = value)) + geom_boxplot() + 
+ggplot(approx_1_long, aes(x = variable, y = value)) + geom_boxplot() +
     geom_hline(yintercept = LIL, col = 'red', size = 1, linetype = 'dashed')
 
 
 #### (2) second one including all estimators except HME, NS
 approx_2 = approx_df %>% dplyr::select(-c("HME", "NS"))
 approx_2_long = melt(approx_2, id.vars = "LIL")
-ggplot(approx_2_long, aes(x = variable, y = value)) + geom_boxplot() + 
+ggplot(approx_2_long, aes(x = variable, y = value)) + geom_boxplot() +
     geom_hline(yintercept = LIL, col = 'red', size = 1, linetype = 'dashed')
 
 
 #### old testing code ----------------------------------------------------------
 
 ggplot(delta_df, aes(x = variable, y = value)) + geom_boxplot() +
-    geom_hline(yintercept = 0, col = 'red', size = 1, linetype = 'dashed') + 
-    coord_flip() + 
+    geom_hline(yintercept = 0, col = 'red', size = 1, linetype = 'dashed') +
+    coord_flip() +
     labs(y = expression(paste(Delta, ' ', ln, ' ', p(y))), x = '') +
-    theme_bw() + 
+    theme_bw() +
     theme(axis.text  = element_text(size=25),
-          axis.title = element_text(size=25,face="bold")) + 
+          axis.title = element_text(size=25,face="bold")) +
     scale_y_continuous(breaks = seq(-60, 0, 10))
 
 library(Rcpp)
 
 params = list(Q_0 = Lambda0, mu0 = mu0, alpha = alpha, delta = delta,
-              d = d, n = n, M = M, 
+              d = d, n = n, M = M,
               X = X, y = y, Xty = t(X) %*% y,
               tau0 = Lambda0, beta0 = beta0,
               ldtau0 = log.dettau0)
