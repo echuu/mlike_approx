@@ -296,6 +296,7 @@ G_5 = matrix(c(1,1,0,1,1,
 
 
 N = 100
+
 V = diag(1, p)
 delta_post = delta + N
 

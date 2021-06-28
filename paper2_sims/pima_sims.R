@@ -52,6 +52,14 @@ while (j <= n_sims) {
 }
 
 
+## testing laplace
+E2$log.laplace.evidence()
+
+## generating laplace estimator using grad, hess
+u_star
+0.5*(d)*log2Pi - 0.5*log_det(hess(u_star, params)) - psi(u_star)
+
+
 
 m1_logz = hyb # evidence of model 2
 mean(m1_logz)
@@ -89,24 +97,25 @@ names(logz_m2)[2] = "L-MAP"
 library(ggplot2)
 m1_long = reshape2::melt(logz_m1)
 m1_plot = ggplot(m1_long, aes(x = variable, y = value)) +
-  geom_boxplot(lwd = 0.7) +
+  geom_boxplot(lwd = 0.9) +
   labs(x = '', y = '', title = 'Model 1') +
   theme_bw() +
-  theme(plot.title = element_text(hjust = 0.5, size = 22),
-        axis.text=element_text(size=15))
+  theme(plot.title = element_text(hjust = 0.5, size = 25),
+        axis.text=element_text(size=22))
 m1_plot
 
 
 m2_long = reshape2::melt(logz_m2)
 m2_plot = ggplot(m2_long, aes(x = variable, y = value)) +
-  geom_boxplot(lwd = 0.7) +
+  geom_boxplot(lwd = 0.9) +
   labs(x = '', y = '', title = 'Model 2') +
   theme_bw() +
-  theme(plot.title = element_text(hjust = 0.5, size = 22),
-        axis.text=element_text(size=15))
+  theme(plot.title = element_text(hjust = 0.5, size = 25),
+        axis.text=element_text(size=22))
 m2_plot
 
 
+multiplot(m1_plot, m2_plot, cols = 2)
 
 
 
